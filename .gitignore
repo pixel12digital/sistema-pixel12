@@ -1,0 +1,99 @@
+# Dependencies
+/vendor/
+/node_modules/
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Configuration files with sensitive data
+config/database.php
+config/asaas.php
+config/deployment.php
+
+# Logs
+/logs/
+*.log
+
+# Cache
+/cache/
+/tmp/
+
+# Uploads
+/storage/uploads/
+/public/uploads/
+
+# Database backups
+/backups/
+*.sql
+*.sql.gz
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled assets
+/public/assets/compiled/
+/public/css/compiled/
+/public/js/compiled/
+
+# Session files
+/sessions/
+
+# Error logs
+error_log
+access_log
+
+# Temporary files
+*.tmp
+*.temp
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+
+# Hostinger specific
+public_html/
+private_html/
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Arquivos temporários
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Arquivos de configuração local
+config_local.php
+
+# Arquivos de backup
+*.bak
+*.backup
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Arquivos de upload (se houver)
+uploads/
+files/
+
+# Arquivos de sessão
+sessions/
+
+# Arquivos de configuração do servidor
+.htaccess.local 
