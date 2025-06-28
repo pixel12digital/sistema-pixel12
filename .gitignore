@@ -62,7 +62,6 @@ access_log
 *.crt
 
 # Hostinger specific
-public_html/
 private_html/
 
 # Arquivos do sistema
