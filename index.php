@@ -12,7 +12,7 @@ require_once 'src/Controllers/Financeiro/AssinaturasController.php';
 
 // Obter a URL da requisição
 $request_uri = $_SERVER['REQUEST_URI'];
-$base_path = '/loja-virtual-revenda';
+$base_path = '/';
 $path = str_replace($base_path, '', $request_uri);
 $path = parse_url($path, PHP_URL_PATH);
 

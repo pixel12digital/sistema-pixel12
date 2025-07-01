@@ -1,5 +1,5 @@
 RewriteEngine On
-RewriteBase /loja-virtual-revenda/
+RewriteBase /
 
 # Se o recurso não existir como arquivo ou diretório, envie para index.php
 RewriteCond %{REQUEST_FILENAME} !-f
