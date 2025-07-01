@@ -17,8 +17,10 @@ require_once 'src/Controllers/Financeiro/AssinaturasController.php';
 $request_uri = $_SERVER['REQUEST_URI'];
 $base_path = '/';
 $path = parse_url($request_uri, PHP_URL_PATH); // pega só o path da URL
-$path = str_replace($base_path, '', $path);    // remove o base_path do início
-$path = ltrim($path, '/');                     // remove só a barra inicial
+if (strpos($path, $base_path) === 0) {
+    $path = substr($path, strlen($base_path));
+}
+$path = ltrim($path, '/');
 
 // Debug: mostrar a URL processada
 echo "URL processada: '$path'<br>";
