@@ -11,6 +11,7 @@ if (!isset($_SESSION['logado']) || !$_SESSION['logado']) {
     <meta charset="UTF-8">
     <title>Painel - Configurações</title>
     <link rel="stylesheet" href="assets/style.css">
+    <base href="/loja-virtual-revenda/">
 </head>
 <body>
 <?php include 'menu_lateral.php'; ?>

@@ -16,6 +16,7 @@ $totalLogs = 5;
     <meta charset="UTF-8">
     <title>Painel - Dashboard</title>
     <link rel="stylesheet" href="assets/style.css">
+    <base href="/loja-virtual-revenda/">
 </head>
 <body>
 <?php include 'menu_lateral.php'; ?>

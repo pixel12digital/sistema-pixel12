@@ -29,6 +29,7 @@ if (isset($_SESSION['logado']) && $_SESSION['logado']) {
     <meta charset="UTF-8">
     <title>Painel Administrativo - Login</title>
     <link rel="stylesheet" href="assets/style.css">
+    <base href="/loja-virtual-revenda/">
     <style>
         body.login-bg {
             background: #181c23;

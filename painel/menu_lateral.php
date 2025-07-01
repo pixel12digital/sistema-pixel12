@@ -116,19 +116,19 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
         </div>
         <!-- Financeiro -->
         <div class="sidebar-group<?php if(in_array($page,['faturas.php','assinaturas.php','contas-pagar.php'])) echo ' open'; ?>">
-            <a href="#" class="sidebar-link has-sub" title="Financeiro">
+            <a href="/loja-virtual-revenda/financeiro/faturas" class="sidebar-link has-sub" title="Financeiro">
                 <!-- Lucide CreditCard SVG -->
                 <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                 <span class="sidebar-label">Financeiro</span>
                 <span class="sidebar-tooltip">Financeiro</span>
             </a>
             <div class="sidebar-submenu">
-                <a href="/admin/faturas.php" class="sidebar-sublink<?php if($page=='faturas.php') echo ' active'; ?>">
+                <a href="/loja-virtual-revenda/financeiro/faturas" class="sidebar-sublink<?php if($page=='faturas.php') echo ' active'; ?>">
                     <!-- Lucide CreditCard SVG -->
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                     Faturas
                 </a>
-                <a href="/admin/assinaturas.php" class="sidebar-sublink<?php if($page=='assinaturas.php') echo ' active'; ?>">
+                <a href="/loja-virtual-revenda/financeiro/assinaturas" class="sidebar-sublink<?php if($page=='assinaturas.php') echo ' active'; ?>">
                     <!-- Lucide RefreshCcw SVG -->
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 22v-6h6"/><path d="M21 2a12 12 0 0 1-19.36 9"/><path d="M3 22A12 12 0 0 0 21 2"/></svg>
                     Assinaturas

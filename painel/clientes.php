@@ -13,6 +13,7 @@ $clientes = [
 // Cards de resumo (exemplo)
 $totalClientes = count($clientes);
 $totalBancos = count(array_unique(array_column($clientes, 'banco')));
+require_once 'config.php';
 require_once 'db.php';
 $result = $mysqli->query("SELECT * FROM clientes ORDER BY data_criacao DESC");
 ?>
@@ -22,6 +23,7 @@ $result = $mysqli->query("SELECT * FROM clientes ORDER BY data_criacao DESC");
     <meta charset="UTF-8">
     <title>Painel - Clientes</title>
     <link rel="stylesheet" href="assets/style.css">
+    <base href="/loja-virtual-revenda/">
 </head>
 <body>
 <?php include 'menu_lateral.php'; ?>

@@ -185,4 +185,56 @@ class AsaasService
     }
 
     // Métodos públicos serão implementados aqui
+
+    public function sincronizarFaturas(): int
+    {
+        $offset = 0;
+        $total = 0;
+        do {
+            $resp = $this->getAsaas("/v3/payments?offset={$offset}&limit=100");
+            foreach ($resp['data'] as $item) {
+                \App\Models\Fatura::updateOrCreate(
+                    ['asaas_id' => $item['id']],
+                    [
+                        'cliente_id'   => $item['customer'],
+                        'valor'        => $item['value'],
+                        'status'       => $item['status'],
+                        'invoice_url'  => $item['invoiceUrl'],
+                        'due_date'     => $item['dueDate'],
+                        'created_at'   => $item['dateCreated'],
+                        'updated_at'   => $item['dateUpdated'],
+                    ]
+                );
+                $total++;
+            }
+            $offset += 100;
+        } while (!empty($resp['data']));
+        return $total;
+    }
+
+    public function sincronizarAssinaturas(): int
+    {
+        $offset = 0;
+        $total = 0;
+        do {
+            $resp = $this->getAsaas("/v3/subscriptions?offset={$offset}&limit=100");
+            foreach ($resp['data'] as $item) {
+                \App\Models\Assinatura::updateOrCreate(
+                    ['asaas_id' => $item['id']],
+                    [
+                        'cliente_id'    => $item['customer'],
+                        'status'        => $item['status'],
+                        'periodicidade' => $item['billingType'],
+                        'start_date'    => $item['dateCreated'],
+                        'next_due_date' => $item['nextDueDate'],
+                        'created_at'    => $item['dateCreated'],
+                        'updated_at'    => $item['dateUpdated'],
+                    ]
+                );
+                $total++;
+            }
+            $offset += 100;
+        } while (!empty($resp['data']));
+        return $total;
+    }
 } 

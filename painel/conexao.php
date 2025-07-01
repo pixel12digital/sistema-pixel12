@@ -9,10 +9,10 @@ function conectarCliente($host, $usuario, $senha, $banco) {
 }
 
 // Conexão MySQL padrão para o painel (Hostinger)
-$host = 'srv1067.hstgr.io';
-$usuario = 'u819562010_revenda_sites';
-$senha = 'Los@ngo#081081';
-$banco = 'u819562010_revenda_sites';
+$host = DB_HOST;
+$usuario = DB_USER;
+$senha = DB_PASS;
+$banco = DB_NAME;
 $conn = new mysqli($host, $usuario, $senha, $banco);
 if ($conn->connect_error) {
     die('Erro na conexão com o banco de dados: ' . $conn->connect_error);

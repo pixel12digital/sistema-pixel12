@@ -1,0 +1,2 @@
+Arquivo de teste para verificar o acesso direto via navegador.
+Se você está vendo este texto, o Apache está servindo corretamente a pasta do projeto. 

@@ -1,6 +1,6 @@
 <?php
-require_once 'db.php';
 require_once 'config.php';
+require_once 'db.php';
 // Buscar clientes para o select
 $clientes = [];
 $res = $mysqli->query("SELECT id, nome, asaas_id FROM clientes ORDER BY nome");
@@ -88,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <title>Cadastrar Cobrança</title>
+    <base href="/loja-virtual-revenda/">
     <style>
         body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
         .form-container { max-width: 480px; margin: 3rem auto; background: #232836; border-radius: 10px; box-shadow: 0 2px 12px #1a1a1a44; padding: 2rem; }

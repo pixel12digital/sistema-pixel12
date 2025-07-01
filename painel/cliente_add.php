@@ -1,6 +1,6 @@
 <?php
-require_once 'db.php';
 require_once 'config.php';
+require_once 'db.php';
 
 function criarClienteAsaas($nome, $email, $telefone, $cpf_cnpj) {
     global $asaas_api_key, $asaas_api_url;
@@ -85,6 +85,7 @@ if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQU
 <head>
     <meta charset="UTF-8">
     <title>Cadastrar Cliente</title>
+    <base href="/loja-virtual-revenda/">
 </head>
 <body>
 <?php include 'menu_lateral.php'; ?>

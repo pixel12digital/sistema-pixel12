@@ -1,3 +1,97 @@
+# Loja Virtual Revenda
+
+Sistema multi-tenant para revenda de sites com painel administrativo, integração Asaas e deploy facilitado na Hostinger.
+
+---
+
+## 🚀 Funcionalidades
+
+- Gestão de clientes e cobranças (Asaas)
+- Painel administrativo completo
+- Deploy automatizado via Git
+- Banco de dados centralizado (Hostinger)
+- Estrutura pronta para produção
+
+---
+
+## 📁 Estrutura do Projeto
+
+```
+painel/                # Painel administrativo
+public/                # Arquivos públicos (webhook, assets)
+src/                   # Código de domínio (MVC)
+database/migrations/   # Migrations do banco
+config.php.example     # Exemplo de configuração
+.gitignore
+README.md
+```
+
+---
+
+## ⚙️ Instalação
+
+1. **Clone o repositório**
+   ```sh
+   git clone https://github.com/seu-usuario/seu-repositorio.git
+   cd seu-repositorio
+   ```
+
+2. **Configure o ambiente**
+   - Copie o arquivo de exemplo:
+     ```sh
+     cp config.php.example config.php
+     ```
+   - Edite `config.php` com os dados do banco centralizado e chave Asaas.
+
+3. **Instale dependências (se houver)**
+   - PHP: `composer install`
+   - Node: `npm install` (se usar frontend moderno)
+
+4. **Execute as migrations**
+   - Manualmente ou via script, conforme seu setup.
+
+---
+
+## 🚀 Deploy na Hostinger
+
+1. **Acesse a pasta `/public_html` do seu domínio na Hostinger**
+2. **Clone o repositório:**
+   ```sh
+   git clone https://github.com/seu-usuario/seu-repositorio.git .
+   ```
+3. **Atualize sempre com:**
+   ```sh
+   git pull
+   ```
+4. **Configure o `config.php` com os dados do banco da Hostinger**
+
+---
+
+## 🛡️ Segurança
+
+- Nunca versionar `config.php` real.
+- `.gitignore` cobre arquivos sensíveis, temporários e de ambiente.
+- Banco de dados centralizado, sempre protegido por senha forte.
+
+---
+
+## 📝 Observações
+
+- Nunca crie uma pasta `public_html` dentro do repositório.
+- O deploy é feito diretamente na raiz do domínio.
+- O banco de dados deve ser sempre o centralizado da Hostinger.
+
+---
+
+## 📞 Suporte
+
+- Email: suporte@seudominio.com
+- WhatsApp: (11) 99999-9999
+
+---
+
+**Desenvolvido para facilitar a revenda de sites com manutenção centralizada.**
+
 # Loja Virtual Multi-Cliente - Histórico e Orientações
 
 ## Sobre o Usuário
@@ -53,160 +147,6 @@ public_html/                ← Raiz do site na Hostinger
 ---
 
 **Este histórico deve ser mantido e atualizado em cada nova interação para garantir continuidade e clareza no suporte ao usuário.**
-
-# Loja Virtual Revenda - Painel Administrativo
-
-Sistema centralizado para revenda de sites e-commerce com código compartilhado e atualizações unificadas.
-
-## 🚀 Características
-
-- **Multi-tenant**: Cada cliente tem seu próprio banco de dados
-- **Código centralizado**: Atualizações unificadas para todos os clientes
-- **Painel administrativo**: Gestão completa de clientes, cobranças e suporte
-- **Deploy automático**: Via GitHub Actions
-- **Integração Asaas**: Cobranças automáticas
-- **Templates personalizáveis**: Por nicho de mercado
-
-## 📁 Estrutura do Projeto
-
-```
-loja-virtual-revenda/
-├── app/
-│   ├── core/                 # Código compartilhado
-│   │   ├── ecommerce/        # Sistema e-commerce
-│   │   ├── institutional/    # Sistema institucional
-│   │   ├── database/         # Classes de banco
-│   │   ├── auth/             # Autenticação
-│   │   └── utils/            # Utilitários
-│   ├── admin/                # Painel administrativo
-│   ├── templates/            # Templates frontend
-│   └── tenants/              # Configurações por cliente
-├── config/                   # Configurações
-├── database/                 # Migrations e seeds
-├── public/                   # Arquivos públicos
-├── storage/                  # Uploads e logs
-├── scripts/                  # Scripts de instalação
-└── docs/                     # Documentação
-```
-
-## 🛠️ Instalação
-
-### Pré-requisitos
-- PHP 8.0+
-- MySQL 5.7+
-- Composer
-- Git
-
-### Passos
-
-1. **Clone o repositório**
-```bash
-git clone https://github.com/seu-usuario/loja-virtual-revenda.git
-cd loja-virtual-revenda
-```
-
-2. **Instale as dependências**
-```bash
-composer install
-```
-
-3. **Configure o ambiente**
-```bash
-cp .env.example .env
-# Edite o arquivo .env com suas configurações
-```
-
-4. **Configure o banco de dados**
-```bash
-php scripts/setup-database.php
-```
-
-5. **Execute as migrations**
-```bash
-php scripts/migrate.php
-```
-
-## 🔧 Configuração
-
-### Variáveis de Ambiente (.env)
-```env
-# Database
-DB_HOST=localhost
-DB_NAME=admin_panel
-DB_USER=root
-DB_PASS=
-
-# Asaas Integration
-ASAAS_API_KEY=sua_chave_api
-ASAAS_ENVIRONMENT=sandbox
-
-# Deployment
-DEPLOY_PATH=/home/user/public_html/
-DEPLOY_URL=https://seudominio.com/
-```
-
-### GitHub Secrets (para deploy automático)
-- `HOSTINGER_FTP_HOST`
-- `HOSTINGER_FTP_USER`
-- `HOSTINGER_FTP_PASS`
-- `HOSTINGER_DB_HOST`
-- `HOSTINGER_DB_USER`
-- `HOSTINGER_DB_PASS`
-
-## 📊 Funcionalidades
-
-### Painel Administrativo
-- ✅ Gestão de clientes
-- ✅ Pipeline de vendas
-- ✅ Integração Asaas (cobranças)
-- ✅ Sistema de suporte
-- ✅ Deploy automático
-- ✅ Backup automático
-
-### Tipos de Sites
-- 🛒 **E-commerce**: Petshop, Eletro, Produtos Naturais
-- 🏢 **Institucional**: Advogados, Turismo, Imobiliárias
-
-## 🚀 Deploy Automático
-
-O sistema usa GitHub Actions para deploy automático:
-
-1. **Push para main** → Deploy automático
-2. **Atualização de todos os clientes**
-3. **Backup automático** antes do deploy
-4. **Rollback** em caso de erro
-
-## 📈 Escalabilidade
-
-- **Código compartilhado**: 1 correção = todos atualizados
-- **Bancos separados**: Isolamento por cliente
-- **Templates flexíveis**: Personalização por nicho
-- **Deploy otimizado**: Atualizações em massa
-
-## 🔒 Segurança
-
-- Autenticação multi-tenant
-- Isolamento de dados por cliente
-- Backup automático
-- Logs de auditoria
-- HTTPS obrigatório
-
-## 📞 Suporte
-
-Para suporte técnico:
-- Email: suporte@seudominio.com
-- WhatsApp: (11) 99999-9999
-- Documentação: `/docs/`
-
-## 📄 Licença
-
-Este projeto é proprietário. Todos os direitos reservados.
-
----
-
-**Desenvolvido para facilitar a revenda de sites com manutenção centralizada.**
-
----
 
 # 🔄 Sincronização Diária com Asaas (Objetivos e Fluxo)
 
