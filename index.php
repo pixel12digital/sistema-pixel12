@@ -19,8 +19,11 @@ $base_path = '/';
 $path = str_replace($base_path, '', $request_uri);
 $path = parse_url($path, PHP_URL_PATH);
 
-// Remover barra inicial se existir
-$path = ltrim($path, '/');
+// Remover barras do início e do fim
+$path = trim($path, '/');
+
+// Debug: mostrar a URL processada
+echo "URL processada: '$path'<br>";
 
 // Página inicial
 if ($path === '' || $path === '/') {
