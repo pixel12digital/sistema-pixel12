@@ -22,6 +22,12 @@ $path = parse_url($path, PHP_URL_PATH);
 // Remover barra inicial se existir
 $path = ltrim($path, '/');
 
+// Página inicial
+if ($path === '' || $path === '/') {
+    echo '<h1>Bem-vindo ao sistema!</h1>';
+    exit;
+}
+
 // Debug: mostrar a URL processada
 // echo "URL processada: '$path'<br>";
 
