@@ -97,4 +97,5 @@ sessions/
 # Arquivos de configuração do servidor
 .htaccess.local
 
+# Arquivos de configuração local
 config.php 
