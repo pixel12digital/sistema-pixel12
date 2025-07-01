@@ -36,11 +36,15 @@ function criarClienteAsaas($nome, $email, $telefone, $cpf_cnpj) {
 }
 
 $msg = '';
+$success = false;
+$message = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nome = trim($_POST['nome'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $telefone = trim($_POST['telefone'] ?? '');
     $cpf_cnpj = trim($_POST['cpf_cnpj'] ?? '');
+    
     if ($nome && $email && $telefone && $cpf_cnpj) {
         list($ok, $asaas_id_or_msg) = criarClienteAsaas($nome, $email, $telefone, $cpf_cnpj);
         if ($ok) {
@@ -48,17 +52,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $mysqli->prepare("INSERT INTO clientes (asaas_id, nome, email, telefone, cpf_cnpj, data_criacao, data_atualizacao) VALUES (?, ?, ?, ?, ?, NOW(), NOW())");
             $stmt->bind_param('sssss', $asaas_id, $nome, $email, $telefone, $cpf_cnpj);
             if ($stmt->execute()) {
+                $success = true;
+                $message = 'Cliente cadastrado com sucesso!';
                 $msg = '<span style="color:green;">Cliente cadastrado com sucesso!</span>';
             } else {
+                $message = 'Erro ao salvar no banco: ' . $stmt->error;
                 $msg = '<span style="color:red;">Erro ao salvar no banco: ' . $stmt->error . '</span>';
             }
             $stmt->close();
         } else {
+            $message = $asaas_id_or_msg;
             $msg = '<span style="color:red;">' . $asaas_id_or_msg . '</span>';
         }
     } else {
+        $message = 'Preencha todos os campos.';
         $msg = '<span style="color:red;">Preencha todos os campos.</span>';
     }
+}
+
+// Se for uma requisição AJAX, retorna JSON
+if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => $success,
+        'message' => $message
+    ]);
+    exit;
 }
 ?>
 <!DOCTYPE html>
@@ -66,17 +85,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <title>Cadastrar Cliente</title>
-    <style>
-        body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
-        .form-container { max-width: 400px; margin: 3rem auto; background: #232836; border-radius: 10px; box-shadow: 0 2px 12px #1a1a1a44; padding: 2rem; }
-        label { display: block; margin-bottom: 0.5rem; color: #a259e6; }
-        input[type=text], input[type=email] { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #a259e6; background: #232836; color: #fff; margin-bottom: 1.2rem; }
-        button { background: #a259e6; color: #fff; border: none; border-radius: 6px; padding: 10px 20px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        button:hover { background: #7c2ae8; }
-        .msg { margin-bottom: 1rem; }
-    </style>
 </head>
 <body>
+<?php include 'menu_lateral.php'; ?>
     <div class="form-container">
         <h2>Cadastrar Cliente</h2>
         <form method="post">

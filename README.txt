@@ -1,5 +1,5 @@
 # Instruções rápidas
-
+ 
 - Acesse http://localhost:8080/public_html/
 - Login do painel: admin / admin123
 - Gerencie clientes pelo painel
