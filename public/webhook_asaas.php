@@ -18,7 +18,7 @@ try {
 
     // Processa o webhook
     $controller = new FinanceiroController();
-    $controller->webhook($payload);
+    $controller->webhook();
 
     // Responde OK
     http_response_code(200);
