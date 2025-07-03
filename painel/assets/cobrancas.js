@@ -27,7 +27,7 @@ function traduzirTipoPagamento(tipo) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    fetch('/loja-virtual-revenda/api/cobrancas.php')
+    fetch('/api/cobrancas.php')
         .then(response => response.json())
         .then(data => {
             const tbody = document.getElementById('invoices-tbody');

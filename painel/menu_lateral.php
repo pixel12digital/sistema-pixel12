@@ -79,7 +79,7 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 3v4M8 3v4"/></svg>
                     Propostas
                 </a>
-                <a href="/loja-virtual-revenda/painel/clientes.php" class="sidebar-sublink<?php if($page=='clientes.php') echo ' active'; ?>">
+                <a href="/painel/clientes.php" class="sidebar-sublink<?php if($page=='clientes.php') echo ' active'; ?>">
                     <!-- Lucide Users SVG -->
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Clientes
@@ -121,12 +121,12 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
                 <span class="sidebar-tooltip">Financeiro</span>
             </a>
             <div class="sidebar-submenu">
-                <a href="/loja-virtual-revenda/painel/faturas.php" class="sidebar-sublink<?php if($page=='faturas.php') echo ' active'; ?>">
+                <a href="/painel/faturas.php" class="sidebar-sublink<?php if($page=='faturas.php') echo ' active'; ?>">
                     <!-- Lucide CreditCard SVG -->
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                     Faturas
                 </a>
-                <a href="/loja-virtual-revenda/financeiro/assinaturas" class="sidebar-sublink<?php if($page=='assinaturas.php') echo ' active'; ?>">
+                <a href="/financeiro/assinaturas" class="sidebar-sublink<?php if($page=='assinaturas.php') echo ' active'; ?>">
                     <!-- Lucide RefreshCcw SVG -->
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 22v-6h6"/><path d="M21 2a12 12 0 0 1-19.36 9"/><path d="M3 22A12 12 0 0 0 21 2"/></svg>
                     Assinaturas

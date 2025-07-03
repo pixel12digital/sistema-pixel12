@@ -85,7 +85,6 @@ if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQU
 <head>
     <meta charset="UTF-8">
     <title>Cadastrar Cliente</title>
-    <base href="/loja-virtual-revenda/">
 </head>
 <body>
 <?php include 'menu_lateral.php'; ?>
