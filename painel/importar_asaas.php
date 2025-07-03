@@ -74,7 +74,22 @@ do {
                 $vencimento = $conn->real_escape_string($cob['dueDate']);
                 $status = $conn->real_escape_string($cob['status']);
                 $link_pagamento = $conn->real_escape_string($cob['invoiceUrl'] ?? '');
-                $data_criacao = $conn->real_escape_string(date('Y-m-d H:i:s', strtotime($cob['createdAt'] ?? 'now')));
+                
+                // CORREÇÃO: Usar dateCreated (campo correto da API Asaas) em vez de createdAt
+                $data_criacao_raw = $cob['dateCreated'] ?? null;
+                if ($data_criacao_raw) {
+                    // Se dateCreated está no formato YYYY-MM-DD, adicionar hora
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $data_criacao_raw)) {
+                        $data_criacao = $data_criacao_raw . ' 00:00:00';
+                    } else {
+                        $data_criacao = date('Y-m-d H:i:s', strtotime($data_criacao_raw));
+                    }
+                } else {
+                    // Se não tem data de criação, usar data atual
+                    $data_criacao = date('Y-m-d H:i:s');
+                }
+                $data_criacao = $conn->real_escape_string($data_criacao);
+                
                 $conn->query("INSERT IGNORE INTO cobrancas (cliente_id, asaas_id, valor, vencimento, status, link_pagamento, data_criacao) VALUES ('$cliente_id', '$cob_id', '$valor', '$vencimento', '$status', '$link_pagamento', '$data_criacao')");
             }
             $clientes_importados++;

@@ -18,17 +18,20 @@ class AsaasService
      */
     public function __construct()
     {
-        if (file_exists(__DIR__ . '/../../../.env')) {
-            $env = parse_ini_file(__DIR__ . '/../../../.env');
-        } elseif (file_exists(__DIR__ . '/../../.env')) {
-            $env = parse_ini_file(__DIR__ . '/../../.env');
-        } else {
-            throw new \Exception('Arquivo .env não encontrado');
+        // Inclua o config.php se ainda não estiver incluído
+        if (!defined('ASAAS_API_KEY') || !defined('ASAAS_API_URL')) {
+            if (file_exists(__DIR__ . '/../../config.php')) {
+                require_once __DIR__ . '/../../config.php';
+            } elseif (file_exists(__DIR__ . '/../../../config.php')) {
+                require_once __DIR__ . '/../../../config.php';
+            } else {
+                throw new \Exception('Arquivo config.php não encontrado');
+            }
         }
-        $this->apiKey = $env['ASAAS_API_KEY'] ?? '';
-        $this->apiUrl = $env['ASAAS_API_URL'] ?? '';
+        $this->apiKey = ASAAS_API_KEY;
+        $this->apiUrl = ASAAS_API_URL;
         if (!$this->apiKey || !$this->apiUrl) {
-            throw new \Exception('ASAAS_API_KEY ou ASAAS_API_URL não definidos no .env');
+            throw new \Exception('ASAAS_API_KEY ou ASAAS_API_URL não definidos no config.php');
         }
     }
 
@@ -41,6 +44,7 @@ class AsaasService
      */
     public function createCustomer(array $data): array
     {
+        $data['notificationDisabled'] = true; // Sempre desativa notificação
         $url = $this->apiUrl . '/customers';
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -182,6 +186,147 @@ class AsaasService
             'dueDate'        => $payload['dueDate'] ?? null,
             'subscriptionId' => $payload['subscription'] ?? null,
         ];
+    }
+
+    /**
+     * Busca detalhes de um cliente pelo ID no Asaas.
+     *
+     * @param string $customerId ID do cliente no Asaas
+     * @return array Resposta decodificada da API Asaas
+     * @throws \Exception Em caso de erro na requisição ou resposta com erros
+     */
+    public function getCustomer(string $customerId): array
+    {
+        $url = $this->apiUrl . '/customers/' . urlencode($customerId);
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'access_token: ' . $this->apiKey,
+        ]);
+        $result = curl_exec($ch);
+        if ($result === false) {
+            throw new \Exception('cURL error: ' . curl_error($ch));
+        }
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $response = json_decode($result, true);
+        if ($httpCode >= 400 || isset($response['errors'])) {
+            $err = $response['errors'] ?? $response;
+            throw new \Exception('Asaas API error: ' . json_encode($err));
+        }
+        return $response;
+    }
+
+    /**
+     * Atualiza um cliente existente no Asaas.
+     *
+     * @param string $customerId ID do cliente no Asaas
+     * @param array $data Campos permitidos: name, cpfCnpj, email, phone, mobilePhone, postalCode, address, addressNumber, complement, province, city, state, country, externalReference, observations, company
+     * @return array Resposta decodificada da API Asaas
+     * @throws \Exception Em caso de erro na requisição ou resposta com erros
+     */
+    public function updateCustomer(string $customerId, array $data): array
+    {
+        // Filtrar apenas campos permitidos pelo Asaas
+        $allowedFields = [
+            'name', 'cpfCnpj', 'email', 'phone', 'mobilePhone', 
+            'postalCode', 'address', 'addressNumber', 'complement', 
+            'province', 'city', 'state', 'country', 
+            'externalReference', 'observations', 'company'
+        ];
+        
+        $filteredData = array_intersect_key($data, array_flip($allowedFields));
+        
+        // Remover campos vazios para não sobrescrever dados existentes
+        $filteredData = array_filter($filteredData, function($value) {
+            return $value !== '' && $value !== null;
+        });
+        
+        $url = $this->apiUrl . '/customers/' . urlencode($customerId);
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($filteredData));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'access_token: ' . $this->apiKey,
+        ]);
+        $result = curl_exec($ch);
+        if ($result === false) {
+            throw new \Exception('cURL error: ' . curl_error($ch));
+        }
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $response = json_decode($result, true);
+        if ($httpCode >= 400 || isset($response['errors'])) {
+            $err = $response['errors'] ?? $response;
+            throw new \Exception('Asaas API error: ' . json_encode($err));
+        }
+        return $response;
+    }
+
+    /**
+     * Busca todas as cobranças (payments) do cliente no Asaas.
+     * @param string $customerId ID do cliente no Asaas
+     * @return array Lista de cobranças
+     */
+    public function getCustomerPayments(string $customerId): array
+    {
+        $url = $this->apiUrl . '/payments?customer=' . urlencode($customerId) . '&limit=100';
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'access_token: ' . $this->apiKey,
+        ]);
+        $result = curl_exec($ch);
+        file_put_contents(__DIR__ . '/asaas_payments_debug.json', $result); // LOG PARA DEBUG
+        if ($result === false) {
+            throw new \Exception('cURL error: ' . curl_error($ch));
+        }
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $response = json_decode($result, true);
+        if ($httpCode >= 400 || isset($response['errors'])) {
+            $err = $response['errors'] ?? $response;
+            throw new \Exception('Asaas API error: ' . json_encode($err) . ' | Resposta bruta: ' . $result);
+        }
+        if (!is_array($response) || !isset($response['data'])) {
+            throw new \Exception('Asaas API error: resposta inesperada: ' . $result);
+        }
+        return $response['data'];
+    }
+
+    /**
+     * Busca todas as assinaturas (subscriptions) do cliente no Asaas.
+     * @param string $customerId ID do cliente no Asaas
+     * @return array Lista de assinaturas
+     */
+    public function getCustomerSubscriptions(string $customerId): array
+    {
+        $url = $this->apiUrl . '/subscriptions?customer=' . urlencode($customerId) . '&limit=100';
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'access_token: ' . $this->apiKey,
+        ]);
+        $result = curl_exec($ch);
+        if ($result === false) {
+            throw new \Exception('cURL error: ' . curl_error($ch));
+        }
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $response = json_decode($result, true);
+        if ($httpCode >= 400 || isset($response['errors'])) {
+            $err = $response['errors'] ?? $response;
+            throw new \Exception('Asaas API error: ' . json_encode($err) . ' | Resposta bruta: ' . $result);
+        }
+        if (!is_array($response) || !isset($response['data'])) {
+            throw new \Exception('Asaas API error: resposta inesperada: ' . $result);
+        }
+        return $response['data'];
     }
 
     // Métodos públicos serão implementados aqui

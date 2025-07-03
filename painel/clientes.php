@@ -1,4 +1,5 @@
 <?php
+$page = 'clientes.php';
 // Exemplo de gerenciamento de clientes (simples)
 session_start();
 if (!isset($_SESSION['logado']) || !$_SESSION['logado']) {
@@ -15,71 +16,213 @@ $totalClientes = count($clientes);
 $totalBancos = count(array_unique(array_column($clientes, 'banco')));
 require_once 'config.php';
 require_once 'db.php';
-$result = $mysqli->query("SELECT * FROM clientes ORDER BY data_criacao DESC");
-?>
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Painel - Clientes</title>
-    <link rel="stylesheet" href="assets/style.css">
-    <base href="/loja-virtual-revenda/">
-</head>
-<body>
-<?php include 'menu_lateral.php'; ?>
-<div class="main-content">
-    <div class="topbar">
-        <span class="topbar-title">Painel Administrativo - Pixel 12 Digital <span style='color:#a259e6;font-weight:bold;'>| Clientes</span></span>
+// Paginação real
+$por_pagina = 15;
+$pagina = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$offset = ($pagina - 1) * $por_pagina;
+
+// Buscar total de clientes
+$total_clientes_res = $mysqli->query("SELECT COUNT(*) as total FROM clientes");
+$total_clientes = $total_clientes_res->fetch_assoc()['total'];
+$total_paginas = max(1, ceil($total_clientes / $por_pagina));
+
+// Buscar clientes da página atual
+$result = $mysqli->query("SELECT * FROM clientes ORDER BY data_criacao DESC LIMIT $por_pagina OFFSET $offset");
+$page_title = 'Clientes';
+$custom_header = '
+  <input type="text" class="invoices-search-bar w-full px-3 py-2 rounded-md text-gray-800" placeholder="Buscar por nome, e-mail ou CPF/CNPJ" id="buscaCliente" style="max-width:300px;">
+  <button class="bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md ml-2" id="btnNovoCliente">+ Novo Cliente</button>
+';
+function render_content() {
+    global $result, $pagina, $total_paginas;
+    ?>
+    <!-- CSS CUSTOM CLIENTES ATIVO -->
+    <style>
+    /* Nunca use bg-white em <tr> ou <td> da tabela de clientes! */
+    #listaClientes > tr:nth-child(even), 
+    #listaClientes > tr:nth-child(even) > td, 
+    #listaClientes tr:nth-child(even), 
+    #listaClientes tr:nth-child(even) td {
+      background: rgba(236,236,236,0.8) !important;
+    }
+    #listaClientes > tr:nth-child(odd), 
+    #listaClientes > tr:nth-child(odd) > td, 
+    #listaClientes tr:nth-child(odd), 
+    #listaClientes tr:nth-child(odd) td {
+      background: #fff !important;
+    }
+    #listaClientes tr:hover, #listaClientes tr:hover td {
+      background: #f3e8ff !important;
+    }
+    .acao-icones { display: flex; gap: 8px; align-items: center; justify-content: center; }
+    .acao-icones a svg {
+      width: 20px;
+      height: 20px;
+      vertical-align: middle;
+      display: inline-block;
+      transition: transform 0.15s;
+    }
+    .acao-icones a:hover svg { transform: scale(1.15); }
+    .table-zebra tbody tr:nth-child(even) td,
+    #listaClientes tr:nth-child(even) td {
+      background: #d1b3ff !important;
+    }
+    .table-zebra tbody tr:nth-child(odd) td,
+    #listaClientes tr:nth-child(odd) td {
+      background: #fff !important;
+    }
+    #listaClientes tr:hover td {
+      background: #f3e8ff !important;
+    }
+    </style>
+    <div class="bg-white rounded-lg shadow-sm p-4">
+      <table class="w-full text-sm whitespace-nowrap table-zebra">
+        <thead>
+          <tr>
+            <th class="px-3 py-2">Nome</th>
+            <th class="px-3 py-2 text-center">E-mail</th>
+            <th class="px-3 py-2 text-center">Celular</th>
+            <th class="px-3 py-2">Plano Ativo</th>
+            <th class="px-3 py-2">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="listaClientes">
+          <?php $i = 0; while ($cli = $result->fetch_assoc()): $i++; ?>
+          <?php $style = 'vertical-align:middle;padding:8px 6px;border-bottom:1px solid #ececec;'; ?>
+          <tr>
+            <td style="<?= $style ?>"><?= htmlspecialchars($cli['nome']) ?></td>
+            <td style="<?= $style ?>"><?= htmlspecialchars($cli['email']) ?></td>
+            <td style="<?= $style ?>"><?= htmlspecialchars($cli['celular'] ?? $cli['telefone']) ?></td>
+            <td style="<?= $style ?>">
+              <?php if (!empty($cli['plano'])): ?>
+                <span class="font-semibold text-purple-700"><?= htmlspecialchars($cli['plano']) ?></span>
+                <span class="ml-2 px-2 py-1 rounded text-xs <?= strtolower($cli['status']) === 'ativo' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700' ?>">
+                  <?= htmlspecialchars($cli['status']) ?>
+                </span>
+              <?php else: ?>
+                <span class="text-gray-400">-</span>
+              <?php endif; ?>
+            </td>
+            <td style="<?= $style ?>">
+              <div style="display:flex;gap:8px;align-items:center;justify-content:center;">
+                <a href="cliente_detalhes.php?id=<?= $cli['id'] ?>" title="Visualizar">
+                  <svg style="width:20px;height:20px;vertical-align:middle;display:inline-block;transition:transform 0.15s;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#a259e6" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </a>
+                <a href="mailto:<?= htmlspecialchars($cli['email']) ?>" title="Enviar e-mail">
+                  <svg style="width:20px;height:20px;vertical-align:middle;display:inline-block;transition:transform 0.15s;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#2563eb" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3,7 12,13 21,7"/></svg>
+                </a>
+                <?php $cel = preg_replace('/\D/', '', $cli['celular'] ?? $cli['telefone']); ?>
+                <?php if ($cel): ?>
+                  <a href="https://wa.me/55<?= $cel ?>" target="_blank" title="WhatsApp">
+                    <svg style="width:20px;height:20px;vertical-align:middle;display:inline-block;transition:transform 0.15s;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#22c55e" stroke-width="2">
+                      <circle cx="12" cy="12" r="10" stroke="#22c55e" stroke-width="2" fill="none"/>
+                      <path d="M16.511 13.942c-.228-.114-1.348-.665-1.557-.74-.209-.076-.362-.114-.515.114-.152.228-.59.74-.724.892-.133.152-.266.171-.494.057-.228-.114-.962-.354-1.833-1.13-.677-.604-1.135-1.35-1.27-1.578-.133-.228-.014-.351.1-.465.103-.102.228-.266.342-.399.114-.133.152-.228.228-.38.076-.152.038-.285-.019-.399-.057-.114-.515-1.242-.706-1.7-.186-.447-.376-.386-.515-.393-.133-.007-.285-.009-.437-.009-.152 0-.399.057-.609.285-.209.228-.8.782-.8 1.904 0 1.122.818 2.207.931 2.36.114.152 1.61 2.457 3.905 3.35.546.188.971.3 1.303.384.547.138 1.045.119 1.438.072.439-.052 1.348-.551 1.539-1.084.19-.533.19-.99.133-1.084-.057-.095-.209-.152-.437-.266z" fill="#22c55e"/>
+                    </svg>
+                  </a>
+                <?php endif; ?>
+              </div>
+            </td>
+          </tr>
+          <?php endwhile; ?>
+        </tbody>
+      </table>
     </div>
-    <div class="cards-resumo">
-        <div class="card">
-            <div class="card-titulo">Total de Clientes</div>
-            <div class="card-valor"><?= $totalClientes ?></div>
-        </div>
-        <div class="card">
-            <div class="card-titulo">Bancos Ativos</div>
-            <div class="card-valor"><?= $totalBancos ?></div>
-        </div>
+    <!-- Modal de visualização/edição -->
+    <div id="modalCliente" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:9999; align-items:center; justify-content:center;">
+      <div style="background:#fff; border-radius:8px; max-width:480px; width:90vw; padding:32px; position:relative;">
+        <button id="fecharModalCliente" style="position:absolute; top:8px; right:12px; font-size:1.5rem; background:none; border:none; color:#a259e6; cursor:pointer;">&times;</button>
+        <div id="modalClienteConteudo">Carregando...</div>
+      </div>
     </div>
-    <div class="clientes-container">
-        <div class="clientes-header">
-            <button class="btn" id="btnNovoCliente">+ Novo Cliente</button>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>E-mail</th>
-                    <th>Telefone</th>
-                    <th>CPF/CNPJ</th>
-                    <th>Data de Criação</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php while ($cli = $result->fetch_assoc()): ?>
-                <tr>
-                    <td><?= htmlspecialchars($cli['nome']) ?></td>
-                    <td><?= htmlspecialchars($cli['email']) ?></td>
-                    <td><?= htmlspecialchars($cli['telefone']) ?></td>
-                    <td><?= htmlspecialchars($cli['cpf_cnpj']) ?></td>
-                    <td><?= htmlspecialchars($cli['data_criacao']) ?></td>
-                </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
-<script src="modal_cliente.js"></script>
-<script>
-$(document).ready(function() {
-    // Inicializar modal de cliente
-    new ModalCliente({
-        btnOpenId: 'btnNovoCliente',
-        onSuccess: function(resp) {
-            location.reload();
-        }
+    <script src="modal_cliente.js"></script>
+    <script>
+    document.getElementById('buscaCliente').addEventListener('input', function() {
+        let termo = this.value.toLowerCase();
+        document.querySelectorAll('#listaClientes tr').forEach(tr => {
+            let texto = tr.innerText.toLowerCase();
+            tr.style.display = texto.includes(termo) ? '' : 'none';
+        });
     });
-});
-</script>
-</body>
-</html> 
+    function abrirModalCliente(id, modo) {
+        document.getElementById('modalCliente').style.display = 'flex';
+        document.getElementById('modalClienteConteudo').innerHTML = 'Carregando...';
+        fetch('cliente_busca.php?id=' + id)
+            .then(r => r.json())
+            .then(cli => {
+                let html = '<h2 style="color:#6b21a8;">' + (modo === 'editar' ? 'Editar Cliente' : 'Dados do Cliente') + '</h2>';
+                html += '<div style="margin-top:16px;">';
+                for (const [k, v] of Object.entries(cli)) {
+                    html += '<div style="margin-bottom:8px;"><b>' + k + ':</b> ' + (v || '-') + '</div>';
+                }
+                html += '</div>';
+                if (modo === 'editar') {
+                    html += '<button style="margin-top:16px; background:#a259e6; color:#fff; border:none; padding:8px 18px; border-radius:6px; font-weight:500; cursor:pointer;" onclick="alert(\'Funcionalidade de edição em breve!\')">Salvar</button>';
+                }
+                document.getElementById('modalClienteConteudo').innerHTML = html;
+            });
+    }
+    document.getElementById('fecharModalCliente').onclick = function() {
+        document.getElementById('modalCliente').style.display = 'none';
+    };
+    document.getElementById('btnNovoCliente').onclick = function() {
+        window.location.href = 'cliente_novo.php';
+    };
+    window.addEventListener('DOMContentLoaded', function() {
+      setTimeout(function() {
+        var el = document.getElementById('listaClientes');
+        if (el) {
+          el.style.display = 'none';
+          void el.offsetHeight;
+          el.style.display = '';
+        }
+      }, 100);
+    });
+    </script>
+    <?php
+    // Paginação real
+    $max_links = 3;
+    $start = max(1, $pagina - $max_links);
+    $end = min($total_paginas, $pagina + $max_links);
+    ?>
+    <div class="flex gap-2 justify-center my-4">
+      <?php if ($pagina > 1): ?>
+        <a href="?page=1" class="px-2 py-1 bg-gray-200 rounded">Primeira</a>
+        <a href="?page=<?= $pagina-1 ?>" class="px-2 py-1 bg-gray-200 rounded">Anterior</a>
+      <?php endif; ?>
+      <?php for ($i = $start; $i <= $end; $i++): ?>
+        <a href="?page=<?= $i ?>" class="px-2 py-1 rounded <?= $i == $pagina ? 'bg-purple-600 text-white font-bold' : 'bg-gray-200' ?>"><?= $i ?></a>
+      <?php endfor; ?>
+      <span class="px-2 py-1">Página <?= $pagina ?> de <?= $total_paginas ?></span>
+      <?php if ($pagina < $total_paginas): ?>
+        <a href="?page=<?= $pagina+1 ?>" class="px-2 py-1 bg-gray-200 rounded">Próxima</a>
+        <a href="?page=<?= $total_paginas ?>" class="px-2 py-1 bg-gray-200 rounded">Última</a>
+      <?php endif; ?>
+    </div>
+    <?php
+}
+include 'template.php'; 
+?>
+<!-- CSS CUSTOM CLIENTES ATIVO (FINAL DO BODY) -->
+<style>
+#listaClientes tr:nth-child(even) td {
+  background: rgba(0,0,0,0.07) !important;
+  color: #232836 !important;
+}
+#listaClientes tr:nth-child(odd) td {
+  background: #fff !important;
+  color: #232836 !important;
+}
+#listaClientes tr:hover td {
+  background: #f3e8ff !important;
+  color: #7c2ae8 !important;
+}
+.acao-icones { display: flex; gap: 8px; align-items: center; justify-content: center; }
+.acao-icones a svg {
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+  display: inline-block;
+  transition: transform 0.15s;
+}
+.acao-icones a:hover svg { transform: scale(1.15); }
+</style> 

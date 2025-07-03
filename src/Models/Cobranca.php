@@ -18,13 +18,14 @@ class Cobranca
     public $data_pagamento;
     public $descricao;
     public $tipo;
+    public $tipo_pagamento;
     public $url_fatura;
     public $parcela;
     public $assinatura_id;
 
     /**
      * Retorna todas as cobranças, aplicando filtros opcionais.
-     * @param array $filters Filtros: cliente_id, status, data_inicial, data_final
+     * @param array $filters Filtros: cliente_id, status, data_inicial, data_final, tipo_pagamento
      * @return array
      * @throws Exception
      */
@@ -40,6 +41,10 @@ class Cobranca
         if (!empty($filters['status'])) {
             $sql .= " AND status = :status";
             $params[':status'] = $filters['status'];
+        }
+        if (!empty($filters['tipo_pagamento'])) {
+            $sql .= " AND tipo_pagamento = :tipo_pagamento";
+            $params[':tipo_pagamento'] = $filters['tipo_pagamento'];
         }
         if (!empty($filters['data_inicial'])) {
             $sql .= " AND vencimento >= :data_inicial";
@@ -94,8 +99,8 @@ class Cobranca
             throw new Exception('Cobrança já possui ID, use update()');
         }
         $db = \Database::getInstance();
-        $sql = "INSERT INTO cobrancas (asaas_payment_id, cliente_id, valor, status, vencimento, data_criacao, data_pagamento, descricao, tipo, url_fatura, parcela, assinatura_id)
-                VALUES (:asaas_payment_id, :cliente_id, :valor, :status, :vencimento, :data_criacao, :data_pagamento, :descricao, :tipo, :url_fatura, :parcela, :assinatura_id)";
+        $sql = "INSERT INTO cobrancas (asaas_payment_id, cliente_id, valor, status, vencimento, data_criacao, data_pagamento, descricao, tipo, tipo_pagamento, url_fatura, parcela, assinatura_id)
+                VALUES (:asaas_payment_id, :cliente_id, :valor, :status, :vencimento, :data_criacao, :data_pagamento, :descricao, :tipo, :tipo_pagamento, :url_fatura, :parcela, :assinatura_id)";
         $stmt = $db->prepare($sql);
         $ok = $stmt->execute([
             ':asaas_payment_id' => $this->asaas_payment_id,
@@ -107,6 +112,7 @@ class Cobranca
             ':data_pagamento'   => $this->data_pagamento,
             ':descricao'        => $this->descricao,
             ':tipo'             => $this->tipo,
+            ':tipo_pagamento'   => $this->tipo_pagamento,
             ':url_fatura'       => $this->url_fatura,
             ':parcela'          => $this->parcela,
             ':assinatura_id'    => $this->assinatura_id,

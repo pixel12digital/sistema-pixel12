@@ -196,4 +196,39 @@ Manter uma **cópia local** (no banco de dados MySQL) de todos os dados financei
 - Recomenda-se manter a rotina diária ativa para garantir histórico e performance
 - Em caso de dúvidas, consulte o suporte técnico
 
---- 
+---
+
+# Loja Virtual Revenda – API de Faturas (Asaas)
+
+## Endpoints RESTful
+
+- **Listar faturas:**
+  - `GET /api/invoices.php`
+- **Criar fatura:**
+  - `POST /api/invoices.php` (JSON: client_id, valor, etc.)
+- **Reenviar link:**
+  - `POST /api/invoices.php?id={asaas_id}&action=resend`
+- **Cancelar fatura:**
+  - `POST /api/invoices.php?id={asaas_id}&action=cancel`
+- **Obter PDF:**
+  - `GET /api/invoices.php?id={asaas_id}&action=pdf`
+
+- **Webhook Asaas:**
+  - `POST /api/webhooks.php` (configurar no painel Asaas)
+
+## Sincronização diária
+- Comando: `php api/asaasSync.php`
+- Agende no painel Hostinger (Cron Jobs) para manter status sempre atualizado.
+
+## Configuração
+- Configure sua chave e endpoint Asaas em `config.php` ou `.env`.
+- Certifique-se de que as views `clients`, `invoices`, `subscriptions` existem no banco.
+
+## Deploy na Hostinger
+- Basta enviar os arquivos PHP para o servidor.
+- Não requer Composer ou dependências externas.
+- Todos os endpoints funcionam em PHP puro.
+
+## Observações
+- Não altere nomes de classes/IDs no front.
+- Para dúvidas ou ajustes, consulte o código dos endpoints em `/api`. 

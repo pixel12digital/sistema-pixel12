@@ -2,10 +2,10 @@
 <?php if (session_status() === PHP_SESSION_NONE) session_start(); ?>
 <style>
 body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
-.sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 70px; background: #232836; display: flex; flex-direction: column; align-items: center; padding: 1.5rem 0; z-index: 10; transition: width 0.25s cubic-bezier(.4,0,.2,1); overflow: visible; }
-.sidebar.expanded { width: 240px; align-items: flex-start; }
-.sidebar-logo { width: 38px; margin-bottom: 2rem; margin-left: 0.5rem; }
-.sidebar-nav { display: flex; flex-direction: column; gap: 1.2rem; width: 100%; }
+.sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 70px; background: #232836; display: flex; flex-direction: column; align-items: center; padding: 0.5rem 0; z-index: 10000; transition: width 0.25s cubic-bezier(.4,0,.2,1); overflow: hidden; min-height: 100vh; }
+.sidebar.expanded { width: 280px; align-items: flex-start; }
+.sidebar-logo { width: 38px; margin-bottom: 0.3rem; margin-left: 0.5rem; cursor: pointer; }
+.sidebar-nav { display: flex; flex-direction: column; gap: 0.7rem; width: 100%; }
 .sidebar-link { color: #fff; font-size: 1.1rem; text-decoration: none; display: flex; align-items: center; gap: 12px; transition: color 0.2s, background 0.2s, padding 0.2s; padding: 8px 12px; border-radius: 8px; width: 100%; white-space: nowrap; position: relative; }
 .sidebar-link .sidebar-label { font-size: 1rem; display: none; transition: opacity 0.2s; }
 .sidebar.expanded .sidebar-link .sidebar-label { display: inline; margin-left: 8px; }
@@ -17,13 +17,15 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
 .sidebar-group.open > .sidebar-link.has-sub:after { transform: rotate(135deg); }
 .sidebar-submenu { display: none; flex-direction: column; margin-left: 36px; margin-top: 0.2rem; }
 .sidebar-group.open .sidebar-submenu { display: flex; }
+.sidebar:not(.expanded) .sidebar-submenu { display: none !important; }
+.sidebar.expanded .sidebar-group.open .sidebar-submenu { display: flex !important; }
 .sidebar-sublink { color: #a259e6; font-size: 1rem; text-decoration: none; padding: 8px 18px; border-radius: 4px; transition: background 0.2s, color 0.2s; white-space: nowrap; }
 .sidebar-sublink:hover, .sidebar-sublink.active { background: #2d2540; color: #fff; }
 .sidebar-chat-widget { position: absolute; bottom: 24px; left: 0; width: 100%; display: flex; justify-content: center; z-index: 1003; }
 .chat-widget-btn { background: #a259e6; color: #fff; border: none; border-radius: 50%; width: 44px; height: 44px; font-size: 1.5rem; cursor: pointer; box-shadow: 0 2px 8px #0002; transition: background 0.2s; }
 .chat-widget-btn:hover { background: #7c2ae8; }
 .main-content { margin-left: 90px; min-height: 100vh; transition: margin-left 0.25s cubic-bezier(.4,0,.2,1); }
-.sidebar.expanded ~ .main-content { margin-left: 250px; }
+.sidebar.expanded ~ .main-content { margin-left: 290px; }
 @media (max-width: 600px) {
     .sidebar, .sidebar.expanded { width: 60px; }
     .main-content, .sidebar.expanded ~ .main-content { margin-left: 70px; }
@@ -48,12 +50,8 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
     display: block;
 }
 </style>
-<div class="sidebar<?php 
-    $page = basename($_SERVER['PHP_SELF']);
-    $is_admin = !empty($_SESSION['is_admin']);
-    if (isset($_COOKIE['sidebar_expanded']) && $_COOKIE['sidebar_expanded'] === '1') echo ' expanded';
-?>">
-    <img src="assets/images/logo-pixel12digital.png" alt="Pixel 12 Digital" class="sidebar-logo">
+<div class="sidebar" id="sidebar">
+    <img src="assets/images/logo-pixel12digital.png" alt="Pixel 12 Digital" class="sidebar-logo" id="sidebarToggle">
     <nav class="sidebar-nav">
         <!-- Dashboard -->
         <a href="dashboard.php" class="sidebar-link<?php if($page=='dashboard.php') echo ' active'; ?>" title="Dashboard">
@@ -81,7 +79,7 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 3v4M8 3v4"/></svg>
                     Propostas
                 </a>
-                <a href="/admin/clientes.php" class="sidebar-sublink<?php if($page=='clientes.php') echo ' active'; ?>">
+                <a href="/loja-virtual-revenda/painel/clientes.php" class="sidebar-sublink<?php if($page=='clientes.php') echo ' active'; ?>">
                     <!-- Lucide Users SVG -->
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Clientes
@@ -116,14 +114,14 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
         </div>
         <!-- Financeiro -->
         <div class="sidebar-group<?php if(in_array($page,['faturas.php','assinaturas.php','contas-pagar.php'])) echo ' open'; ?>">
-            <a href="/loja-virtual-revenda/financeiro/faturas" class="sidebar-link has-sub" title="Financeiro">
+            <a href="#" class="sidebar-link has-sub" title="Financeiro">
                 <!-- Lucide CreditCard SVG -->
                 <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                 <span class="sidebar-label">Financeiro</span>
                 <span class="sidebar-tooltip">Financeiro</span>
             </a>
             <div class="sidebar-submenu">
-                <a href="/loja-virtual-revenda/financeiro/faturas" class="sidebar-sublink<?php if($page=='faturas.php') echo ' active'; ?>">
+                <a href="/loja-virtual-revenda/painel/faturas.php" class="sidebar-sublink<?php if($page=='faturas.php') echo ' active'; ?>">
                     <!-- Lucide CreditCard SVG -->
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                     Faturas
@@ -222,30 +220,34 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
 </div>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-$(function() {
-    // Expande/recolhe grupos
-    $('.sidebar-link.has-sub').off('click').on('click', function(e) {
-        e.preventDefault();
-        var $sidebar = $('.sidebar');
-        var $group = $(this).parent('.sidebar-group');
-        var isOpen = $group.hasClass('open');
-        $('.sidebar-group').removeClass('open');
-        if (!isOpen) {
-            $group.addClass('open');
-            $sidebar.addClass('expanded');
-            document.cookie = 'sidebar_expanded=1;path=/';
-        } else {
-            $sidebar.removeClass('expanded');
-            document.cookie = 'sidebar_expanded=0;path=/';
-        }
-    });
-    // Clique fora do menu recolhe tudo
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('.sidebar-group').length && !$(e.target).closest('.sidebar').length) {
-            $('.sidebar-group').removeClass('open');
-            $('.sidebar').removeClass('expanded');
-            document.cookie = 'sidebar_expanded=0;path=/';
-        }
+window.addEventListener('DOMContentLoaded', function() {
+    var sidebar = document.getElementById('sidebar');
+    sidebar.classList.remove('expanded');
+    // Expande/fecha ao clicar no logo
+    document.getElementById('sidebarToggle').onclick = function() {
+        sidebar.classList.toggle('expanded');
+    };
+    // Expande/fecha ao clicar em qualquer item com submenu
+    document.querySelectorAll('.sidebar-link.has-sub').forEach(function(link) {
+        link.onclick = function(e) {
+            e.preventDefault();
+            var group = this.parentElement;
+            var isOpen = group.classList.contains('open');
+            // Fecha todos os grupos
+            document.querySelectorAll('.sidebar-group').forEach(function(g) { g.classList.remove('open'); });
+            if (!isOpen) {
+                group.classList.add('open');
+                sidebar.classList.add('expanded');
+            } else {
+                group.classList.remove('open');
+                // Só recolhe o menu se nenhum grupo estiver aberto
+                var algumAberto = false;
+                document.querySelectorAll('.sidebar-group').forEach(function(g) { if (g.classList.contains('open')) algumAberto = true; });
+                if (!algumAberto) sidebar.classList.remove('expanded');
+            }
+        };
     });
 });
-</script> 
+</script>
+<!-- Proteção extra: não imprimir nada após o fechamento do menu -->
+<?php /* Fim seguro do menu_lateral.php */ ?> 
