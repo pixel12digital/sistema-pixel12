@@ -42,7 +42,6 @@ do {
     <meta charset="UTF-8">
     <title>Cobranças Asaas (Tempo Real)</title>
     <link rel="stylesheet" href="assets/style.css">
-    <base href="/loja-virtual-revenda/">
 </head>
 <body>
 <?php include 'menu_lateral.php'; ?>

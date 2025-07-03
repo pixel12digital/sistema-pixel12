@@ -171,7 +171,6 @@ $activePlanos = $filtro === 'planos' ? 'active' : '';
     <meta charset="UTF-8">
     <title>Clientes Asaas (Tempo Real)</title>
     <link rel="stylesheet" href="assets/style.css">
-    <base href="/loja-virtual-revenda/">
 </head>
 <body>
 <?php include 'menu_lateral.php'; ?>

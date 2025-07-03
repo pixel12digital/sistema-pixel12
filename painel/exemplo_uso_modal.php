@@ -1,3 +1,3 @@
 <head>
-  <base href="/loja-virtual-revenda/">
+  <!-- <base href="/loja-virtual-revenda/"> -->
 </head> 

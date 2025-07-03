@@ -13,14 +13,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $senha = $_POST['senha'] ?? '';
     if ($usuario === 'admin' && $senha === 'admin123') {
         $_SESSION['logado'] = true;
-        header('Location: clientes.php');
+        header('Location: dashboard.php');
         exit;
     } else {
         $erro = 'Usuário ou senha inválidos!';
     }
 }
 if (isset($_SESSION['logado']) && $_SESSION['logado']) {
-    header('Location: clientes.php');
+    header('Location: dashboard.php');
     exit;
 }
 ?><!DOCTYPE html>
@@ -29,7 +29,6 @@ if (isset($_SESSION['logado']) && $_SESSION['logado']) {
     <meta charset="UTF-8">
     <title>Painel Administrativo - Login</title>
     <link rel="stylesheet" href="assets/style.css">
-    <base href="/loja-virtual-revenda/">
     <style>
         body.login-bg {
             background: #181c23;
