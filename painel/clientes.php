@@ -283,7 +283,7 @@ function abrirModalChat(clienteId, clienteNome, clienteCelular) {
     document.getElementById('chatMensagem').value = '';
 
     // Buscar canais WhatsApp
-    fetch('api/listar_canais_whatsapp.php')
+    fetch('../api/listar_canais_whatsapp.php')
         .then(res => res.json())
         .then(canais => {
             const select = document.getElementById('selectCanalWhatsapp');
