@@ -231,4 +231,104 @@ Manter uma **cópia local** (no banco de dados MySQL) de todos os dados financei
 
 ## Observações
 - Não altere nomes de classes/IDs no front.
-- Para dúvidas ou ajustes, consulte o código dos endpoints em `/api`. 
+- Para dúvidas ou ajustes, consulte o código dos endpoints em `/api`.
+
+---
+
+## Integração WhatsApp (Baileys) com Painel PHP
+
+### 1. Objetivo
+Centralizar o envio e recebimento de mensagens WhatsApp no painel PHP, utilizando um backend Node.js rodando em uma VPS, com QR Code para conexão exibido diretamente no painel.
+
+### 2. Estrutura do Sistema
+- **Painel PHP:** Hospedagem compartilhada, interface de gestão de canais e chat centralizado.
+- **Backend Node.js (Baileys):** Rodando em VPS (ex: IP 212.85.11.238), responsável pela integração com o WhatsApp e exposição do QR Code via API.
+
+### 3. Passos para Implantação do Backend Node.js
+
+#### 3.1. Subir o Backend na VPS
+1. **Acesse a VPS via SSH.**
+2. **Crie/acesse a pasta do backend:**
+   ```bash
+   cd ~
+   mkdir comunicacao-whatsapp
+   cd comunicacao-whatsapp
+   ```
+3. **Crie o arquivo `baileys.js` com o código fornecido.**
+4. **Instale as dependências:**
+   ```bash
+   npm install @whiskeysockets/baileys express qrcode-terminal
+   ```
+
+#### 3.2. Liberar a Porta no Firewall da VPS
+- No painel da VPS (Hostinger), adicione uma regra para liberar a porta **9100/TCP** para entrada (origem: 0.0.0.0/0).
+
+#### 3.3. Rodar o Backend com PM2
+1. **Instale o PM2:**
+   ```bash
+   npm install -g pm2
+   ```
+2. **Inicie o backend:**
+   ```bash
+   pm2 start baileys.js
+   ```
+3. **Salve o estado do PM2:**
+   ```bash
+   pm2 save
+   ```
+4. **Configure o PM2 para iniciar automaticamente com o sistema:**
+   ```bash
+   pm2 startup
+   ```
+   - Copie e cole o comando extra que o terminal mostrar (ex: `sudo ... pm2-root ...`).
+
+### 4. Integração com o Painel PHP
+
+#### 4.1. Exibição do QR Code
+- O painel PHP (arquivo `painel/comunicacao.php`) foi ajustado para buscar o QR Code do backend Node.js via:
+  ```
+  http://212.85.11.238:9100/api/qr
+  ```
+- O QR Code é exibido automaticamente no modal ao adicionar um novo canal WhatsApp.
+
+#### 4.2. Fluxo para o Usuário
+1. Acesse o painel PHP > Central de Comunicação.
+2. Clique em **Adicionar Canal**.
+3. Preencha os dados e salve.
+4. O QR Code aparecerá no modal.  
+   **Escaneie com o WhatsApp** para conectar o canal.
+
+### 5. Manutenção e Gerenciamento do Backend
+
+#### 5.1. Comandos úteis do PM2
+- **Ver status dos processos:**
+  ```bash
+  pm2 status
+  ```
+- **Reiniciar o backend:**
+  ```bash
+  pm2 restart baileys
+  ```
+- **Parar o backend:**
+  ```bash
+  pm2 stop baileys
+  ```
+- **Ver logs:**
+  ```bash
+  pm2 logs baileys
+  ```
+
+#### 5.2. O que acontece se fechar o terminal?
+- O backend continua rodando normalmente, pois o PM2 gerencia o processo em background.
+- Se a VPS reiniciar, o backend será iniciado automaticamente.
+
+### 6. Observações Importantes
+- **Nunca rode o backend apenas com `node baileys.js`** se não estiver usando PM2, pois ele será encerrado ao fechar o terminal.
+- **O QR Code do terminal é apenas para debug/admin.** O usuário deve sempre usar o QR exibido no painel PHP.
+- **Se precisar alterar o IP ou porta do backend, ajuste o endpoint no painel PHP.**
+
+### 7. Suporte
+Em caso de dúvidas ou problemas:
+- Consulte esta documentação.
+- Verifique os logs do PM2.
+- Peça suporte ao responsável técnico. 

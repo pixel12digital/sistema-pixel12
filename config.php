@@ -20,6 +20,6 @@ define('DB_PASS', 'Los@ngo#081081');
  * Use chaves diferentes para sandbox e produção.
  */
 // Chave de produção Asaas (garantido sem espaços ou quebras de linha)
-define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmIyZTgwNDE4LWQwZjktNDA5OS1hYjViLTE3NjhhOTgwYzMxMzo6JGFhY2hfYWE3NzFlM2QtMDJiNC00YzQwLThhMWMtYzQ1MTMzOGRlYjNk');
+define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmFkYjYzODUyLTI3MzQtNGU1NS04OGMzLTc3N2FjMmZiOTcwYjo6JGFhY2hfZWJlMWMwZDktNjJiOC00ODA5LTgzYzktZTNlNDY0ZDczYTVm');
 define('ASAAS_API_URL', 'https://www.asaas.com/api/v3');
 ?>

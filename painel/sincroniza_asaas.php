@@ -4,31 +4,47 @@ require_once 'db.php';
 
 echo date('Y-m-d H:i:s') . " - Iniciando sincronização com Asaas...\n";
 
+// LOG DETALHADO: Função para registrar logs detalhados em arquivo
+function logDetalhado($mensagem) {
+    $logFile = __DIR__ . '/../logs/sincroniza_asaas_debug.log';
+    $data = date('Y-m-d H:i:s') . ' - ' . $mensagem . "\n";
+    file_put_contents($logFile, $data, FILE_APPEND);
+}
+
 function getAsaas($endpoint) {
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, ASAAS_API_URL . $endpoint);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    $url = ASAAS_API_URL . $endpoint;
+    $header = [
         'Content-Type: application/json',
         'access_token: ' . ASAAS_API_KEY
-    ]);
+    ];
+    logDetalhado("[REQ] URL: $url");
+    logDetalhado("[REQ] HEADER: " . json_encode($header));
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
     $result = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
     curl_close($ch);
-    
+    logDetalhado("[RESP] HTTP CODE: $httpCode");
+    logDetalhado("[RESP] CURL ERROR: $curlError");
+    logDetalhado("[RESP] RAW: $result");
     if ($httpCode !== 200) {
-        echo "Erro HTTP $httpCode ao acessar: " . ASAAS_API_URL . $endpoint . "\n";
+        echo "Erro HTTP $httpCode ao acessar: $url\n";
         echo "Resposta: $result\n";
+        logDetalhado("[ERRO] HTTP $httpCode ao acessar: $url");
+        logDetalhado("[ERRO] Resposta: $result");
         return null;
     }
-    
     $data = json_decode($result, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
         echo "Erro ao decodificar JSON: " . json_last_error_msg() . "\n";
         echo "Resposta: $result\n";
+        logDetalhado("[ERRO] JSON: " . json_last_error_msg());
+        logDetalhado("[ERRO] Resposta: $result");
         return null;
     }
-    
     return $data;
 }
 

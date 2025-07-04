@@ -1,4 +1,5 @@
 <?php
+$page = 'dashboard.php';
 session_start();
 if (!isset($_SESSION['logado']) || !$_SESSION['logado']) {
     header('Location: index.php');

@@ -42,7 +42,10 @@ function render_content() {
 }
 .painel-card td {
   padding: 4px 8px !important;
-  border-bottom: 1px solid #ececec !important;
+  border-bottom: 1.5px solid #888888 !important;
+}
+.painel-card tr {
+  border-bottom: none !important;
 }
 .painel-avatar {
   width: 56px !important; height: 56px !important;
@@ -341,20 +344,20 @@ function render_content() {
           }
         }
         // Buscar dados do Asaas se houver asaas_id
-        $asaas_payments = $asaas_subs = [];
-        error_log('[DEBUG] Entrou na busca do Asaas. ID do cliente: ' . var_export($cliente['asaas_id'] ?? null, true));
-        if (!empty($cliente['asaas_id'])) {
-            require_once __DIR__ . '/../src/Services/AsaasService.php';
-            $asaasService = new \Services\AsaasService();
-            try {
-                error_log('[DEBUG] Chamando getCustomerPayments para ID: ' . $cliente['asaas_id']);
-                $asaas_payments = $asaasService->getCustomerPayments($cliente['asaas_id']);
-                $asaas_subs = $asaasService->getCustomerSubscriptions($cliente['asaas_id']);
-            } catch (\Exception $e) {
-                error_log('[DEBUG] Exceção ao buscar dados do Asaas: ' . $e->getMessage());
-                echo '<div style="color:#e11d48;">Erro ao buscar dados do Asaas: '.htmlspecialchars($e->getMessage()).'</div>';
-            }
-        }
+        // $asaas_payments = $asaas_subs = [];
+        // error_log('[DEBUG] Entrou na busca do Asaas. ID do cliente: ' . var_export($cliente['asaas_id'] ?? null, true));
+        // if (!empty($cliente['asaas_id'])) {
+        //     require_once __DIR__ . '/../src/Services/AsaasService.php';
+        //     $asaasService = new \Services\AsaasService();
+        //     try {
+        //         error_log('[DEBUG] Chamando getCustomerPayments para ID: ' . $cliente['asaas_id']);
+        //         $asaas_payments = $asaasService->getCustomerPayments($cliente['asaas_id']);
+        //         $asaas_subs = $asaasService->getCustomerSubscriptions($cliente['asaas_id']);
+        //     } catch (\Exception $e) {
+        //         error_log('[DEBUG] Exceção ao buscar dados do Asaas: ' . $e->getMessage());
+        //         echo '<div style="color:#e11d48;">Erro ao buscar dados do Asaas: '.htmlspecialchars($e->getMessage()).'</div>';
+        //     }
+        // }
         ?>
         <div class="mb-4">
           <b>Total pago:</b> R$ <?= number_format($total_pago,2,',','.') ?> |
@@ -384,7 +387,21 @@ function render_content() {
                 <td><?= $i+1 ?></td>
                 <td>R$ <?= number_format($cob['valor'],2,',','.') ?></td>
                 <td><?= date('d/m/Y', strtotime($cob['vencimento'])) ?></td>
-                <td><?= htmlspecialchars($cob['status']) ?></td>
+                <td><?php
+                  $status_map = [
+                    'RECEIVED' => 'RECEBIDO',
+                    'PAID' => 'PAGO',
+                    'PENDING' => 'PENDENTE',
+                    'OVERDUE' => 'VENCIDO',
+                    'CANCELLED' => 'CANCELADO',
+                    'REFUNDED' => 'ESTORNADO',
+                    'PROCESSING' => 'PROCESSANDO',
+                    'AUTHORIZED' => 'AUTORIZADO',
+                    'EXPIRED' => 'EXPIRADO',
+                  ];
+                  $status_pt = $status_map[$cob['status']] ?? $cob['status'];
+                  echo htmlspecialchars($status_pt);
+                ?></td>
                 <td><?= $cob['data_pagamento'] ? date('d/m/Y', strtotime($cob['data_pagamento'])) : '—' ?></td>
                 <td><?php if (!empty($cob['url_fatura'])): ?><a href="<?= htmlspecialchars($cob['url_fatura']) ?>" target="_blank" style="color:#7c2ae8;">Ver Fatura</a><?php else: ?>—<?php endif; ?></td>
               </tr>

@@ -20,6 +20,12 @@
       <button type="button" class="invoices-new-btn bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md flex items-center gap-2" id="btn-sincronizar">
         <span>🔄 Sincronizar com Asaas</span>
       </button>
+      <div id="sync-status" style="display:none; margin-top:10px; width:300px;">
+        <div style="width:100%;background:#eee;border-radius:5px;">
+          <div id="sync-bar" style="width:0%;height:18px;background:#a259e6;border-radius:5px;transition:width 0.4s;"></div>
+        </div>
+        <span id="sync-msg" style="font-size:14px;color:#555;">Sincronizando...</span>
+      </div>
       <button type="button" class="invoices-new-btn bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md flex items-center gap-2">
         <span>+ Nova Fatura</span>
         <svg class="hidden h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -35,45 +41,42 @@
           <label for="filter-status" class="block text-xs font-medium">Status</label>
           <select id="filter-status" class="filter-status mt-1 w-full rounded-md border-gray-300">
             <option value="">Todos</option>
-            <option value="pending">Pendente</option>
-            <option value="paid">Pago</option>
-            <option value="overdue">Vencida</option>
-            <option value="canceled">Cancelada</option>
+            <option value="PENDING">Aguardando pagamento</option>
+            <option value="OVERDUE">Vencida</option>
+            <option value="RECEIVED">Recebida</option>
+            <option value="CONFIRMED">Confirmada</option>
           </select>
         </div>
         <div>
-          <label class="block text-xs font-medium">Data de emissão</label>
-          <input type="date" class="filter-date-issue mt-1 w-full rounded-md border-gray-300" />
+          <label class="block text-xs font-medium">Vencimento inicial</label>
+          <input type="date" class="filter-date-due-inicio mt-1 w-full rounded-md border-gray-300" />
         </div>
         <div>
-          <label class="block text-xs font-medium">Data de vencimento</label>
-          <input type="date" class="filter-date-due mt-1 w-full rounded-md border-gray-300" />
+          <label class="block text-xs font-medium">Vencimento final</label>
+          <input type="date" class="filter-date-due-fim mt-1 w-full rounded-md border-gray-300" />
         </div>
         <div>
           <label for="filter-client" class="block text-xs font-medium">Cliente</label>
-          <select id="filter-client" class="filter-client mt-1 w-full rounded-md border-gray-300">
-            <option value="">Todos</option>
-          </select>
+          <input id="filter-client" type="text" class="filter-client mt-1 w-full rounded-md border-gray-300" placeholder="Buscar cliente..." />
+        </div>
+        <div class="flex items-end">
+          <button id="btn-aplicar-filtros" class="bg-purple-600 hover:bg-purple-800 text-white px-4 py-2 rounded-md">Aplicar Filtros</button>
         </div>
       </div>
     </section>
     <!-- Summary -->
     <section class="invoices-summary grid grid-cols-2 md:grid-cols-4 gap-4 p-4">
-      <div class="summary-card summary-total bg-white p-4 rounded-lg shadow-sm">
-        <p class="text-xs uppercase text-gray-500">Total faturado</p>
-        <p class="text-xl font-semibold mt-1">R$ 0,00</p>
-      </div>
       <div class="summary-card summary-open bg-white p-4 rounded-lg shadow-sm">
         <p class="text-xs uppercase text-gray-500">Em aberto</p>
         <p class="text-xl font-semibold mt-1">R$ 0,00</p>
       </div>
       <div class="summary-card summary-pending bg-white p-4 rounded-lg shadow-sm">
         <p class="text-xs uppercase text-gray-500">Pendentes</p>
-        <p class="text-xl font-semibold mt-1">0</p>
+        <p class="text-xl font-semibold mt-1">0 (R$ 0,00)</p>
       </div>
       <div class="summary-card summary-overdue bg-white p-4 rounded-lg shadow-sm">
         <p class="text-xs uppercase text-gray-500">Vencidas</p>
-        <p class="text-xl font-semibold mt-1">0</p>
+        <p class="text-xl font-semibold mt-1">0 (R$ 0,00)</p>
       </div>
     </section>
     <!-- Invoices Table -->
@@ -95,6 +98,7 @@
           <!-- Linhas serão preenchidas via JS -->
         </tbody>
       </table>
+      <div id="pagination" class="flex justify-center items-center gap-2 mt-4"></div>
     </section>
     <!-- Drawer Details -->
     <aside class="drawer-invoice-details fixed top-0 right-0 w-full sm:w-96 h-full bg-white shadow-xl transform translate-x-full transition-transform z-50">

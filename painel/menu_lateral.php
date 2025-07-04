@@ -121,7 +121,7 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
                 <span class="sidebar-tooltip">Financeiro</span>
             </a>
             <div class="sidebar-submenu">
-                <a href="/painel/faturas.php" class="sidebar-sublink<?php if($page=='faturas.php') echo ' active'; ?>">
+                <a href="faturas.php" class="sidebar-sublink<?php if($page=='faturas.php') echo ' active'; ?>">
                     <!-- Lucide CreditCard SVG -->
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                     Faturas
@@ -183,6 +183,12 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                     Termos & Documentos
                 </a>
+                <li>
+                    <a href="comunicacao.php" class="flex items-center gap-2 px-4 py-2 hover:bg-purple-50 text-purple-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8z" /></svg>
+                        Comunicação
+                    </a>
+                </li>
             </div>
         </div>
         <!-- Ferramentas Avançadas (apenas admin) -->
@@ -215,7 +221,7 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
         <?php endif; ?>
     </nav>
     <div class="sidebar-chat-widget">
-        <button class="chat-widget-btn" title="Chat Unificado">💬</button>
+        <a href="chat.php" class="chat-widget-btn" title="Chat Centralizado" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">💬</a>
     </div>
 </div>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
