@@ -120,7 +120,10 @@ function render_content() {
                    data-cliente-nome="<?= htmlspecialchars($cli['nome']) ?>"
                    data-cliente-celular="<?= htmlspecialchars($cli['celular']) ?>"
                    title="Conversar via WhatsApp">
-                    <i class="fab fa-whatsapp"></i>
+                    <svg style="width:20px;height:20px;vertical-align:middle;display:inline-block;transition:transform 0.15s;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#22c55e" stroke-width="2">
+                      <circle cx="12" cy="12" r="10" stroke="#22c55e" stroke-width="2" fill="none"/>
+                      <path d="M16.511 13.942c-.228-.114-1.348-.665-1.557-.74-.209-.076-.362-.114-.515.114-.152.228-.59.74-.724.892-.133.152-.266.171-.494.057-.228-.114-.962-.354-1.833-1.13-.677-.604-1.135-1.35-1.27-1.578-.133-.228-.014-.351.1-.465.103-.102.228-.266.342-.399.114-.133.152-.228.228-.38.076-.152.038-.285-.019-.399-.057-.114-.515-1.242-.706-1.7-.186-.447-.376-.386-.515-.393-.133-.007-.285-.009-.437-.009-.152 0-.399.057-.609.285-.209.228-.8.782-.8 1.904 0 1.122.818 2.207.931 2.36.114.152 1.61 2.457 3.905 3.35.546.188.971.3 1.303.384.547.138 1.045.119 1.438.072.439-.052 1.348-.551 1.539-1.084.19-.533.19-.99.133-1.084-.057-.095-.209-.152-.437-.266z" fill="#22c55e"/>
+                    </svg>
                 </a>
               </div>
             </td>
@@ -245,9 +248,19 @@ include 'template.php';
   </div>
 </div>
 <style>
-.modal { position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:9999;}
-.modal-content { background:#fff; padding:20px; border-radius:8px; min-width:350px; max-width:95vw; position:relative;}
+.modal { 
+  position:fixed; top:0; left:0; width:100vw; height:100vh; 
+  background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:9999;
+}
+.modal-content { 
+  background:#fff; padding:24px 32px; border-radius:8px; 
+  min-width:320px; max-width:420px; width:100%; 
+  position:relative; box-shadow:0 2px 24px #0002;
+  display: flex; flex-direction: column; align-items: center;
+}
 .close { position:absolute; top:10px; right:15px; font-size:22px; cursor:pointer;}
+#chatArea { width:100%; }
+#chatMensagens { width:100%; }
 </style>
 <script>
 document.querySelectorAll('.btn-whatsapp').forEach(btn => {
@@ -275,6 +288,12 @@ function abrirModalChat(clienteId, clienteNome, clienteCelular) {
         .then(canais => {
             const select = document.getElementById('selectCanalWhatsapp');
             select.innerHTML = '';
+            if (canais.length === 0) {
+                select.innerHTML = '<option value="">Nenhum canal disponível</option>';
+                document.getElementById('chatArea').style.display = 'none';
+                document.getElementById('chatMensagens').innerHTML = '<div style="color:#a00;text-align:center;">Nenhum canal WhatsApp conectado.<br>Conecte um canal para iniciar conversas.</div>';
+                return;
+            }
             canais.forEach(canal => {
                 const opt = document.createElement('option');
                 opt.value = canal.id;
@@ -282,10 +301,8 @@ function abrirModalChat(clienteId, clienteNome, clienteCelular) {
                 select.appendChild(opt);
             });
             document.getElementById('canalSelectorArea').style.display = canais.length > 1 ? 'block' : 'none';
-            if (canais.length > 0) {
-                document.getElementById('chatArea').style.display = 'block';
-                carregarHistorico(clienteId, canais[0].id);
-            }
+            document.getElementById('chatArea').style.display = 'block';
+            carregarHistorico(clienteId, canais[0].id);
             select.onchange = () => {
                 carregarHistorico(clienteId, select.value);
             };
@@ -294,7 +311,7 @@ function abrirModalChat(clienteId, clienteNome, clienteCelular) {
     document.getElementById('btnEnviarMensagem').onclick = function() {
         const canalId = document.getElementById('selectCanalWhatsapp').value;
         const mensagem = document.getElementById('chatMensagem').value.trim();
-        if (!mensagem) return;
+        if (!mensagem || !canalId) return;
         fetch('api/enviar_mensagem.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
