@@ -120,6 +120,13 @@ function render_content() {
                     </svg>
                   </a>
                 <?php endif; ?>
+                <a href="#" class="btn-whatsapp" 
+                   data-cliente-id="<?= $cli['id'] ?>" 
+                   data-cliente-nome="<?= htmlspecialchars($cli['nome']) ?>"
+                   data-cliente-celular="<?= htmlspecialchars($cli['celular']) ?>"
+                   title="Conversar via WhatsApp">
+                    <i class="fab fa-whatsapp"></i>
+                </a>
               </div>
             </td>
           </tr>
@@ -225,4 +232,111 @@ include 'template.php';
   transition: transform 0.15s;
 }
 .acao-icones a:hover svg { transform: scale(1.15); }
-</style> 
+</style>
+<div id="modalChat" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span class="close" onclick="fecharModalChat()">&times;</span>
+    <h3 id="modalClienteNome"></h3>
+    <div id="modalClienteCelular" style="font-size:0.9em;color:#888;"></div>
+    <div id="canalSelectorArea" style="margin:10px 0;">
+      <label for="selectCanalWhatsapp">Escolha o número para enviar:</label>
+      <select id="selectCanalWhatsapp"></select>
+    </div>
+    <div id="chatArea" style="display:none;">
+      <div id="chatMensagens" style="height:200px;overflow-y:auto;background:#f9f9f9;padding:10px;margin-bottom:10px;border-radius:5px;"></div>
+      <textarea id="chatMensagem" placeholder="Digite sua mensagem" style="width:100%;height:60px;"></textarea>
+      <button id="btnEnviarMensagem" style="margin-top:5px;">Enviar</button>
+    </div>
+  </div>
+</div>
+<style>
+.modal { position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:9999;}
+.modal-content { background:#fff; padding:20px; border-radius:8px; min-width:350px; max-width:95vw; position:relative;}
+.close { position:absolute; top:10px; right:15px; font-size:22px; cursor:pointer;}
+</style>
+<script>
+document.querySelectorAll('.btn-whatsapp').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        abrirModalChat(
+            this.getAttribute('data-cliente-id'),
+            this.getAttribute('data-cliente-nome'),
+            this.getAttribute('data-cliente-celular')
+        );
+    });
+});
+
+function abrirModalChat(clienteId, clienteNome, clienteCelular) {
+    document.getElementById('modalChat').style.display = 'flex';
+    document.getElementById('modalClienteNome').textContent = clienteNome;
+    document.getElementById('modalClienteCelular').textContent = 'Celular: ' + clienteCelular;
+    document.getElementById('chatArea').style.display = 'none';
+    document.getElementById('chatMensagens').innerHTML = '';
+    document.getElementById('chatMensagem').value = '';
+
+    // Buscar canais WhatsApp
+    fetch('api/listar_canais_whatsapp.php')
+        .then(res => res.json())
+        .then(canais => {
+            const select = document.getElementById('selectCanalWhatsapp');
+            select.innerHTML = '';
+            canais.forEach(canal => {
+                const opt = document.createElement('option');
+                opt.value = canal.id;
+                opt.textContent = canal.nome_exibicao + ' (' + canal.identificador + ')';
+                select.appendChild(opt);
+            });
+            document.getElementById('canalSelectorArea').style.display = canais.length > 1 ? 'block' : 'none';
+            if (canais.length > 0) {
+                document.getElementById('chatArea').style.display = 'block';
+                carregarHistorico(clienteId, canais[0].id);
+            }
+            select.onchange = () => {
+                carregarHistorico(clienteId, select.value);
+            };
+        });
+
+    document.getElementById('btnEnviarMensagem').onclick = function() {
+        const canalId = document.getElementById('selectCanalWhatsapp').value;
+        const mensagem = document.getElementById('chatMensagem').value.trim();
+        if (!mensagem) return;
+        fetch('api/enviar_mensagem.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                canal_id: canalId,
+                cliente_id: clienteId,
+                mensagem: mensagem
+            })
+        }).then(res => res.json()).then(resp => {
+            if(resp.success) {
+                document.getElementById('chatMensagem').value = '';
+                carregarHistorico(clienteId, canalId);
+            } else {
+                alert('Erro: ' + resp.error);
+            }
+        });
+    };
+}
+
+function carregarHistorico(clienteId, canalId) {
+    fetch(`api/historico_mensagens.php?cliente_id=${clienteId}&canal_id=${canalId}`)
+        .then(res => res.json())
+        .then(msgs => {
+            const area = document.getElementById('chatMensagens');
+            area.innerHTML = '';
+            msgs.forEach(msg => {
+                const div = document.createElement('div');
+                div.textContent = `[${msg.data_hora}] ${msg.direcao === 'enviado' ? 'Você' : 'Cliente'}: ${msg.mensagem}`;
+                div.style.marginBottom = '4px';
+                div.style.color = msg.direcao === 'enviado' ? '#2e7d32' : '#333';
+                area.appendChild(div);
+            });
+            area.scrollTop = area.scrollHeight;
+        });
+}
+
+function fecharModalChat() {
+    document.getElementById('modalChat').style.display = 'none';
+}
+</script> 
