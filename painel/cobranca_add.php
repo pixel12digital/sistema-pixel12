@@ -8,38 +8,23 @@ while ($row = $res->fetch_assoc()) {
     $clientes[] = $row;
 }
 
-function criarCobrancaAsaas($asaas_id, $valor, $vencimento, $descricao, $tipo) {
-    global $asaas_api_key, $asaas_api_url;
-    $data = [
-        'customer' => $asaas_id,
-        'value' => floatval($valor),
-        'dueDate' => $vencimento,
-        'description' => $descricao,
-        'billingType' => $tipo
-    ];
+function postAsaas($endpoint, $data) {
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $asaas_api_url . '/payments');
+    curl_setopt($ch, CURLOPT_URL, ASAAS_API_URL . $endpoint);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'access_token: ' . $asaas_api_key
+        'access_token: ' . ASAAS_API_KEY
     ]);
     $result = curl_exec($ch);
-    if ($result === false) {
-        curl_close($ch);
-        return [false, 'Erro ao conectar à API do Asaas: ' . curl_error($ch)];
-    }
-    $resp = json_decode($result, true);
+    $err = curl_error($ch);
     curl_close($ch);
-    if (isset($resp['id'])) {
-        return [true, $resp];
-    } elseif (isset($resp['errors'])) {
-        return [false, 'Erro Asaas: ' . json_encode($resp['errors'])];
-    } else {
-        return [false, 'Erro desconhecido ao criar cobrança no Asaas.'];
-    }
+    if ($result === false) return [false, 'Erro cURL: ' . $err];
+    $resp = json_decode($result, true);
+    if (isset($resp['errors'])) return [false, json_encode($resp['errors'])];
+    return [true, $resp];
 }
 
 $msg = '';
@@ -54,7 +39,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($c['id'] == $cliente_id) $asaas_id = $c['asaas_id'];
     }
     if ($asaas_id && $valor && $vencimento && $descricao && $tipo) {
-        list($ok, $asaas_resp) = criarCobrancaAsaas($asaas_id, $valor, $vencimento, $descricao, $tipo);
+        list($ok, $asaas_resp) = postAsaas('/payments', [
+            'customer' => $asaas_id,
+            'value' => floatval($valor),
+            'dueDate' => $vencimento,
+            'description' => $descricao,
+            'billingType' => $tipo
+        ]);
         if ($ok) {
             $stmt = $mysqli->prepare("INSERT INTO cobrancas (asaas_payment_id, cliente_id, valor, status, vencimento, data_criacao, descricao, tipo, url_fatura, parcela, assinatura_id) VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)");
             $stmt->bind_param('sidsssssss',

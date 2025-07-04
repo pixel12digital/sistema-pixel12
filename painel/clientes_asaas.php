@@ -11,13 +11,12 @@ if (!isset($_SESSION['logado']) || !$_SESSION['logado']) {
 require_once 'config.php';
 
 function getAsaas($endpoint) {
-    global $asaas_api_key, $asaas_api_url;
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $asaas_api_url . $endpoint);
+    curl_setopt($ch, CURLOPT_URL, ASAAS_API_URL . $endpoint);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'access_token: ' . $asaas_api_key
+        'access_token: ' . ASAAS_API_KEY
     ]);
     $result = curl_exec($ch);
     if ($result === false) {
@@ -70,7 +69,7 @@ if ($busca && !empty($customerIds)) {
         $paymentsQuery .= "&customer=$cid";
     }
 }
-$api_url_debug = $asaas_api_url . $paymentsQuery;
+$api_url_debug = ASAAS_API_URL . $paymentsQuery;
 $resp = getAsaas($paymentsQuery);
 // Debug: Exibir URL e resposta bruta (sempre antes do exit)
 if (isset($_GET['debug'])) {

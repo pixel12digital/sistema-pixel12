@@ -273,26 +273,36 @@ class AsaasService
      */
     public function getCustomerPayments(string $customerId): array
     {
+        error_log('[Asaas] getCustomerPayments - Token início: ' . substr(trim($this->apiKey), 0, 8) . '...');
+        error_log('[Asaas] getCustomerPayments - ID do cliente: ' . var_export($customerId, true));
         $url = $this->apiUrl . '/payments?customer=' . urlencode($customerId) . '&limit=100';
+        error_log('[Asaas] getCustomerPayments - URL: ' . $url);
+        $header = [
+            'Content-Type: application/json',
+            'access_token: ' . trim($this->apiKey)
+        ];
+        error_log('[Asaas] Header enviado: ' . var_export($header, true));
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'access_token: ' . $this->apiKey,
-        ]);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
         $result = curl_exec($ch);
-        file_put_contents(__DIR__ . '/asaas_payments_debug.json', $result); // LOG PARA DEBUG
-        if ($result === false) {
-            throw new \Exception('cURL error: ' . curl_error($ch));
-        }
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
         curl_close($ch);
+        error_log('[Asaas] getCustomerPayments - HTTP Code: ' . $httpCode);
+        error_log('[Asaas] getCustomerPayments - cURL error: ' . $error);
+        error_log('[Asaas] getCustomerPayments - Resposta bruta: ' . var_export($result, true));
+        if ($result === false || $result === "") {
+            throw new \Exception('cURL error: ' . $error);
+        }
         $response = json_decode($result, true);
         if ($httpCode >= 400 || isset($response['errors'])) {
             $err = $response['errors'] ?? $response;
+            error_log('[Asaas] getCustomerPayments - Erro HTTP ou errors: ' . json_encode($err));
             throw new \Exception('Asaas API error: ' . json_encode($err) . ' | Resposta bruta: ' . $result);
         }
         if (!is_array($response) || !isset($response['data'])) {
+            error_log('[Asaas] getCustomerPayments - Resposta inesperada: ' . var_export($result, true));
             throw new \Exception('Asaas API error: resposta inesperada: ' . $result);
         }
         return $response['data'];
@@ -305,7 +315,10 @@ class AsaasService
      */
     public function getCustomerSubscriptions(string $customerId): array
     {
+        error_log('[Asaas] getCustomerSubscriptions - Token início: ' . substr($this->apiKey, 0, 8) . '...');
+        error_log('[Asaas] getCustomerSubscriptions - ID do cliente: ' . var_export($customerId, true));
         $url = $this->apiUrl . '/subscriptions?customer=' . urlencode($customerId) . '&limit=100';
+        error_log('[Asaas] getCustomerSubscriptions - URL: ' . $url);
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -313,17 +326,23 @@ class AsaasService
             'access_token: ' . $this->apiKey,
         ]);
         $result = curl_exec($ch);
-        if ($result === false) {
-            throw new \Exception('cURL error: ' . curl_error($ch));
-        }
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
         curl_close($ch);
+        error_log('[Asaas] getCustomerSubscriptions - HTTP Code: ' . $httpCode);
+        error_log('[Asaas] getCustomerSubscriptions - cURL error: ' . $error);
+        error_log('[Asaas] getCustomerSubscriptions - Resposta bruta: ' . var_export($result, true));
+        if ($result === false || $result === "") {
+            throw new \Exception('cURL error: ' . $error);
+        }
         $response = json_decode($result, true);
         if ($httpCode >= 400 || isset($response['errors'])) {
             $err = $response['errors'] ?? $response;
+            error_log('[Asaas] getCustomerSubscriptions - Erro HTTP ou errors: ' . json_encode($err));
             throw new \Exception('Asaas API error: ' . json_encode($err) . ' | Resposta bruta: ' . $result);
         }
         if (!is_array($response) || !isset($response['data'])) {
+            error_log('[Asaas] getCustomerSubscriptions - Resposta inesperada: ' . var_export($result, true));
             throw new \Exception('Asaas API error: resposta inesperada: ' . $result);
         }
         return $response['data'];

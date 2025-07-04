@@ -10,15 +10,19 @@ if (!isset($_SESSION['logado']) || !$_SESSION['logado']) {
 require_once 'config.php';
 
 function getAsaas($endpoint) {
-    global $asaas_api_key, $asaas_api_url;
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $asaas_api_url . $endpoint);
+    curl_setopt($ch, CURLOPT_URL, ASAAS_API_URL . $endpoint);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'access_token: ' . $asaas_api_key
+        'access_token: ' . ASAAS_API_KEY
     ]);
     $result = curl_exec($ch);
+    if ($result === false) {
+        echo "<h2>Erro ao conectar à API do Asaas: " . curl_error($ch) . "</h2>";
+        curl_close($ch);
+        exit;
+    }
     curl_close($ch);
     return json_decode($result, true);
 }

@@ -198,6 +198,17 @@ do {
 
 echo "Cobranças sincronizadas: " . count($cobrancas) . "\n";
 
+// Após sincronizar cobranças, excluir do banco local as que não existem mais no Asaas
+if (!empty($cobrancas)) {
+    // Monta um array com todos os IDs de cobranças do Asaas
+    $ids_asaas = array_map(function($cob) { return $cob['id']; }, $cobrancas);
+    $ids_asaas_str = "'" . implode("','", array_map('addslashes', $ids_asaas)) . "'";
+    // Exclui do banco local todas as cobranças cujo asaas_payment_id não está mais no Asaas
+    $sql_del = "DELETE FROM cobrancas WHERE asaas_payment_id NOT IN ($ids_asaas_str)";
+    $mysqli->query($sql_del);
+    echo "Cobranças locais excluídas (não existem mais no Asaas): " . $mysqli->affected_rows . "\n";
+}
+
 // 3. Registrar data/hora da última sincronização
 file_put_contents('ultima_sincronizacao.log', date('Y-m-d H:i:s'));
 echo "Sincronização concluída em " . date('Y-m-d H:i:s') . "\n"; 

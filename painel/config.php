@@ -13,6 +13,6 @@ define('DB_USER', 'u342734079_revendaweb');
 define('DB_PASS', 'Los@ngo#081081');
 
 // Configuração da API do Asaas
-define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjQ5NTYyZTZiLTJmMzMtNDk2NS04ZjJiLWVlNzJiNTYzY2JiNDo6JGFhY2hfOTY3MTVhN2MtMjkyMS00YTgwLWIyOTAtNThiMzQyOTljYjQ4');
+define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmIyZTgwNDE4LWQwZjktNDA5OS1hYjViLTE3NjhhOTgwYzMxMzo6JGFhY2hfYWE3NzFlM2QtMDJiNC00YzQwLThhMWMtYzQ1MTMzOGRlYjNk');
 define('ASAAS_API_URL', 'https://www.asaas.com/api/v3');
 ?> 

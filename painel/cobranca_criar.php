@@ -3,15 +3,14 @@ require_once 'config.php';
 header('Content-Type: application/json');
 
 function postAsaas($endpoint, $data) {
-    global $asaas_api_url, $asaas_api_key;
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $asaas_api_url . $endpoint);
+    curl_setopt($ch, CURLOPT_URL, ASAAS_API_URL . $endpoint);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'access_token: ' . $asaas_api_key
+        'access_token: ' . ASAAS_API_KEY
     ]);
     $result = curl_exec($ch);
     $err = curl_error($ch);

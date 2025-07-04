@@ -342,15 +342,18 @@ function render_content() {
         }
         // Buscar dados do Asaas se houver asaas_id
         $asaas_payments = $asaas_subs = [];
+        error_log('[DEBUG] Entrou na busca do Asaas. ID do cliente: ' . var_export($cliente['asaas_id'] ?? null, true));
         if (!empty($cliente['asaas_id'])) {
-          require_once __DIR__ . '/../src/Services/AsaasService.php';
-          $asaasService = new \Services\AsaasService();
-          try {
-            $asaas_payments = $asaasService->getCustomerPayments($cliente['asaas_id']);
-            $asaas_subs = $asaasService->getCustomerSubscriptions($cliente['asaas_id']);
-          } catch (\Exception $e) {
-            echo '<div style="color:#e11d48;">Erro ao buscar dados do Asaas: '.htmlspecialchars($e->getMessage()).'</div>';
-          }
+            require_once __DIR__ . '/../src/Services/AsaasService.php';
+            $asaasService = new \Services\AsaasService();
+            try {
+                error_log('[DEBUG] Chamando getCustomerPayments para ID: ' . $cliente['asaas_id']);
+                $asaas_payments = $asaasService->getCustomerPayments($cliente['asaas_id']);
+                $asaas_subs = $asaasService->getCustomerSubscriptions($cliente['asaas_id']);
+            } catch (\Exception $e) {
+                error_log('[DEBUG] Exceção ao buscar dados do Asaas: ' . $e->getMessage());
+                echo '<div style="color:#e11d48;">Erro ao buscar dados do Asaas: '.htmlspecialchars($e->getMessage()).'</div>';
+            }
         }
         ?>
         <div class="mb-4">
