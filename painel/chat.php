@@ -154,6 +154,21 @@ function render_content() {
     echo '<div class="bg-white border-t border-gray-200 p-4" style="flex-shrink:0;">';
     echo '<form class="flex flex-col gap-2" method="POST" action="chat_enviar.php" enctype="multipart/form-data">';
     echo '<input type="hidden" name="cliente_id" value="' . intval($cliente_selecionado['id']) . '">';
+    // Adiciona select de canais WhatsApp conectados
+    $canais_whatsapp = [];
+    $resCanais = $mysqli->query("SELECT id, nome_exibicao FROM canais_comunicacao WHERE status = 'conectado' AND tipo = 'whatsapp'");
+    while ($row = $resCanais->fetch_assoc()) {
+      $canais_whatsapp[$row['id']] = $row['nome_exibicao'];
+    }
+    if (count($canais_whatsapp) > 0) {
+      echo '<select name="canal_id" required style="margin-bottom:8px;">';
+      foreach ($canais_whatsapp as $id => $nome) {
+        echo '<option value="' . $id . '">' . htmlspecialchars($nome) . '</option>';
+      }
+      echo '</select>';
+    } else {
+      echo '<div style="color:#a00;margin-bottom:8px;">Nenhum canal WhatsApp conectado.</div>';
+    }
     echo '<div class="flex gap-2">';
     echo '<input type="text" name="mensagem" placeholder="Digite sua mensagem..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">';
     echo '<button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700" style="min-width:90px;">Enviar</button>';
