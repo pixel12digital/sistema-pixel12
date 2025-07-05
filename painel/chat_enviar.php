@@ -10,6 +10,46 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
+    // Suporte a envio via formulário (multipart/form-data) e via JSON
+    $is_form = isset($_POST['cliente_id']);
+    if ($is_form) {
+        $cliente_id = intval($_POST['cliente_id'] ?? 0);
+        $canal_id = intval($_POST['canal_id'] ?? 0); // opcional, pode ser ajustado
+        $mensagem = trim($_POST['mensagem'] ?? '');
+        $anexo_path = null;
+        if (isset($_FILES['anexo']) && $_FILES['anexo']['error'] === UPLOAD_ERR_OK) {
+            $ext = pathinfo($_FILES['anexo']['name'], PATHINFO_EXTENSION);
+            $filename = 'anexo_' . time() . '_' . rand(1000,9999) . '.' . $ext;
+            $upload_dir = __DIR__ . '/../uploads/';
+            if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
+            $dest = $upload_dir . $filename;
+            if (move_uploaded_file($_FILES['anexo']['tmp_name'], $dest)) {
+                $anexo_path = 'uploads/' . $filename;
+            }
+        }
+        // Buscar canal_id do cliente (última conversa)
+        if (!$canal_id && $cliente_id) {
+            $res = $mysqli->query("SELECT canal_id FROM mensagens_comunicacao WHERE cliente_id = $cliente_id ORDER BY data_hora DESC LIMIT 1");
+            $row = $res ? $res->fetch_assoc() : null;
+            $canal_id = $row ? intval($row['canal_id']) : 1;
+        }
+        if (!$cliente_id || !$canal_id || (!$mensagem && !$anexo_path)) {
+            throw new Exception('Dados incompletos');
+        }
+        $cliente = $mysqli->query("SELECT * FROM clientes WHERE id = $cliente_id")->fetch_assoc();
+        if (!$cliente) throw new Exception('Cliente não encontrado');
+        $canal = $mysqli->query("SELECT * FROM canais_comunicacao WHERE id = $canal_id")->fetch_assoc();
+        if (!$canal) throw new Exception('Canal não encontrado');
+        $mensagem_escaped = $mysqli->real_escape_string($mensagem);
+        $anexo_escaped = $anexo_path ? ("'" . $mysqli->real_escape_string($anexo_path) . "'") : 'NULL';
+        $tipo = $anexo_path ? 'anexo' : 'texto';
+        $data_hora = date('Y-m-d H:i:s');
+        $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, anexo, tipo, data_hora, direcao, status) VALUES ($canal_id, $cliente_id, '$mensagem_escaped', $anexo_escaped, '$tipo', '$data_hora', 'enviado', 'enviado')";
+        if (!$mysqli->query($sql)) throw new Exception('Erro ao salvar mensagem no banco: ' . $mysqli->error);
+        header('Location: chat.php?cliente_id=' . $cliente_id);
+        exit;
+    }
+    
     // Ler dados JSON
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);

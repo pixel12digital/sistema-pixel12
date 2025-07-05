@@ -322,7 +322,51 @@ function render_content() {
       <div class="painel-card"><h4>📁 Projetos</h4><p>Lista de projetos relacionados ao cliente.</p></div>
     </div>
     <div class="painel-tab painel-tab-relacionamento" style="display:none;">
-      <div class="painel-card"><h4> Suporte & Relacionamento</h4><p>Histórico de tickets, comunicações e interações.</p></div>
+      <div class="painel-card" style="background:#181920;color:#fff;"> <h4 style="color:#fff;"> Suporte & Relacionamento</h4>
+      <?php
+      // Buscar todas as mensagens do cliente
+      $historico = [];
+      if ($cliente_id) {
+        $res_hist = $mysqli->query("SELECT m.*, c.nome_exibicao as canal_nome FROM mensagens_comunicacao m LEFT JOIN canais_comunicacao c ON m.canal_id = c.id WHERE m.cliente_id = $cliente_id ORDER BY m.data_hora DESC");
+        while ($msg = $res_hist && $res_hist->num_rows ? $res_hist->fetch_assoc() : null) {
+          $historico[] = $msg;
+        }
+      }
+      if (empty($historico)) {
+        echo '<div class="text-gray-500">Nenhuma interação registrada para este cliente.</div>';
+      } else {
+        $ultimo_dia = '';
+        foreach ($historico as $msg) {
+          $dia = date('d/m/Y', strtotime($msg['data_hora']));
+          if ($dia !== $ultimo_dia) {
+            if ($ultimo_dia !== '') echo '</div>';
+            echo '<div style="margin-top:18px;"><div style="color:#7c2ae8;font-weight:bold;font-size:1.1em;margin-bottom:6px;">' . $dia . '</div>';
+            $ultimo_dia = $dia;
+          }
+          $is_received = $msg['direcao'] === 'recebido';
+          $bubble = $is_received ? 'background:#23232b;color:#fff;' : 'background:#7c2ae8;color:#fff;';
+          $canal = htmlspecialchars($msg['canal_nome'] ?? 'Canal');
+          $hora = date('H:i', strtotime($msg['data_hora']));
+          $conteudo = '';
+          if (!empty($msg['anexo'])) {
+            $ext = strtolower(pathinfo($msg['anexo'], PATHINFO_EXTENSION));
+            if (in_array($ext, ['jpg','jpeg','png','gif','bmp','webp'])) {
+              $conteudo .= '<a href="' . htmlspecialchars($msg['anexo']) . '" target="_blank"><img src="' . htmlspecialchars($msg['anexo']) . '" alt="anexo" style="max-width:160px;max-height:100px;border-radius:8px;box-shadow:0 1px 4px #0001;margin-bottom:4px;"></a><br>';
+            } else {
+              $nome_arquivo = basename($msg['anexo']);
+              $conteudo .= '<a href="' . htmlspecialchars($msg['anexo']) . '" target="_blank" style="color:#7c2ae8;text-decoration:underline;"><span style="color:#7c2ae8;">📎</span> ' . htmlspecialchars($nome_arquivo) . '</a><br>';
+            }
+          }
+          $conteudo .= htmlspecialchars($msg['mensagem']);
+          echo '<div style="' . $bubble . 'border-radius:10px;padding:10px 16px;margin-bottom:8px;max-width:520px;box-shadow:0 1px 4px #0001;display:inline-block;">';
+          echo '<div style="font-size:0.98em;font-weight:500;margin-bottom:2px;">' . $canal . ' <span style="font-size:0.92em;color:#888;font-weight:400;">' . ($is_received ? 'Recebido' : 'Enviado') . ' às ' . $hora . '</span></div>';
+          echo $conteudo;
+          echo '</div>';
+        }
+        if ($ultimo_dia !== '') echo '</div>';
+      }
+      ?>
+      </div>
     </div>
     <div class="painel-tab painel-tab-financeiro" style="display:none;">
       <div class="painel-card">

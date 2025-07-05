@@ -5,7 +5,45 @@ Centralizar o envio e recebimento de mensagens de múltiplos canais (WhatsApp, D
 
 ---
 
-## **Checklist de Etapas**
+## **Nova Estrutura de Interface do Chat Centralizado**
+
+O painel de chat será composto por **três colunas principais**:
+
+### 1. Coluna Esquerda (Sidebar)
+- Exibe **todos os chats abertos** (lista de conversas).
+- Permite busca, filtro, seleção de conversa.
+
+### 2. Coluna do Meio (Detalhes do Cliente)
+- Ao clicar em um chat na coluna da esquerda, a coluna do meio exibe o **bloco completo de detalhes do cliente** (como em `cliente_detalhes.php`), com abas, cards, dados, etc.
+- Toda navegação de detalhes, projetos, relacionamento, financeiro, etc., será feita dentro desta coluna central, sem sair da tela do chat.
+- Links de detalhes de cliente, projetos, etc., sempre direcionam para o chat.php, atualizando apenas a coluna do meio.
+
+### 3. Coluna Direita (Chat com Cliente)
+- Exibe o **chat aberto** com o cliente selecionado (timeline de mensagens, envio de mensagens, anexos, etc.).
+- Sempre mostra a conversa ativa com o cliente selecionado na coluna do meio.
+
+### **Fluxo de Navegação**
+- O usuário vê todos os chats abertos na coluna da esquerda.
+- Ao clicar em um chat, a coluna do meio mostra todos os detalhes do cliente daquele chat (com abas e cards).
+- A coluna da direita mostra a conversa (chat) com aquele cliente.
+- **Tudo acontece na mesma tela, sem recarregar ou sair do chat.php.**
+
+---
+
+## **Checklist de Implementação da Nova Arquitetura**
+
+- [ ] Estruturar layout de três colunas no chat.php
+- [ ] Exibir lista de chats abertos na coluna da esquerda
+- [ ] Integrar bloco completo de detalhes do cliente (com abas) na coluna do meio
+- [ ] Exibir chat aberto com o cliente selecionado na coluna da direita
+- [ ] Atualizar todos os links de detalhes de cliente para direcionar ao chat.php (coluna do meio)
+- [ ] Garantir responsividade e experiência fluida
+- [ ] Testar navegação entre abas e atualização dinâmica das colunas
+- [ ] Validar integração visual e usabilidade
+
+---
+
+## **Checklist Geral de Etapas**
 
 ### **1. Estrutura do Projeto**
 - [OK] Criar menu "Comunicação" em Configurações no painel PHP.
@@ -74,6 +112,10 @@ Instalar e configurar Venom Bot ou Baileys para integração com WhatsApp.
 
 ---
 
+## **Como usar este checklist**
+- Ao iniciar cada etapa, marque como [OK] quando concluída.
+- Mantenha este documento salvo no repositório ou em local de fácil acesso para consulta e atualização.
+
 ## **Observações Importantes**
 - O backend Node.js **NÃO** deve rodar na Hostinger compartilhada, mas sim em uma VPS (pode ser na própria Hostinger, desde que não conflite com AzuraCast).
 - Sempre escolha portas livres e proteja a API.
@@ -91,10 +133,4 @@ Instalar e configurar Venom Bot ou Baileys para integração com WhatsApp.
 **mensagens_comunicacao**
 | id | canal_id | cliente_id | mensagem | tipo   | data_hora           | direcao  | status   |
 |----|----------|------------|----------|--------|---------------------|----------|----------|
-| 1  | 1        | 285        | Olá!     | texto  | 2024-07-04 14:00:00 | recebido | entregue |
-
----
-
-## **Como usar este checklist**
-- Ao iniciar cada etapa, marque como [OK] quando concluída.
-- Mantenha este documento salvo no repositório ou em local de fácil acesso para consulta e atualização. 
+| 1  | 1        | 285        | Olá!     | texto  | 2024-07-04 14:00:00 | recebido | entregue | 

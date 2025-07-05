@@ -3,14 +3,12 @@ $page = 'chat.php';
 $page_title = 'Chat Centralizado';
 require_once 'config.php';
 require_once 'db.php';
+require_once 'components_cliente.php';
 include 'template.php';
 
 function render_content() {
   global $mysqli;
-  
-  // Buscar canais conectados
-  $canais = $mysqli->query("SELECT * FROM canais_comunicacao WHERE status = 'conectado' ORDER BY nome_exibicao");
-  
+
   // Buscar conversas (clientes com mensagens)
   $conversas = $mysqli->query("
     SELECT DISTINCT 
@@ -20,25 +18,32 @@ function render_content() {
       c.celular as cliente_celular,
       COUNT(m.id) as total_mensagens,
       MAX(m.data_hora) as ultima_mensagem,
-      SUM(CASE WHEN m.direcao = 'recebido' AND m.status != 'lido' THEN 1 ELSE 0 END) as nao_lidas
+      MAX(m.mensagem) as ultima_mensagem_texto,
+      SUM(CASE WHEN m.direcao = 'recebido' AND m.status != 'lido' THEN 1 ELSE 0 END) as nao_lidas,
+      MAX(m.canal_id) as canal_id
     FROM clientes c
     LEFT JOIN mensagens_comunicacao m ON c.id = m.cliente_id
     WHERE m.id IS NOT NULL
     GROUP BY c.id, c.nome, c.email, c.celular
     ORDER BY ultima_mensagem DESC
   ");
-  
-  // Buscar mensagens se um cliente foi selecionado
+
+  // Buscar canais conectados (para exibir nome do canal)
+  $canais = [];
+  $resCanais = $mysqli->query("SELECT id, nome_exibicao FROM canais_comunicacao");
+  while ($row = $resCanais->fetch_assoc()) {
+    $canais[$row['id']] = $row['nome_exibicao'];
+  }
+
+  // Buscar cliente selecionado e mensagens
   $cliente_selecionado = null;
   $mensagens = [];
   if (isset($_GET['cliente_id']) && $_GET['cliente_id']) {
     $cliente_id = intval($_GET['cliente_id']);
     $cliente_selecionado = $mysqli->query("SELECT * FROM clientes WHERE id = $cliente_id")->fetch_assoc();
-    
     if ($cliente_selecionado) {
       // Marcar mensagens como lidas
       $mysqli->query("UPDATE mensagens_comunicacao SET status = 'lido' WHERE cliente_id = $cliente_id AND direcao = 'recebido'");
-      
       // Buscar mensagens
       $mensagens_result = $mysqli->query("
         SELECT m.*, c.nome_exibicao as canal_nome
@@ -47,220 +52,233 @@ function render_content() {
         WHERE m.cliente_id = $cliente_id
         ORDER BY m.data_hora ASC
       ");
-      
       while ($msg = $mensagens_result->fetch_assoc()) {
         $mensagens[] = $msg;
       }
     }
   }
-  
-  echo '<div class="flex h-screen bg-gray-50">';
-  
-  // Sidebar com lista de conversas
-  echo '<div class="w-80 bg-white border-r border-gray-200 flex flex-col">';
+
+  echo '<div class="flex bg-gray-50" style="overflow-x:hidden; height:calc(100vh - 72px);">';
+
+  // Sidebar esquerda (280px)
+  echo '<aside class="bg-white border-r border-gray-200 flex flex-col" style="min-width:280px;max-width:280px;height:calc(100vh - 72px);">';
   echo '<div class="p-4 border-b border-gray-200">';
-  echo '<h2 class="text-lg font-semibold text-gray-800">Conversas</h2>';
-  echo '<div class="mt-2 relative">';
-  echo '<input type="text" id="busca-conversas" placeholder="Buscar cliente..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">';
+  echo '<input type="text" id="buscaConversa" placeholder="Buscar..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 mb-3">';
+  echo '<div class="mb-2 flex gap-2">';
+  echo '<button id="btnFiltroAbertas" class="px-3 py-1 bg-purple-100 text-purple-700 rounded text-xs filtro-status filtro-ativo" data-status="aberta">Abertas</button>';
+  echo '<button id="btnFiltroFechadas" class="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs filtro-status" data-status="fechada">Fechadas</button>';
   echo '</div>';
   echo '</div>';
-  
-  echo '<div class="flex-1 overflow-y-auto">';
+  echo '<div class="flex-1 overflow-y-auto" id="listaConversas">';
   if ($conversas && $conversas->num_rows > 0) {
+    $conversas_array = [];
     while ($conversa = $conversas->fetch_assoc()) {
+      $conversas_array[] = $conversa;
+    }
+    foreach ($conversas_array as $conversa) {
       $is_active = ($cliente_selecionado && $cliente_selecionado['id'] == $conversa['cliente_id']) ? 'bg-purple-50 border-purple-200' : 'hover:bg-gray-50';
-      $nao_lidas_badge = $conversa['nao_lidas'] > 0 ? '<span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full ml-auto">' . $conversa['nao_lidas'] . '</span>' : '';
-      
-      echo '<div class="conversa-item p-4 border-b border-gray-100 cursor-pointer ' . $is_active . '" data-cliente-id="' . $conversa['cliente_id'] . '">';
-      echo '<div class="flex items-center justify-between">';
-      echo '<div class="flex-1 min-w-0">';
-      echo '<h3 class="text-sm font-medium text-gray-900 truncate">' . htmlspecialchars($conversa['cliente_nome']) . '</h3>';
-      echo '<p class="text-xs text-gray-500 truncate">' . htmlspecialchars($conversa['cliente_email']) . '</p>';
-      echo '</div>';
-      echo $nao_lidas_badge;
-      echo '</div>';
-      echo '<div class="mt-1 flex items-center justify-between text-xs text-gray-400">';
-      echo '<span>' . $conversa['total_mensagens'] . ' mensagens</span>';
-      if ($conversa['ultima_mensagem']) {
-        echo '<span>' . date('d/m H:i', strtotime($conversa['ultima_mensagem'])) . '</span>';
-      }
-      echo '</div>';
-      echo '</div>';
+      $nao_lidas_badge = $conversa['nao_lidas'] > 0 ? '<span class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full mt-1">' . $conversa['nao_lidas'] . '</span>' : '';
+      $canal_nome = isset($canais[$conversa['canal_id']]) ? $canais[$conversa['canal_id']] : 'Canal';
+      $status_conversa = 'aberta'; // TODO: ajustar se houver campo de status no banco
+      echo '<div class="conversa-item flex items-center gap-3 p-4 border-b border-gray-100 cursor-pointer ' . $is_active . '" data-nome="' . htmlspecialchars(strtolower($conversa['cliente_nome'])) . '" data-email="' . htmlspecialchars(strtolower($conversa['cliente_email'])) . '" data-celular="' . htmlspecialchars($conversa['cliente_celular']) . '" data-mensagem="' . htmlspecialchars(strtolower($conversa['ultima_mensagem_texto'])) . '" data-status="' . $status_conversa . '">
+        <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-lg font-bold text-gray-500">' . strtoupper(substr($conversa['cliente_nome'],0,1)) . '</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-medium text-gray-900 text-sm truncate">' . htmlspecialchars($conversa['cliente_nome']) . '</span>
+            <span class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">' . htmlspecialchars($canal_nome) . '</span>
+          </div>
+          <div class="text-xs text-gray-500 truncate">' . htmlspecialchars($conversa['ultima_mensagem_texto']) . '</div>
+        </div>
+        <div class="flex flex-col items-end">
+          <span class="text-xs text-gray-400">' . ($conversa['ultima_mensagem'] ? date('H:i', strtotime($conversa['ultima_mensagem'])) : '') . '</span>
+          ' . $nao_lidas_badge . '
+        </div>
+      </div>';
     }
   } else {
-    echo '<div class="p-8 text-center text-gray-500">';
-    echo '<p>Nenhuma conversa encontrada</p>';
-    echo '<p class="text-sm mt-2">As conversas aparecerão aqui quando houver mensagens</p>';
-    echo '</div>';
+    echo '<div class="p-8 text-center text-gray-500">Nenhuma conversa encontrada</div>';
   }
   echo '</div>';
-  echo '</div>';
-  
-  // Área principal do chat
-  echo '<div class="flex-1 flex flex-col">';
-  
+  echo '</aside>';
+
+  // Coluna 2: Detalhes do cliente (altura ajustada)
+  echo '<section class="flex flex-col bg-white" style="min-width:0;height:calc(100vh - 72px);padding-left:16px;padding-right:16px;max-width:900px;flex-shrink:0;">';
+  echo '<div style="width:100%;padding:8px 0;box-sizing:border-box;">';
   if ($cliente_selecionado) {
-    // Header do chat
-    echo '<div class="bg-white border-b border-gray-200 p-4">';
-    echo '<div class="flex items-center justify-between">';
-    echo '<div>';
-    echo '<h2 class="text-lg font-semibold text-gray-800">' . htmlspecialchars($cliente_selecionado['nome']) . '</h2>';
-    echo '<p class="text-sm text-gray-500">' . htmlspecialchars($cliente_selecionado['email']) . '</p>';
-    echo '</div>';
-    echo '<div class="flex items-center space-x-2">';
-    if ($cliente_selecionado['celular']) {
-      echo '<a href="https://wa.me/55' . preg_replace('/\D/', '', $cliente_selecionado['celular']) . '" target="_blank" class="text-green-600 hover:text-green-700" title="WhatsApp">';
-      echo '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/></svg>';
-      echo '</a>';
-    }
-    echo '<a href="mailto:' . htmlspecialchars($cliente_selecionado['email']) . '" class="text-blue-600 hover:text-blue-700" title="E-mail">';
-    echo '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>';
-    echo '</a>';
-    echo '</div>';
-    echo '</div>';
-    echo '</div>';
-    
-    // Área de mensagens
-    echo '<div class="flex-1 overflow-y-auto p-4 bg-gray-50" id="chat-messages">';
-    if (!empty($mensagens)) {
+    render_cliente_ficha($cliente_selecionado['id'], false);
+  } else {
+    echo '<div id="detalhes-cliente" style="height:100%;display:flex;align-items:center;justify-content:center;color:#888;font-size:1.2rem;">Selecione um chat para ver detalhes do cliente.</div>';
+  }
+  echo '</div>';
+  echo '</section>';
+
+  // Coluna 3: Chat (altura ajustada)
+  echo '<section class="bg-white border-l border-gray-200 flex flex-col" style="min-width:260px;height:calc(100vh - 72px);flex:1 1 0%;">';
+  if ($cliente_selecionado) {
+    // Timeline de mensagens
+    echo '<div class="flex-1 overflow-y-auto p-6 flex flex-col gap-4">';
+    if (count($mensagens) > 0) {
       foreach ($mensagens as $msg) {
-        $is_received = $msg['direcao'] == 'recebido';
-        $bg_color = $is_received ? 'bg-white' : 'bg-purple-500 text-white';
-        $align = $is_received ? 'justify-start' : 'justify-end';
-        $margin = $is_received ? 'mr-12' : 'ml-12';
-        
-        echo '<div class="flex ' . $align . ' mb-4">';
-        echo '<div class="max-w-xs lg:max-w-md ' . $bg_color . ' rounded-lg px-4 py-2 shadow-sm ' . $margin . '">';
-        echo '<div class="text-sm">' . nl2br(htmlspecialchars($msg['mensagem'])) . '</div>';
-        echo '<div class="text-xs mt-1 ' . ($is_received ? 'text-gray-500' : 'text-purple-100') . '">';
-        echo date('d/m H:i', strtotime($msg['data_hora']));
-        if ($msg['canal_nome']) {
-          echo ' • ' . htmlspecialchars($msg['canal_nome']);
+        $is_received = $msg['direcao'] === 'recebido';
+        $align = $is_received ? 'items-start' : 'items-end';
+        $bubble = $is_received ? 'bg-gray-100 text-gray-800' : 'bg-purple-500 text-white';
+        $margin = $is_received ? 'mr-16' : 'ml-16';
+        $status_icon = '';
+        if (!$is_received) {
+          if ($msg['status'] === 'lido') {
+            $status_icon = '<span style="color:#4f46e5;font-size:1em;vertical-align:middle;">✔✔</span>';
+          } elseif ($msg['status'] === 'entregue') {
+            $status_icon = '<span style="color:#888;font-size:1em;vertical-align:middle;">✔✔</span>';
+          } elseif ($msg['status'] === 'enviado') {
+            $status_icon = '<span style="color:#888;font-size:1em;vertical-align:middle;">✔</span>';
+          }
         }
-        echo '</div>';
-        echo '</div>';
-        echo '</div>';
+        $conteudo = '';
+        if (!empty($msg['anexo'])) {
+          $ext = strtolower(pathinfo($msg['anexo'], PATHINFO_EXTENSION));
+          if (in_array($ext, ['jpg','jpeg','png','gif','bmp','webp'])) {
+            $conteudo .= '<a href="' . htmlspecialchars($msg['anexo']) . '" target="_blank"><img src="' . htmlspecialchars($msg['anexo']) . '" alt="anexo" style="max-width:140px;max-height:90px;border-radius:8px;box-shadow:0 1px 4px #0001;margin-bottom:4px;"></a><br>';
+          } else {
+            $nome_arquivo = basename($msg['anexo']);
+            $conteudo .= '<a href="' . htmlspecialchars($msg['anexo']) . '" target="_blank" style="color:#7c2ae8;text-decoration:underline;"><span style="color:#7c2ae8;">📎</span> ' . htmlspecialchars($nome_arquivo) . '</a><br>';
+          }
+        }
+        $conteudo .= htmlspecialchars($msg['mensagem']);
+        echo '<div class="flex ' . $align . '"><div class="max-w-xs ' . $bubble . ' rounded-lg px-4 py-2 shadow-sm ' . $margin . '">' . $conteudo . '<div class="text-xs mt-1 text-gray-400">' . date('H:i', strtotime($msg['data_hora'])) . ' ' . $status_icon . '</div></div></div>';
       }
     } else {
-      echo '<div class="text-center text-gray-500 mt-8">';
-      echo '<p>Nenhuma mensagem ainda</p>';
-      echo '<p class="text-sm mt-2">Inicie uma conversa enviando uma mensagem</p>';
-      echo '</div>';
+      echo '<div class="text-center text-gray-400">Nenhuma mensagem nesta conversa.</div>';
     }
     echo '</div>';
-    
-    // Área de envio de mensagem
-    echo '<div class="bg-white border-t border-gray-200 p-4">';
-    echo '<form id="form-enviar-mensagem" class="flex space-x-2">';
-    echo '<input type="hidden" name="cliente_id" value="' . $cliente_selecionado['id'] . '">';
-    echo '<select name="canal_id" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" required>';
-    echo '<option value="">Selecionar canal</option>';
-    if ($canais && $canais->num_rows > 0) {
-      while ($canal = $canais->fetch_assoc()) {
-        echo '<option value="' . $canal['id'] . '">' . htmlspecialchars($canal['nome_exibicao']) . '</option>';
-      }
-    }
-    echo '</select>';
-    echo '<input type="text" name="mensagem" placeholder="Digite sua mensagem..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" required>';
-    echo '<button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500">Enviar</button>';
+    // Formulário de envio de mensagem fixo no rodapé (ajustado: linha 1 campo mensagem amplo + botão, linha 2 upload)
+    echo '<div class="bg-white border-t border-gray-200 p-4" style="flex-shrink:0;">';
+    echo '<form class="flex flex-col gap-2" method="POST" action="chat_enviar.php" enctype="multipart/form-data">';
+    echo '<input type="hidden" name="cliente_id" value="' . intval($cliente_selecionado['id']) . '">';
+    echo '<div class="flex gap-2">';
+    echo '<input type="text" name="mensagem" placeholder="Digite sua mensagem..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">';
+    echo '<button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700" style="min-width:90px;">Enviar</button>';
+    echo '</div>';
+    echo '<input type="file" name="anexo" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt" class="px-2 py-2 border border-gray-300 rounded-lg text-sm">';
     echo '</form>';
     echo '</div>';
-    
   } else {
-    // Tela inicial quando nenhum cliente está selecionado
-    echo '<div class="flex-1 flex items-center justify-center">';
-    echo '<div class="text-center text-gray-500">';
-    echo '<svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
-    echo '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8z"/>';
-    echo '</svg>';
-    echo '<h3 class="text-lg font-medium mb-2">Selecione uma conversa</h3>';
-    echo '<p class="text-sm">Escolha um cliente na lista ao lado para iniciar uma conversa</p>';
-    echo '</div>';
-    echo '</div>';
+    echo '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#888;">Nenhum cliente selecionado.</div>';
   }
-  
-  echo '</div>'; // Fim da área principal
-  
-  echo '</div>'; // Fim do container principal
-  
-  // JavaScript para funcionalidade do chat
-  echo '<script>
-  document.addEventListener("DOMContentLoaded", function() {
-    // Busca de conversas
-    const buscaInput = document.getElementById("busca-conversas");
-    const conversaItems = document.querySelectorAll(".conversa-item");
-    
-    buscaInput.addEventListener("input", function() {
-      const termo = this.value.toLowerCase();
-      conversaItems.forEach(item => {
-        const nome = item.querySelector("h3").textContent.toLowerCase();
-        const email = item.querySelector("p").textContent.toLowerCase();
-        if (nome.includes(termo) || email.includes(termo)) {
-          item.style.display = "block";
-        } else {
-          item.style.display = "none";
-        }
-      });
-    });
-    
-    // Navegação entre conversas
-    conversaItems.forEach(item => {
-      item.addEventListener("click", function() {
-        const clienteId = this.dataset.clienteId;
-        window.location.href = "chat.php?cliente_id=" + clienteId;
-      });
-    });
-    
-    // Envio de mensagem
-    const formEnviar = document.getElementById("form-enviar-mensagem");
-    if (formEnviar) {
-      formEnviar.addEventListener("submit", function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        const mensagem = formData.get("mensagem");
-        const canalId = formData.get("canal_id");
-        const clienteId = formData.get("cliente_id");
-        
-        if (!mensagem.trim() || !canalId) {
-          alert("Por favor, selecione um canal e digite uma mensagem.");
-          return;
-        }
-        
-        // Enviar via AJAX
-        fetch("chat_enviar.php", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            cliente_id: clienteId,
-            canal_id: canalId,
-            mensagem: mensagem
-          })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            // Recarregar a página para mostrar a nova mensagem
-            window.location.reload();
-          } else {
-            alert("Erro ao enviar mensagem: " + (data.error || "Erro desconhecido"));
-          }
-        })
-        .catch(error => {
-          console.error("Erro:", error);
-          alert("Erro ao enviar mensagem. Tente novamente.");
-        });
-      });
-    }
-    
-    // Auto-scroll para a última mensagem
-    const chatMessages = document.getElementById("chat-messages");
-    if (chatMessages) {
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-  });
-  </script>';
+  echo '</section>';
+
+  echo '</div>';
 }
-?> 
+?>
+
+<!-- Modal Nova Conversa -->
+<div id="modalNovaConversa" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span class="close" onclick="fecharModalNovaConversa()">&times;</span>
+    <h3>Nova Conversa</h3>
+    <input type="text" id="buscaClienteOuNumero" placeholder="Nome, e-mail ou número" style="width:100%;margin:12px 0;padding:8px;border-radius:6px;border:1px solid #ccc;">
+    <div id="resultadosBusca" style="max-height:120px;overflow-y:auto;"></div>
+    <button id="btnIniciarConversa" style="margin-top:10px;display:none;">Iniciar Conversa</button>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const buscaInput = document.getElementById('buscaConversa');
+  const listaConversas = document.getElementById('listaConversas');
+  let buscaTimeout = null;
+
+  if (!buscaInput || !listaConversas) return;
+
+  buscaInput.addEventListener('input', function() {
+    const termo = this.value.trim();
+    if (termo.length < 3) {
+      // Restaurar lista original de conversas
+      document.querySelectorAll('#listaConversas > .conversa-item').forEach(item => item.style.display = '');
+      document.querySelectorAll('.busca-resultado').forEach(item => item.remove());
+      return;
+    }
+    clearTimeout(buscaTimeout);
+    buscaTimeout = setTimeout(() => {
+      fetch('api/buscar_clientes.php?termo=' + encodeURIComponent(termo))
+        .then(res => res.json())
+        .then(clientes => {
+          // Remove resultados anteriores da busca
+          document.querySelectorAll('.busca-resultado').forEach(item => item.remove());
+          if (clientes.length > 0) {
+            clientes.forEach(cli => {
+              let div = document.createElement('div');
+              div.className = 'conversa-item busca-resultado hover:bg-gray-50 cursor-pointer flex items-center gap-3 p-4 border-b border-gray-100';
+              div.innerHTML =
+                `<div class='w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-lg font-bold text-gray-500'>${cli.nome.charAt(0).toUpperCase()}</div>` +
+                `<div class='flex-1 min-w-0'><div class='font-medium text-gray-900 text-sm truncate'>${cli.nome}</div><div class='text-xs text-gray-500 truncate'>${cli.email ?? ''} ${cli.celular ?? ''}</div></div>`;
+              div.onclick = function() {
+                window.location.href = 'chat.php?cliente_id=' + cli.id;
+              };
+              listaConversas.insertAdjacentElement('afterbegin', div);
+            });
+          } else {
+            let div = document.createElement('div');
+            div.className = 'busca-resultado';
+            div.innerHTML = '<div class="p-8 text-center text-gray-500">Nenhum cliente encontrado</div>';
+            listaConversas.insertAdjacentElement('afterbegin', div);
+          }
+          // Esconde apenas os itens originais da lista
+          document.querySelectorAll('#listaConversas > .conversa-item:not(.busca-resultado)').forEach(item => item.style.display = 'none');
+        });
+    }, 250);
+  });
+});
+
+document.getElementById('btnNovaConversa').onclick = function() {
+    document.getElementById('modalNovaConversa').style.display = 'flex';
+    document.getElementById('buscaClienteOuNumero').value = '';
+    document.getElementById('resultadosBusca').innerHTML = '';
+    document.getElementById('btnIniciarConversa').style.display = 'none';
+};
+function fecharModalNovaConversa() {
+    document.getElementById('modalNovaConversa').style.display = 'none';
+}
+let clienteSelecionado = null;
+document.getElementById('buscaClienteOuNumero').oninput = function() {
+    const termo = this.value.trim();
+    clienteSelecionado = null;
+    document.getElementById('btnIniciarConversa').style.display = 'none';
+    if (termo.length < 3) {
+        document.getElementById('resultadosBusca').innerHTML = '';
+        return;
+    }
+    fetch('../api/buscar_clientes.php?termo=' + encodeURIComponent(termo))
+        .then(res => res.json())
+        .then(clientes => {
+            let html = '';
+            if (clientes.length > 0) {
+                html += '<div style="font-size:0.95em;color:#888;margin-bottom:4px;">Clientes encontrados:</div>';
+                clientes.forEach(function(cli) {
+                    html += `<div style="padding:6px 0;cursor:pointer;" onclick="selecionarClienteNovaConversa(${cli.id}, '${cli.nome.replace(/'/g, "\\'")}', '${cli.celular.replace(/'/g, "\\'")}')"><b>${cli.nome}</b> <span style='color:#888;font-size:0.95em;'>${cli.celular}</span></div>`;
+                });
+            } else {
+                html += '<div style="color:#888;">Nenhum cliente encontrado. Você pode iniciar conversa com este número.</div>';
+            }
+            document.getElementById('resultadosBusca').innerHTML = html;
+            if (clientes.length === 0 && termo.match(/^\d{10,}$/)) {
+                clienteSelecionado = {id: null, nome: termo, celular: termo};
+                document.getElementById('btnIniciarConversa').style.display = 'inline-block';
+            }
+        });
+};
+window.selecionarClienteNovaConversa = function(id, nome, celular) {
+    clienteSelecionado = {id, nome, celular};
+    document.getElementById('btnIniciarConversa').style.display = 'inline-block';
+};
+document.getElementById('btnIniciarConversa').onclick = function() {
+    if (!clienteSelecionado) return;
+    window.location.href = 'chat.php?cliente_id=' + (clienteSelecionado.id ? clienteSelecionado.id : '') + '&numero=' + encodeURIComponent(clienteSelecionado.celular);
+};
+
+function fecharConversa() {
+  alert('Funcionalidade de fechar conversa em breve!');
+}
+function transferirConversa() {
+  alert('Funcionalidade de transferir conversa em breve!');
+}
+</script>
+<?php 

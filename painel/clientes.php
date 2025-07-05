@@ -250,17 +250,29 @@ include 'template.php';
 <style>
 .modal { 
   position:fixed; top:0; left:0; width:100vw; height:100vh; 
-  background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:9999;
+  background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; z-index:9999;
 }
 .modal-content { 
-  background:#fff; padding:24px 32px; border-radius:8px; 
+  background:#fff; padding:32px 32px 24px 32px; border-radius:16px; 
   min-width:320px; max-width:420px; width:100%; 
-  position:relative; box-shadow:0 2px 24px #0002;
+  position:relative; box-shadow:0 8px 32px #0002, 0 1.5px 8px #a259e633;
   display: flex; flex-direction: column; align-items: center;
+  animation: modalFadeIn 0.25s;
 }
-.close { position:absolute; top:10px; right:15px; font-size:22px; cursor:pointer;}
+@keyframes modalFadeIn { from { opacity:0; transform:translateY(40px);} to { opacity:1; transform:translateY(0);} }
+.close { position:absolute; top:18px; right:22px; font-size:26px; cursor:pointer; color:#a259e6; transition:color 0.2s;}
+.close:hover { color:#7c2ae8; }
+#modalClienteNome { font-size:1.25rem; font-weight:600; color:#232836; letter-spacing:0.5px; margin-bottom:2px; }
+#modalClienteCelular { font-size:1rem; color:#888; margin-bottom:18px; }
+#canalSelectorArea { margin-bottom:12px; width:100%; text-align:left; }
+#canalSelectorArea label { font-size:0.98rem; color:#444; margin-right:8px; }
+#selectCanalWhatsapp { padding:6px 10px; border-radius:6px; border:1px solid #d1b3ff; font-size:1rem; }
 #chatArea { width:100%; }
-#chatMensagens { width:100%; }
+#chatMensagens { width:100%; min-height:90px; max-height:180px; background:#f7f6fd; border-radius:8px; margin-bottom:12px; padding:12px 10px; font-size:0.98rem; color:#232836; overflow-y:auto; box-shadow:0 1px 4px #a259e61a; }
+#chatMensagem { width:100%; min-height:48px; max-height:80px; border-radius:8px; border:1.5px solid #a259e6; padding:10px; font-size:1rem; margin-bottom:10px; resize:vertical; transition:border 0.2s; }
+#chatMensagem:focus { outline:none; border:2px solid #7c2ae8; }
+#btnEnviarMensagem { background:#a259e6; color:#fff; border:none; border-radius:6px; padding:10px 28px; font-size:1rem; font-weight:500; cursor:pointer; transition:background 0.2s; margin-top:2px; }
+#btnEnviarMensagem:hover { background:#7c2ae8; }
 </style>
 <script>
 document.querySelectorAll('.btn-whatsapp').forEach(btn => {
