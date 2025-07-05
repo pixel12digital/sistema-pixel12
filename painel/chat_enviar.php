@@ -106,7 +106,7 @@ try {
                     'mensagem' => $mensagem
                 ];
                 
-                $ch = curl_init('http://localhost:3100/api/send');
+                $ch = curl_init('http://app.pixel12digital.com.br:9100/api/send');
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
