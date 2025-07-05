@@ -4,6 +4,7 @@ $resCanais = $mysqli->query("SELECT id, nome_exibicao, identificador FROM canais
 while ($row = $resCanais->fetch_assoc()) {
   $canais_whatsapp[] = $row;
 }
+var_dump($canais_whatsapp); // DEBUG: Exibir canais WhatsApp conectados
 if (!empty($cliente['celular']) && count($canais_whatsapp) > 0) {
   if (count($canais_whatsapp) === 1) {
     // Só um canal, link direto
