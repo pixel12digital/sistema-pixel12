@@ -99,6 +99,9 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     if ($campo === 'celular' && !empty($cliente[$campo])) {
       // Deixar o número clicável para abrir o chat
       $celularLimpo = preg_replace('/\D/', '', $cliente[$campo]);
+      if (strlen($celularLimpo) === 11 && strpos($celularLimpo, '55') !== 0) {
+        $celularLimpo = '55' . $celularLimpo;
+      }
       echo '<tr><td class="font-semibold text-gray-600">Celular: <a href="chat.php?cliente_id=' . intval($cliente['id']) . '&numero=' . $celularLimpo . '" style="color:#25D366;text-decoration:underline;" title="Abrir chat interno">' . htmlspecialchars($cliente[$campo]) . '</a></td></tr>';
     } else {
       echo '<tr><td class="font-semibold text-gray-600">' . formatar_campo($campo, $cliente[$campo]) . '</td></tr>';
