@@ -108,6 +108,9 @@ function render_content() {
       if ($row['status'] === 'pendente') {
         $acoes .= ' <a href="#" class="btn-ac btn-conectar btn-conectar-canal" data-canal-id="' . $row['id'] . '" data-identificador="' . htmlspecialchars($row['identificador']) . '">Conectar</a>';
       }
+      if ($row['status'] === 'conectado') {
+        $acoes .= ' <a href="#" class="btn-ac btn-desconectar btn-desconectar-canal" data-identificador="' . htmlspecialchars($row['identificador']) . '">Desconectar</a>';
+      }
       $acoes .= ' <a href="#" class="btn-ac btn-excluir btn-excluir-canal" data-canal-id="' . $row['id'] . '">Excluir</a>';
       echo '<td class="px-4 py-2">' . $acoes . '</td>';
       echo '</tr>';
@@ -255,6 +258,26 @@ function render_content() {
   document.getElementById('close-modal-excluir').onclick = function() {
     document.getElementById('modal-confirm-excluir').style.display = 'none';
   };
+  // JS para desconectar canal WhatsApp
+  document.querySelectorAll('.btn-desconectar-canal').forEach(function(btn) {
+    btn.onclick = function(e) {
+      e.preventDefault();
+      const identificador = this.getAttribute('data-identificador');
+      if (confirm('Deseja realmente desconectar este canal?')) {
+        fetch('https://api.pixel12digital.com.br:8443/api/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identificador })
+        }).then(r => r.json()).then(resp => {
+          if (resp.success) {
+            location.reload();
+          } else {
+            alert('Erro ao desconectar: ' + resp.error);
+          }
+        });
+      }
+    };
+  });
   </script>
   <?php
 } 
