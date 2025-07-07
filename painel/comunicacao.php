@@ -125,7 +125,7 @@ function render_content() {
     $canal_id = $mysqli->insert_id;
     // Chama o backend para iniciar sessão
     echo '<script>
-      fetch("http://212.85.11.238:9100/api/start-session", {
+      fetch("http://api.pixel12digital.com.br:9100/api/start-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identificador: "' . $identificador . '" })
@@ -164,7 +164,7 @@ function render_content() {
       e.preventDefault();
       const identificador = this.getAttribute('data-identificador');
       // Inicia a sessão no backend
-      fetch('http://212.85.11.238:9100/api/start-session', {
+      fetch('http://api.pixel12digital.com.br:9100/api/start-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identificador })
@@ -172,7 +172,7 @@ function render_content() {
         // Abre o modal de QR Code e busca o QR
         document.getElementById('modal-qr-canal').style.display = 'flex';
         document.getElementById('qr-code-area').innerHTML = '<span style="color:#888;">Gerando QR Code...</span>';
-        fetch('http://212.85.11.238:9100/api/qr?identificador=' + encodeURIComponent(identificador))
+        fetch('http://api.pixel12digital.com.br:9100/api/qr?identificador=' + encodeURIComponent(identificador))
           .then(r => r.json())
           .then(resp => {
             if (resp.qr) {
@@ -200,7 +200,7 @@ function render_content() {
     if (canalIdentificadorNovo) {
       document.getElementById('modal-qr-canal').style.display = 'flex';
       document.getElementById('qr-code-area').innerHTML = '<span style="color:#888;">Gerando QR Code...</span>';
-      fetch('http://212.85.11.238:9100/api/qr?identificador=' + encodeURIComponent(canalIdentificadorNovo))
+      fetch('http://api.pixel12digital.com.br:9100/api/qr?identificador=' + encodeURIComponent(canalIdentificadorNovo))
         .then(r => r.json())
         .then(resp => {
           if (resp.qr) {
