@@ -45,6 +45,7 @@ function render_content() {
   . '.modal button { top: 14px; right: 18px; }'
   . '@media (max-width: 700px) { .com-table th, .com-table td { padding: 8px 2px; font-size: 0.95em; } .modal { padding: 18px 6px; } }'
   . '</style>';
+  echo '<link rel="stylesheet" href="/public/assets/css/style.css">';
   echo '<h1 class="text-2xl font-bold mb-6">Central de Comunicação</h1>';
   echo '<div class="mb-4 flex justify-between items-center">';
   echo '<h2 class="text-lg font-semibold">Canais conectados</h2>';

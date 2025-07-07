@@ -17,7 +17,7 @@ if (isset($data['identificador']) && isset($data['status'])) {
     $identificador = $mysqli->real_escape_string($data['identificador']);
     $status = $mysqli->real_escape_string($data['status']);
     $mysqli->query("UPDATE canais_comunicacao SET status = '$status', data_conexao = NOW() WHERE identificador = '$identificador' LIMIT 1");
-    echo json_encode(['ok' => true]);
+    echo json_encode(['success' => true]);
     exit;
 }
 
