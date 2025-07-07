@@ -157,6 +157,42 @@ function render_content() {
   document.getElementById('close-modal-qr').onclick = function() {
     document.getElementById('modal-qr-canal').style.display = 'none';
   };
+
+  // IMPLEMENTAÇÃO DO FLUXO DO BOTÃO CONECTAR
+  document.querySelectorAll('.btn-conectar-canal').forEach(function(btn) {
+    btn.onclick = function(e) {
+      e.preventDefault();
+      const identificador = this.getAttribute('data-identificador');
+      // Inicia a sessão no backend
+      fetch('http://212.85.11.238:9100/api/start-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identificador })
+      }).then(() => {
+        // Abre o modal de QR Code e busca o QR
+        document.getElementById('modal-qr-canal').style.display = 'flex';
+        document.getElementById('qr-code-area').innerHTML = '<span style="color:#888;">Gerando QR Code...</span>';
+        fetch('http://212.85.11.238:9100/api/qr?identificador=' + encodeURIComponent(identificador))
+          .then(r => r.json())
+          .then(resp => {
+            if (resp.qr) {
+              document.getElementById('qr-code-area').innerHTML = '';
+              new QRCode(document.getElementById('qr-code-area'), {
+                text: resp.qr,
+                width: 220,
+                height: 220
+              });
+            } else {
+              document.getElementById('qr-code-area').innerHTML = '<span style="color:red;">QR Code não disponível. Aguarde alguns segundos e tente novamente.</span>';
+            }
+          })
+          .catch(() => {
+            document.getElementById('qr-code-area').innerHTML = '<span style="color:red;">Erro ao conectar ao backend.</span>';
+          });
+      });
+    };
+  });
+
   // No JS, ao carregar a página, busca o QR Code do canal correto
   (function() {
     const urlParams = new URLSearchParams(window.location.search);
