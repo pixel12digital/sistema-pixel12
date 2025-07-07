@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 $page = 'comunicacao.php';
 $page_title = 'Comunicação - Gerenciar Canais';
 require_once 'config.php';
@@ -172,23 +175,44 @@ function render_content() {
         // Abre o modal de QR Code e busca o QR
         document.getElementById('modal-qr-canal').style.display = 'flex';
         document.getElementById('qr-code-area').innerHTML = '<span style="color:#888;">Gerando QR Code...</span>';
-        fetch('https://api.pixel12digital.com.br:8443/api/qr?identificador=' + encodeURIComponent(identificador))
-          .then(r => r.json())
-          .then(resp => {
-            if (resp.qr) {
-              document.getElementById('qr-code-area').innerHTML = '';
-              new QRCode(document.getElementById('qr-code-area'), {
-                text: resp.qr,
-                width: 220,
-                height: 220
-              });
-            } else {
-              document.getElementById('qr-code-area').innerHTML = '<span style="color:red;">QR Code não disponível. Aguarde alguns segundos e tente novamente.</span>';
-            }
-          })
-          .catch(() => {
-            document.getElementById('qr-code-area').innerHTML = '<span style="color:red;">Erro ao conectar ao backend.</span>';
-          });
+        // Polling a cada 40 segundos
+        let pollingInterval;
+        function fetchQr() {
+          fetch('https://api.pixel12digital.com.br:8443/api/qr?identificador=' + encodeURIComponent(identificador))
+            .then(r => r.json())
+            .then(resp => {
+              if (resp.qr) {
+                document.getElementById('qr-code-area').innerHTML = '';
+                new QRCode(document.getElementById('qr-code-area'), {
+                  text: resp.qr,
+                  width: 220,
+                  height: 220
+                });
+              } else {
+                // Se não há QR, verifica status do canal
+                fetch('api/whatsapp_status.php?identificador=' + encodeURIComponent(identificador))
+                  .then(r => r.json())
+                  .then(statusResp => {
+                    if (statusResp.status === 'conectado') {
+                      document.getElementById('modal-qr-canal').style.display = 'none';
+                      clearInterval(pollingInterval);
+                    } else {
+                      document.getElementById('qr-code-area').innerHTML = '<span style="color:red;">QR Code não disponível. Aguarde alguns segundos e tente novamente.</span>';
+                    }
+                  });
+              }
+            })
+            .catch(() => {
+              document.getElementById('qr-code-area').innerHTML = '<span style="color:red;">Erro ao conectar ao backend.</span>';
+            });
+        }
+        fetchQr();
+        pollingInterval = setInterval(fetchQr, 40000); // 40 segundos
+        // Limpa o polling ao fechar o modal
+        document.getElementById('close-modal-qr').onclick = function() {
+          document.getElementById('modal-qr-canal').style.display = 'none';
+          clearInterval(pollingInterval);
+        };
       });
     };
   });
