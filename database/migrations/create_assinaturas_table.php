@@ -16,6 +16,16 @@ class CreateAssinaturasTable {
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate();
         });
+
+        // Migration para tabela de mensagens de cobrança personalizadas
+        $mysqli->query("CREATE TABLE IF NOT EXISTS mensagens_cobranca (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          canal_id INT NOT NULL,
+          tipo VARCHAR(32) NOT NULL,
+          mensagem TEXT NOT NULL,
+          UNIQUE KEY (canal_id, tipo),
+          FOREIGN KEY (canal_id) REFERENCES canais_comunicacao(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     }
 
     public function down() {
