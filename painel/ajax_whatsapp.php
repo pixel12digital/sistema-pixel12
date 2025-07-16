@@ -119,31 +119,57 @@ switch ($action) {
         break;
     
     case 'qr':
-        $endpoint = '/qr?' . http_build_query(['_' => time()]);
-        $result = makeVPSRequest($endpoint);
+        // Tentar múltiplos endpoints para QR Code baseado no diagnóstico
+        $possible_endpoints = [
+            '/qr',
+            '/generate-qr', 
+            '/session/qr',
+            '/whatsapp/qr',
+            '/session/default/qr'
+        ];
         
-        if ($result['success'] && $result['data']) {
+        $qr_result = null;
+        $successful_endpoint = null;
+        
+        foreach ($possible_endpoints as $endpoint) {
+            $endpoint_with_cache = $endpoint . '?' . http_build_query(['_' => time()]);
+            $result = makeVPSRequest($endpoint_with_cache);
+            
+            error_log("[WhatsApp Ajax] Tentando endpoint QR: $endpoint, HTTP: {$result['http_code']}");
+            
+            if ($result['success'] && $result['data']) {
+                $qr_result = $result;
+                $successful_endpoint = $endpoint;
+                break;
+            }
+        }
+        
+        if ($qr_result && $successful_endpoint) {
             echo json_encode([
-                'qr' => $result['data']['qr'] ?? null,
-                'ready' => $result['data']['ready'] ?? false,
-                'message' => $result['data']['message'] ?? 'QR Code disponível',
+                'qr' => $qr_result['data']['qr'] ?? null,
+                'ready' => $qr_result['data']['ready'] ?? false,
+                'message' => 'QR Code encontrado via ' . $successful_endpoint,
+                'endpoint_used' => $successful_endpoint,
                 'debug' => [
-                    'qr_available' => !empty($result['data']['qr']),
-                    'qr_length' => strlen($result['data']['qr'] ?? ''),
-                    'raw_keys' => array_keys($result['data'])
+                    'qr_available' => !empty($qr_result['data']['qr']),
+                    'qr_length' => strlen($qr_result['data']['qr'] ?? ''),
+                    'raw_keys' => array_keys($qr_result['data']),
+                    'successful_endpoint' => $successful_endpoint
                 ]
             ]);
         } else {
+            // Se todos falharam, tentar endpoint de status para mais informações
+            $status_result = makeVPSRequest('/status');
+            
             echo json_encode([
                 'qr' => null,
                 'ready' => false,
-                'error' => $result['error'] ?: 'Erro ao buscar QR Code',
-                'http_code' => $result['http_code'],
+                'error' => 'Nenhum endpoint de QR Code funcionou',
                 'debug' => [
-                    'endpoint' => $endpoint,
-                    'full_url' => $vps_url . $endpoint,
-                    'curl_error' => $result['error'],
-                    'raw_response' => $result['raw_response']
+                    'tested_endpoints' => $possible_endpoints,
+                    'vps_status_working' => $status_result['success'],
+                    'suggestion' => 'Verificar documentação da API WhatsApp para endpoint correto de QR',
+                    'status_data' => $status_result['success'] ? $status_result['data'] : null
                 ]
             ]);
         }
@@ -235,6 +261,102 @@ switch ($action) {
             'timestamp' => date('Y-m-d H:i:s'),
             'tests' => $results
         ]);
+        break;
+    
+    case 'discover_endpoints':
+        // Descoberta rápida de endpoints QR
+        $qr_endpoints = [
+            '/qr',
+            '/generate-qr',
+            '/session/qr',
+            '/whatsapp/qr',
+            '/session/default/qr',
+            '/api/qr',
+            '/qrcode'
+        ];
+        
+        $results = [];
+        $working_endpoints = [];
+        
+        foreach ($qr_endpoints as $endpoint) {
+            $result = makeVPSRequest($endpoint);
+            
+            $results[$endpoint] = [
+                'success' => $result['success'],
+                'http_code' => $result['http_code'],
+                'error' => $result['error'],
+                'has_qr_data' => $result['success'] && $result['data'] && isset($result['data']['qr'])
+            ];
+            
+            if ($result['success'] && $result['http_code'] === 200) {
+                $working_endpoints[] = $endpoint;
+            }
+        }
+        
+        // Também testar endpoints de informação
+        $info_endpoints = ['/status', '/sessions', '/info'];
+        foreach ($info_endpoints as $endpoint) {
+            $result = makeVPSRequest($endpoint);
+            $results[$endpoint] = [
+                'success' => $result['success'],
+                'http_code' => $result['http_code'],
+                'error' => $result['error']
+            ];
+        }
+        
+        echo json_encode([
+            'discovery_complete' => true,
+            'working_endpoints' => $working_endpoints,
+            'total_tested' => count($qr_endpoints) + count($info_endpoints),
+            'results' => $results,
+            'recommendation' => empty($working_endpoints) ? 
+                'Nenhum endpoint QR funcionando. Verificar se API WhatsApp está configurada corretamente.' :
+                'Endpoints QR encontrados: ' . implode(', ', $working_endpoints),
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
+        break;
+    
+    case 'raw_request':
+        // Ação para descoberta de endpoints - testar qualquer endpoint
+        $endpoint = $_POST['endpoint'] ?? '';
+        
+        if (empty($endpoint)) {
+            echo json_encode([
+                'error' => 'Endpoint não especificado',
+                'debug' => ['received_endpoint' => $endpoint]
+            ]);
+            break;
+        }
+        
+        // Adicionar cache buster
+        $endpoint_with_cache = $endpoint . (strpos($endpoint, '?') ? '&' : '?') . '_=' . time();
+        $result = makeVPSRequest($endpoint_with_cache);
+        
+        error_log("[WhatsApp Ajax] Raw request para: $endpoint, HTTP: {$result['http_code']}, Success: " . ($result['success'] ? 'true' : 'false'));
+        
+        if ($result['success']) {
+            // Retornar resposta bruta para análise
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'endpoint' => $endpoint,
+                'http_code' => $result['http_code'],
+                'data' => $result['raw_response'],
+                'parsed_data' => $result['data'],
+                'curl_info' => [
+                    'total_time' => $result['curl_info']['total_time'] ?? null,
+                    'http_code' => $result['curl_info']['http_code'] ?? null
+                ]
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'endpoint' => $endpoint,
+                'http_code' => $result['http_code'],
+                'error' => $result['error'],
+                'raw_response' => $result['raw_response']
+            ]);
+        }
         break;
     
     default:

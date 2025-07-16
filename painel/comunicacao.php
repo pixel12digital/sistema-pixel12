@@ -322,6 +322,7 @@ function render_content() {
   echo '<button onclick="document.getElementById(\'debug-console\').innerHTML = \'\';" style="background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🗑️ Limpar Console</button>';
   echo '<button onclick="testarAjaxManual();" style="background: #3b82f6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🧪 Teste Manual Ajax</button>';
   echo '<button onclick="testarVPSManual();" style="background: #8b5cf6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">📡 Teste Manual VPS</button>';
+  echo '<button onclick="descobrirEndpointsQR();" style="background: #f59e0b; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🔍 Descobrir QR Endpoints</button>';
   echo '</div>';
   echo '</div>';
 
@@ -331,6 +332,7 @@ function render_content() {
   echo '<p style="color: white; text-align: center; margin-bottom: 20px;">O sistema detectou falhas na conexão com o VPS. Use as ferramentas abaixo para diagnosticar e resolver:</p>';
   echo '<div style="text-align: center;">';
   echo '<button onclick="window.open(\'diagnostico_vps_avancado.php\', \'_blank\');" style="background: #22c55e; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; margin: 10px; font-weight: bold;">🔬 Diagnóstico Completo</button>';
+  echo '<button onclick="window.open(\'descobrir_endpoints_vps.php\', \'_blank\');" style="background: #3b82f6; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; margin: 10px; font-weight: bold;">🔍 Descobrir Endpoints</button>';
   echo '<button onclick="window.open(\'guia_recuperacao_vps.php\', \'_blank\');" style="background: #f59e0b; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; margin: 10px; font-weight: bold;">🔧 Guia de Recuperação</button>';
   echo '<button onclick="document.getElementById(\'diagnostic-panel\').style.display=\'none\';" style="background: #6b7280; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; margin: 10px; font-weight: bold;">❌ Fechar</button>';
   echo '</div>';
@@ -1017,6 +1019,20 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(error => {
         debug(`❌ VPS ERRO: ${error.message}`, 'error');
+      });
+  };
+
+  // Função para descobrir endpoints do QR Code
+  window.descobrirEndpointsQR = function() {
+    debug('🔍 Iniciando descoberta de endpoints QR...', 'info');
+    makeWhatsAppRequest('discover_endpoints')
+      .then(data => {
+        debug(`✅ Endpoints QR descobertos: ${JSON.stringify(data, null, 2)}`, 'success');
+        alert('Endpoints QR descobertos:\n' + JSON.stringify(data, null, 2));
+      })
+      .catch(error => {
+        debug(`❌ Erro ao descobrir endpoints QR: ${error.message}`, 'error');
+        alert('Erro ao descobrir endpoints QR: ' + error.message);
       });
   };
 });
