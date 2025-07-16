@@ -324,6 +324,17 @@ function render_content() {
   echo '<button onclick="testarVPSManual();" style="background: #8b5cf6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">📡 Teste Manual VPS</button>';
   echo '</div>';
   echo '</div>';
+
+  // ===== ÁREA DE DIAGNÓSTICO AVANÇADO =====
+  echo '<div id="diagnostic-panel" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); padding: 20px; border-radius: 15px; margin: 25px 0; border: 2px solid #ef4444; display: none;">';
+  echo '<h3 style="color: white; margin-bottom: 15px; text-align: center;">🚨 Problemas de Conectividade Detectados</h3>';
+  echo '<p style="color: white; text-align: center; margin-bottom: 20px;">O sistema detectou falhas na conexão com o VPS. Use as ferramentas abaixo para diagnosticar e resolver:</p>';
+  echo '<div style="text-align: center;">';
+  echo '<button onclick="window.open(\'diagnostico_vps_avancado.php\', \'_blank\');" style="background: #22c55e; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; margin: 10px; font-weight: bold;">🔬 Diagnóstico Completo</button>';
+  echo '<button onclick="window.open(\'guia_recuperacao_vps.php\', \'_blank\');" style="background: #f59e0b; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; margin: 10px; font-weight: bold;">🔧 Guia de Recuperação</button>';
+  echo '<button onclick="document.getElementById(\'diagnostic-panel\').style.display=\'none\';" style="background: #6b7280; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; margin: 10px; font-weight: bold;">❌ Fechar</button>';
+  echo '</div>';
+  echo '</div>';
 }
 
 // ===== JAVASCRIPT CONSOLIDADO NO FINAL =====
@@ -670,6 +681,80 @@ document.addEventListener('DOMContentLoaded', function() {
       debugArea.innerHTML += `<div style="${color}">${logMessage}</div>`;
       debugArea.scrollTop = debugArea.scrollHeight;
     }
+    
+    // Auto-mostrar painel de diagnóstico se detectar problemas críticos de VPS
+    if (type === 'error' && (message.includes('VPS') || message.includes('Connection') || message.includes('timeout') || message.includes('Failed to fetch'))) {
+      mostrarPainelDiagnostico();
+    }
+  }
+
+  // ===== FUNÇÃO PARA MOSTRAR PAINEL DE DIAGNÓSTICO =====
+  function mostrarPainelDiagnostico() {
+    const panel = document.getElementById('diagnostic-panel');
+    if (panel && panel.style.display === 'none') {
+      panel.style.display = 'block';
+      
+      // Scroll suave para o painel
+      setTimeout(() => {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+      
+      // Log que o painel foi mostrado
+      debug('🚨 Painel de diagnóstico automaticamente exibido devido a falhas de conectividade', 'warning');
+      
+      // Mostrar notificação também
+      if (typeof showPushNotification === 'function') {
+        showPushNotification('🔧 Ferramentas de diagnóstico disponíveis para resolver problemas de conectividade.', 0);
+      }
+    }
+  }
+
+  // ===== FUNÇÃO PARA VERIFICAR SAÚDE DO SISTEMA =====
+  function verificarSaudeDoSistema() {
+    let problemasDetectados = 0;
+    let totalTestes = 0;
+    
+    // Testar Ajax Proxy
+    totalTestes++;
+    fetch(AJAX_WHATSAPP_URL + '?test=1&_=' + Date.now())
+      .then(response => response.json())
+      .then(data => {
+        if (data.test !== 'ok') {
+          problemasDetectados++;
+          debug('❌ Sistema: Ajax Proxy com problemas', 'error');
+        } else {
+          debug('✅ Sistema: Ajax Proxy funcionando', 'success');
+        }
+      })
+      .catch(error => {
+        problemasDetectados++;
+        debug(`❌ Sistema: Ajax Proxy falhou - ${error.message}`, 'error');
+      });
+    
+    // Testar conectividade VPS
+    totalTestes++;
+    makeWhatsAppRequest('test_connection')
+      .then(data => {
+        if (!data.connection_ok) {
+          problemasDetectados++;
+          debug('❌ Sistema: VPS inacessível', 'error');
+        } else {
+          debug('✅ Sistema: VPS conectado', 'success');
+        }
+      })
+      .catch(error => {
+        problemasDetectados++;
+        debug(`❌ Sistema: VPS falhou - ${error.message}`, 'error');
+      });
+    
+    // Verificar após 3 segundos se houve problemas
+    setTimeout(() => {
+      if (problemasDetectados > 0) {
+        debug(`⚠️ Sistema: ${problemasDetectados}/${totalTestes} testes falharam - Recomendado usar ferramentas de diagnóstico`, 'warning');
+      } else {
+        debug('✅ Sistema: Todos os testes passaram - Sistema funcionando normalmente', 'success');
+      }
+    }, 3000);
   }
 
   // ===== CORREÇÃO: FUNÇÃO ATUALIZAR STATUS USANDO PROXY =====
@@ -746,6 +831,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function forcarTodosDesconectados() {
+    debug('🚨 Forçando todos os canais como desconectados devido a falhas de conectividade', 'error');
+    
     document.querySelectorAll('.canal-status-area').forEach(function(td) {
       const statusText = td.querySelector('.status-text');
       td.classList.remove('status-verificando');
@@ -755,7 +842,17 @@ document.addEventListener('DOMContentLoaded', function() {
         statusText.textContent = 'Desconectado';
       }
     });
-    showPushNotification('Não foi possível consultar o status dos canais WhatsApp.', 0);
+    
+    // Mostrar notificação de problema
+    showPushNotification('❌ Não foi possível consultar o status dos canais WhatsApp - Problemas de conectividade detectados!', 0);
+    
+    // Automaticamente mostrar painel de diagnóstico após problemas persistentes
+    debug('🔧 VPS inacessível - Ferramentas de diagnóstico recomendadas', 'error');
+    
+    // Esperar 2 segundos e mostrar painel se ainda houver problemas
+    setTimeout(() => {
+      mostrarPainelDiagnostico();
+    }, 2000);
   }
 
   // ===== MONITORAMENTO AUTOMÁTICO DOS CANAIS VIA AJAX (FALLBACK) =====
@@ -882,6 +979,12 @@ document.addEventListener('DOMContentLoaded', function() {
         atualizarStatusCanaisOriginal();
       });
   }, 2000);
+
+  // ===== VERIFICAÇÃO DE SAÚDE DO SISTEMA APÓS 5 SEGUNDOS =====
+  setTimeout(() => {
+    debug('🏥 Executando verificação de saúde do sistema...', 'info');
+    verificarSaudeDoSistema();
+  }, 5000);
 
   console.log('✅ Sistema WhatsApp CORS-FREE carregado com sucesso!');
   console.log('🛡️ Todas as requisições agora passam pelo proxy PHP');
