@@ -311,6 +311,19 @@ function render_content() {
   }
   
   echo '</tbody></table></div>';
+  
+  // ===== ÁREA DE DEBUG VISUAL =====
+  echo '<div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; margin: 25px 0;">';
+  echo '<h3 style="color: #374151; margin-bottom: 15px;">🐛 Debug Console CORS-FREE</h3>';
+  echo '<div id="debug-console" style="background: rgba(0,0,0,0.8); color: #10b981; padding: 20px; border-radius: 8px; font-family: \'Courier New\', monospace; font-size: 0.9em; max-height: 300px; overflow-y: auto; border: 1px solid #374151;">';
+  echo '[' . date('H:i:s') . '] ✅ Sistema PHP carregado com sucesso!<br>';
+  echo '</div>';
+  echo '<div style="text-align: center; margin-top: 15px;">';
+  echo '<button onclick="document.getElementById(\'debug-console\').innerHTML = \'\';" style="background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🗑️ Limpar Console</button>';
+  echo '<button onclick="testarAjaxManual();" style="background: #3b82f6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🧪 Teste Manual Ajax</button>';
+  echo '<button onclick="testarVPSManual();" style="background: #8b5cf6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">📡 Teste Manual VPS</button>';
+  echo '</div>';
+  echo '</div>';
 }
 
 // ===== JAVASCRIPT CONSOLIDADO NO FINAL =====
@@ -636,12 +649,119 @@ document.addEventListener('DOMContentLoaded', function() {
     btnAtualizar.style = 'margin-bottom:12px;background:#22c55e;color:white;font-weight:bold;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;';
     tabelaCanais.parentElement.insertBefore(btnAtualizar, tabelaCanais);
     btnAtualizar.onclick = function() {
+      console.log('🔄 Botão atualizar clicado - iniciando debug...');
+      debug('🔄 Usuário clicou em Atualizar Status', 'info');
       atualizarStatusCanais();
     };
   }
 
-  // ===== MONITORAMENTO AUTOMÁTICO DOS CANAIS VIA AJAX =====
+  // ===== FUNÇÃO DE DEBUG MELHORADA =====
+  function debug(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : '🔍';
+    const logMessage = `[${timestamp}] ${icon} ${message}`;
+    
+    console.log(logMessage);
+    
+    // Adicionar ao debug visual se existir
+    const debugArea = document.getElementById('debug-console');
+    if (debugArea) {
+      const color = type === 'error' ? 'color: #ff6b6b;' : type === 'success' ? 'color: #51cf66;' : type === 'warning' ? 'color: #ffd43b;' : 'color: #74c0fc;';
+      debugArea.innerHTML += `<div style="${color}">${logMessage}</div>`;
+      debugArea.scrollTop = debugArea.scrollHeight;
+    }
+  }
+
+  // ===== CORREÇÃO: FUNÇÃO ATUALIZAR STATUS USANDO PROXY =====
   function atualizarStatusCanais() {
+    debug('🔄 Iniciando atualização de status dos canais via proxy...', 'info');
+    
+    // Primeiro testar se o proxy está funcionando
+    makeWhatsAppRequest('test_connection')
+      .then(data => {
+        debug(`📡 Teste de conexão: ${data.connection_ok ? 'OK' : 'FALHOU'}`, data.connection_ok ? 'success' : 'error');
+        
+        if (data.connection_ok) {
+          // Se conexão OK, atualizar status individual de cada canal
+          document.querySelectorAll('.canal-status-area').forEach(function(td) {
+            const canalId = td.getAttribute('data-canal-id');
+            const porta = td.getAttribute('data-porta');
+            debug(`🔍 Atualizando canal ${canalId} na porta ${porta}...`, 'info');
+            atualizarStatusIndividual(td, canalId, porta);
+          });
+        } else {
+          debug('❌ Teste de conexão falhou, exibindo todos como desconectados', 'error');
+          forcarTodosDesconectados();
+        }
+      })
+      .catch(error => {
+        debug(`❌ Erro no teste de conexão: ${error.message}`, 'error');
+        // Tentar usar método original como fallback
+        atualizarStatusCanaisOriginal();
+      });
+  }
+
+  function atualizarStatusIndividual(td, canalId, porta) {
+    const statusText = td.querySelector('.status-text');
+    const acoesArea = document.querySelector('.acoes-btn-area[data-canal-id="' + canalId + '"]');
+    const dataConexaoTd = document.querySelector('.canal-data-conexao[data-canal-id="' + canalId + '"]');
+    
+    statusText.textContent = 'Verificando...';
+    td.className = 'canal-status-area status-verificando';
+    
+    makeWhatsAppRequest('status')
+      .then(resp => {
+        debug(`📱 Canal ${canalId}: ${resp.ready ? 'CONECTADO' : 'DESCONECTADO'}`, resp.ready ? 'success' : 'warning');
+        
+        if (resp.ready) {
+          statusText.textContent = 'Conectado';
+          td.classList.remove('status-verificando');
+          td.classList.add('status-conectado');
+          td.classList.remove('status-pendente');
+          if (acoesArea) acoesArea.innerHTML = '<button class="btn-ac btn-desconectar btn-desconectar-canal" data-porta="' + porta + '">Desconectar</button>';
+          if (resp.lastSession) {
+            var dt = new Date(resp.lastSession);
+            dataConexaoTd.textContent = dt.toLocaleString('pt-BR');
+          } else {
+            dataConexaoTd.textContent = '-';
+          }
+        } else {
+          statusText.textContent = 'Desconectado';
+          td.classList.remove('status-verificando');
+          td.classList.remove('status-conectado');
+          td.classList.add('status-pendente');
+          if (acoesArea) acoesArea.innerHTML = '<button class="btn-ac btn-conectar btn-conectar-canal" data-porta="' + porta + '">Conectar</button>';
+          dataConexaoTd.textContent = '-';
+        }
+      })
+      .catch(error => {
+        debug(`❌ Erro no canal ${canalId}: ${error.message}`, 'error');
+        statusText.textContent = 'Erro';
+        td.classList.remove('status-verificando');
+        td.classList.remove('status-conectado');
+        td.classList.add('status-pendente');
+        if (acoesArea) acoesArea.innerHTML = '<button class="btn-ac btn-conectar btn-conectar-canal" data-porta="' + porta + '">Conectar</button>';
+        dataConexaoTd.textContent = '-';
+      });
+  }
+
+  function forcarTodosDesconectados() {
+    document.querySelectorAll('.canal-status-area').forEach(function(td) {
+      const statusText = td.querySelector('.status-text');
+      td.classList.remove('status-verificando');
+      td.classList.remove('status-conectado');
+      td.classList.add('status-pendente');
+      if (statusText) {
+        statusText.textContent = 'Desconectado';
+      }
+    });
+    showPushNotification('Não foi possível consultar o status dos canais WhatsApp.', 0);
+  }
+
+  // ===== MONITORAMENTO AUTOMÁTICO DOS CANAIS VIA AJAX (FALLBACK) =====
+  function atualizarStatusCanaisOriginal() {
+    debug('🔄 Usando método original de atualização...', 'warning');
+    
     fetch('api/status_canais.php')
       .then(r => {
         if (!r.ok && r.status === 503) {
@@ -651,6 +771,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return r.json();
       })
       .then(statusList => {
+        debug(`✅ Status original recebido: ${statusList.length} canais`, 'success');
+        
         let desconectados = 0;
         let conectados = 0;
         statusList.forEach(st => {
@@ -700,23 +822,11 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch((err) => {
         if (err && err.aguardandoQR) {
-          // Não mostra erro, apenas aguarda
+          debug('⏳ Aguardando QR Code...', 'warning');
           return;
         }
-        // Força todos os canais para desconectado visualmente
-        document.querySelectorAll('.canal-status-area').forEach(function(td) {
-          td.classList.remove('status-verificando');
-          td.classList.remove('status-conectado');
-          td.classList.add('status-pendente');
-          const statusText = td.querySelector('.status-text');
-          if (statusText) {
-            statusText.textContent = 'Desconectado';
-          }
-        });
-        if (!pushStatusErrorShown) {
-          showPushNotification('Não foi possível consultar o status dos canais WhatsApp.', 0);
-          pushStatusErrorShown = true;
-        }
+        debug(`❌ Erro no método original: ${err.message}`, 'error');
+        forcarTodosDesconectados();
       });
   }
   iniciarPollingStatus();
@@ -745,9 +855,67 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  // ===== INICIALIZAÇÃO AUTOMÁTICA COM DEBUG =====
+  debug('🚀 Inicializando sistema CORS-FREE...', 'info');
+  debug(`📡 Ajax URL: ${AJAX_WHATSAPP_URL}`, 'info');
+  debug(`🔢 Cache Buster: ${CACHE_BUSTER}`, 'info');
+  
+  // Teste inicial de conectividade após 2 segundos
+  setTimeout(() => {
+    debug('🧪 Executando teste inicial de conectividade...', 'info');
+    
+    // Primeiro testar se o ajax_whatsapp.php está funcionando
+    fetch(AJAX_WHATSAPP_URL + '?test=1&_=' + Date.now())
+      .then(response => response.json())
+      .then(data => {
+        debug(`✅ Ajax proxy funcionando: ${JSON.stringify(data)}`, 'success');
+        
+        // Se ajax funcionando, atualizar status dos canais
+        setTimeout(() => {
+          debug('🔄 Iniciando primeira atualização de status...', 'info');
+          atualizarStatusCanais();
+        }, 1000);
+      })
+      .catch(error => {
+        debug(`❌ ERRO CRÍTICO: Ajax proxy não funciona: ${error.message}`, 'error');
+        debug('🔄 Tentando método fallback...', 'warning');
+        atualizarStatusCanaisOriginal();
+      });
+  }, 2000);
+
   console.log('✅ Sistema WhatsApp CORS-FREE carregado com sucesso!');
   console.log('🛡️ Todas as requisições agora passam pelo proxy PHP');
   console.log('🚀 Problema de CORS definitivamente resolvido!');
+  
+  // ===== FUNÇÕES DE TESTE MANUAL =====
+  window.testarAjaxManual = function() {
+    debug('🧪 Teste manual do Ajax iniciado...', 'info');
+    
+    fetch(AJAX_WHATSAPP_URL + '?test=1&_=' + Date.now())
+      .then(response => {
+        debug(`📡 Response Status: ${response.status}`, 'info');
+        return response.json();
+      })
+      .then(data => {
+        debug(`✅ Ajax OK: ${JSON.stringify(data)}`, 'success');
+      })
+      .catch(error => {
+        debug(`❌ Ajax ERRO: ${error.message}`, 'error');
+      });
+  };
+  
+  window.testarVPSManual = function() {
+    debug('📡 Teste manual da VPS iniciado...', 'info');
+    
+    makeWhatsAppRequest('test_connection')
+      .then(data => {
+        debug(`📡 VPS Connection: ${data.connection_ok ? 'OK' : 'FALHOU'}`, data.connection_ok ? 'success' : 'error');
+        debug(`🔍 Details: ${JSON.stringify(data, null, 2)}`, 'info');
+      })
+      .catch(error => {
+        debug(`❌ VPS ERRO: ${error.message}`, 'error');
+      });
+  };
 });
 </script>
 <?php
