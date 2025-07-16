@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Chat - Charles Dietrich</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        .dados-teste { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Teste do Sistema de Chat - Charles Dietrich</h1>
+    
+    <div class="dados-teste">
+        <h3>📋 Dados de Teste</h3>
+        <p><strong>Cliente:</strong> Charles Dietrich (ID: 156)</p>
+        <p><strong>Celular:</strong> 47996164699</p>
+        <p><strong>Canal:</strong> Financeiro (ID: 36)</p>
+        <p><strong>Status:</strong> Conectado</p>
+    </div>
+    
+    <div class="test-section info">
+        <h3>1. Teste da API do Robô</h3>
+        <button onclick="testarRobo()">Testar Status do Robô</button>
+        <div id="resultado-robo"></div>
+    </div>
+    
+    <div class="test-section info">
+        <h3>2. Teste de Busca de Clientes</h3>
+        <input type="text" id="termo-busca" placeholder="Digite 'Charles' ou 'Dietrich'..." style="padding: 5px; margin-right: 10px;" value="Charles">
+        <button onclick="testarBusca()">Buscar Clientes</button>
+        <div id="resultado-busca"></div>
+    </div>
+    
+    <div class="test-section info">
+        <h3>3. Teste de Histórico de Mensagens</h3>
+        <input type="number" id="cliente-id" placeholder="ID do cliente" style="padding: 5px; margin-right: 10px;" value="156">
+        <button onclick="testarHistorico()">Buscar Histórico</button>
+        <div id="resultado-historico"></div>
+    </div>
+    
+    <div class="test-section info">
+        <h3>4. Teste de Detalhes do Cliente</h3>
+        <input type="number" id="cliente-id-detalhes" placeholder="ID do cliente" style="padding: 5px; margin-right: 10px;" value="156">
+        <button onclick="testarDetalhes()">Buscar Detalhes</button>
+        <div id="resultado-detalhes"></div>
+    </div>
+    
+    <div class="test-section info">
+        <h3>5. Teste de Formulário de Envio</h3>
+        <input type="number" id="cliente-id-form" placeholder="ID do cliente" style="padding: 5px; margin-right: 10px;" value="156">
+        <button onclick="testarFormulario()">Buscar Formulário</button>
+        <div id="resultado-formulario"></div>
+    </div>
+    
+    <div class="test-section info">
+        <h3>6. Teste de Envio de Mensagem</h3>
+        <form id="form-teste-envio">
+            <input type="number" name="cliente_id" placeholder="ID do cliente" style="padding: 5px; margin: 5px;" value="156" required><br>
+            <input type="number" name="canal_id" placeholder="ID do canal" style="padding: 5px; margin: 5px;" value="36" required><br>
+            <input type="text" name="mensagem" placeholder="Mensagem" style="padding: 5px; margin: 5px;" value="Teste do sistema de chat - " required><br>
+            <button type="submit">Enviar Mensagem</button>
+        </form>
+        <div id="resultado-envio"></div>
+    </div>
+    
+    <div class="test-section info">
+        <h3>7. Teste do Chat Principal</h3>
+        <p>Clique no link abaixo para abrir o chat principal com debug completo:</p>
+        <a href="painel/chat.php?cliente_id=156" target="_blank" style="background: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Abrir Chat Principal</a>
+    </div>
+
+    <script>
+        function testarRobo() {
+            const resultado = document.getElementById('resultado-robo');
+            resultado.innerHTML = 'Testando...';
+            
+            fetch('http://localhost:3000/status')
+                .then(response => response.json())
+                .then(data => {
+                    resultado.innerHTML = '<div class="success"><h4>✅ Robô funcionando!</h4><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+                })
+                .catch(error => {
+                    resultado.innerHTML = '<div class="error"><h4>❌ Erro no robô</h4><pre>' + error.message + '</pre></div>';
+                });
+        }
+        
+        function testarBusca() {
+            const termo = document.getElementById('termo-busca').value;
+            const resultado = document.getElementById('resultado-busca');
+            
+            if (!termo) {
+                resultado.innerHTML = '<div class="error">Digite um termo para buscar</div>';
+                return;
+            }
+            
+            resultado.innerHTML = 'Buscando...';
+            
+            fetch('painel/api/buscar_clientes.php?termo=' + encodeURIComponent(termo))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        resultado.innerHTML = '<div class="success"><h4>✅ Clientes encontrados: ' + data.length + '</h4><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+                    } else {
+                        resultado.innerHTML = '<div class="info"><h4>ℹ️ Nenhum cliente encontrado</h4></div>';
+                    }
+                })
+                .catch(error => {
+                    resultado.innerHTML = '<div class="error"><h4>❌ Erro na busca</h4><pre>' + error.message + '</pre></div>';
+                });
+        }
+        
+        function testarHistorico() {
+            const clienteId = document.getElementById('cliente-id').value;
+            const resultado = document.getElementById('resultado-historico');
+            
+            if (!clienteId) {
+                resultado.innerHTML = '<div class="error">Digite um ID de cliente</div>';
+                return;
+            }
+            
+            resultado.innerHTML = 'Buscando histórico...';
+            
+            fetch('painel/api/historico_mensagens.php?cliente_id=' + clienteId)
+                .then(response => response.text())
+                .then(data => {
+                    resultado.innerHTML = '<div class="success"><h4>✅ Histórico carregado</h4><div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">' + data + '</div></div>';
+                })
+                .catch(error => {
+                    resultado.innerHTML = '<div class="error"><h4>❌ Erro no histórico</h4><pre>' + error.message + '</pre></div>';
+                });
+        }
+        
+        function testarDetalhes() {
+            const clienteId = document.getElementById('cliente-id-detalhes').value;
+            const resultado = document.getElementById('resultado-detalhes');
+            
+            if (!clienteId) {
+                resultado.innerHTML = '<div class="error">Digite um ID de cliente</div>';
+                return;
+            }
+            
+            resultado.innerHTML = 'Buscando detalhes...';
+            
+            fetch('painel/api/detalhes_cliente.php?cliente_id=' + clienteId)
+                .then(response => response.text())
+                .then(data => {
+                    resultado.innerHTML = '<div class="success"><h4>✅ Detalhes carregados</h4><div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">' + data + '</div></div>';
+                })
+                .catch(error => {
+                    resultado.innerHTML = '<div class="error"><h4>❌ Erro nos detalhes</h4><pre>' + error.message + '</pre></div>';
+                });
+        }
+        
+        function testarFormulario() {
+            const clienteId = document.getElementById('cliente-id-form').value;
+            const resultado = document.getElementById('resultado-formulario');
+            
+            if (!clienteId) {
+                resultado.innerHTML = '<div class="error">Digite um ID de cliente</div>';
+                return;
+            }
+            
+            resultado.innerHTML = 'Buscando formulário...';
+            
+            fetch('painel/api/formulario_envio.php?cliente_id=' + clienteId)
+                .then(response => response.text())
+                .then(data => {
+                    resultado.innerHTML = '<div class="success"><h4>✅ Formulário carregado</h4><div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">' + data + '</div></div>';
+                })
+                .catch(error => {
+                    resultado.innerHTML = '<div class="error"><h4>❌ Erro no formulário</h4><pre>' + error.message + '</pre></div>';
+                });
+        }
+        
+        document.getElementById('form-teste-envio').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const resultado = document.getElementById('resultado-envio');
+            const formData = new FormData(this);
+            
+            // Adicionar timestamp à mensagem
+            const timestamp = new Date().toLocaleString('pt-BR');
+            formData.set('mensagem', formData.get('mensagem') + timestamp);
+            
+            resultado.innerHTML = 'Enviando mensagem...';
+            
+            fetch('painel/chat_enviar.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultado.innerHTML = '<div class="success"><h4>✅ Mensagem enviada!</h4><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+                } else {
+                    resultado.innerHTML = '<div class="error"><h4>❌ Erro no envio</h4><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+                }
+            })
+            .catch(error => {
+                resultado.innerHTML = '<div class="error"><h4>❌ Erro no envio</h4><pre>' + error.message + '</pre></div>';
+            });
+        });
+        
+        // Testar robô automaticamente ao carregar
+        window.addEventListener('load', function() {
+            testarRobo();
+        });
+    </script>
+</body>
+</html> 

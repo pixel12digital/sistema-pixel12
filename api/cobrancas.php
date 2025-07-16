@@ -21,10 +21,26 @@ $data_emissao_fim = isset($_GET['data_emissao_fim']) && $_GET['data_emissao_fim'
 $data_vencimento_inicio = isset($_GET['data_vencimento_inicio']) && $_GET['data_vencimento_inicio'] !== '' ? $_GET['data_vencimento_inicio'] : null;
 $data_vencimento_fim = isset($_GET['data_vencimento_fim']) && $_GET['data_vencimento_fim'] !== '' ? $_GET['data_vencimento_fim'] : null;
 
-$sql = "SELECT c.*, cli.nome AS cliente_nome, cli.email AS cliente_email
-        FROM cobrancas c
-        LEFT JOIN clientes cli ON c.cliente_id = cli.id
-        WHERE 1";
+$sql = "SELECT c.*, cli.nome AS cliente_nome, cli.email AS cliente_email, cli.contact_name AS cliente_contact_name,
+  (SELECT MAX(data_hora) FROM mensagens_comunicacao m WHERE m.cobranca_id = c.id AND m.direcao = 'enviado') AS ultima_interacao,
+  (
+    SELECT status FROM mensagens_comunicacao m2 
+    WHERE m2.cobranca_id = c.id AND m2.direcao = 'enviado' 
+    ORDER BY data_hora DESC LIMIT 1
+  ) AS whatsapp_status,
+  (
+    SELECT motivo_erro FROM mensagens_comunicacao m3 
+    WHERE m3.cobranca_id = c.id AND m3.direcao = 'enviado' 
+    ORDER BY data_hora DESC LIMIT 1
+  ) AS whatsapp_motivo_erro,
+  (
+    SELECT id FROM mensagens_comunicacao m4
+    WHERE m4.cobranca_id = c.id AND m4.direcao = 'enviado'
+    ORDER BY data_hora DESC LIMIT 1
+  ) AS whatsapp_msg_id
+  FROM cobrancas c
+  LEFT JOIN clientes cli ON c.cliente_id = cli.id
+  WHERE 1";
 $params = [];
 if ($status) {
     $sql .= " AND c.status = ?";

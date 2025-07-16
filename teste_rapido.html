@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Rápido - Problemas Corrigidos</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>✅ Teste Rápido - Problemas Corrigidos</h1>
+    
+    <div class="test-section success">
+        <h3>🔧 Problemas Identificados e Corrigidos:</h3>
+        <ol>
+            <li><strong>❌ Elemento chat não encontrado</strong> → ✅ <strong>Corrigido</strong>: Mudei seletor para <code>#chat-messages</code></li>
+            <li><strong>❌ JSON inválido no envio</strong> → ✅ <strong>Corrigido</strong>: Adicionei headers corretos e tratamento de erro</li>
+        </ol>
+    </div>
+    
+    <div class="test-section info">
+        <h3>🧪 Teste de Envio de Mensagem</h3>
+        <form id="form-teste-rapido">
+            <input type="number" name="cliente_id" value="156" style="padding: 5px; margin: 5px;" required><br>
+            <input type="number" name="canal_id" value="36" style="padding: 5px; margin: 5px;" required><br>
+            <input type="text" name="mensagem" value="Teste após correções - " style="padding: 5px; margin: 5px;" required><br>
+            <button type="submit">Enviar Mensagem (Teste JSON)</button>
+        </form>
+        <div id="resultado-teste"></div>
+    </div>
+    
+    <div class="test-section info">
+        <h3>🔗 Links para Teste Completo</h3>
+        <p><a href="teste_chat.html" target="_blank" style="background: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Teste Completo</a></p>
+        <p><a href="painel/chat.php?cliente_id=156" target="_blank" style="background: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Chat Principal</a></p>
+    </div>
+
+    <script>
+        document.getElementById('form-teste-rapido').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const resultado = document.getElementById('resultado-teste');
+            const formData = new FormData(this);
+            
+            // Adicionar timestamp à mensagem
+            const timestamp = new Date().toLocaleString('pt-BR');
+            formData.set('mensagem', formData.get('mensagem') + timestamp);
+            
+            resultado.innerHTML = 'Enviando mensagem...';
+            
+            fetch('painel/chat_enviar.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                console.log('Status:', response.status);
+                return response.text();
+            })
+            .then(text => {
+                console.log('Resposta bruta:', text);
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        resultado.innerHTML = '<div class="success"><h4>✅ SUCESSO! JSON válido!</h4><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+                    } else {
+                        resultado.innerHTML = '<div class="error"><h4>❌ Erro no envio</h4><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+                    }
+                } catch (e) {
+                    resultado.innerHTML = '<div class="error"><h4>❌ ERRO: Resposta não é JSON válido</h4><pre>' + text.substring(0, 200) + '...</pre></div>';
+                }
+            })
+            .catch(error => {
+                resultado.innerHTML = '<div class="error"><h4>❌ Erro de conexão</h4><pre>' + error.message + '</pre></div>';
+            });
+        });
+    </script>
+</body>
+</html> 

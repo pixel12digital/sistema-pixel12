@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-set_time_limit(300);
+set_time_limit(0);
 try {
     ob_start();
     passthru('php ' . escapeshellarg(__DIR__ . '/sincroniza_asaas.php') . ' 2>&1', $exitCode);

@@ -1,5 +1,13 @@
 <?php /* Menu lateral atualizado para painel Pixel 12 Digital */ ?>
-<?php if (session_status() === PHP_SESSION_NONE) session_start(); ?>
+<?php
+if (session_status() === PHP_SESSION_NONE) session_start();
+// Definir $is_admin com base na sessão ou padrão
+$is_admin = false;
+if (isset($_SESSION['logado']) && $_SESSION['logado']) {
+    // Se quiser lógica mais avançada, ajuste aqui
+    $is_admin = true;
+}
+?>
 <style>
 body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
 .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 70px; background: #232836; display: flex; flex-direction: column; align-items: center; padding: 0.5rem 0; z-index: 10000; transition: width 0.25s cubic-bezier(.4,0,.2,1); overflow: hidden; min-height: 100vh; }
@@ -126,7 +134,7 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                     Faturas
                 </a>
-                <a href="/financeiro/assinaturas" class="sidebar-sublink<?php if($page=='assinaturas.php') echo ' active'; ?>">
+                <a href="assinaturas.php" class="sidebar-sublink<?php if($page=='assinaturas.php') echo ' active'; ?>">
                     <!-- Lucide RefreshCcw SVG -->
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 22v-6h6"/><path d="M21 2a12 12 0 0 1-19.36 9"/><path d="M3 22A12 12 0 0 0 21 2"/></svg>
                     Assinaturas

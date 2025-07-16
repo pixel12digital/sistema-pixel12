@@ -80,6 +80,7 @@ function render_content() {
         <thead>
           <tr>
             <th class="px-3 py-2">Nome</th>
+            <th class="px-3 py-2 text-center">Contato Principal</th>
             <th class="px-3 py-2 text-center">E-mail</th>
             <th class="px-3 py-2 text-center">Celular</th>
             <th class="px-3 py-2">Plano Ativo</th>
@@ -91,6 +92,9 @@ function render_content() {
           <?php $style = 'vertical-align:middle;padding:8px 6px;border-bottom:1px solid #ececec;'; ?>
           <tr>
             <td style="<?= $style ?>"><?= htmlspecialchars($cli['nome']) ?></td>
+            <td style="<?= $style ?>;min-width:120px;">
+              <input type="text" class="contato-principal-input" data-id="<?= $cli['id'] ?>" value="<?= htmlspecialchars($cli['contact_name'] ?? '') ?>" placeholder="Adicionar..." style="width:100%;padding:4px 6px;border-radius:5px;border:1px solid #d1d5db;<?= empty($cli['contact_name']) ? 'background:#fef9c3;' : '' ?>" />
+            </td>
             <td style="<?= $style ?>"><?= htmlspecialchars($cli['email']) ?></td>
             <td style="<?= $style ?>"><?= htmlspecialchars($cli['celular'] ?? $cli['telefone']) ?></td>
             <td style="<?= $style ?>">
@@ -181,6 +185,37 @@ function render_content() {
           el.style.display = '';
         }
       }, 100);
+    });
+    // Edição rápida do Contato Principal
+    document.querySelectorAll('.contato-principal-input').forEach(function(input) {
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const id = this.getAttribute('data-id');
+          const valor = this.value.trim();
+          this.disabled = true;
+          fetch('api/atualizar_contato_principal.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + encodeURIComponent(id) + '&contact_name=' + encodeURIComponent(valor)
+          })
+          .then(r => r.json())
+          .then(resp => {
+            if (resp.success) {
+              this.style.background = '#d1fae5';
+              setTimeout(() => { this.style.background = valor ? '' : '#fef9c3'; }, 800);
+            } else {
+              this.style.background = '#fee2e2';
+              alert(resp.error || 'Erro ao salvar!');
+            }
+          })
+          .catch(() => {
+            this.style.background = '#fee2e2';
+            alert('Erro ao conectar ao servidor!');
+          })
+          .finally(() => { this.disabled = false; });
+        }
+      });
     });
     </script>
     <?php

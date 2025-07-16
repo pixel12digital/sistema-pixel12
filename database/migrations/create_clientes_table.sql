@@ -1,0 +1,1 @@
+ALTER TABLE clientes ADD COLUMN contact_name VARCHAR(100) NULL AFTER nome; 

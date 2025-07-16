@@ -1,98 +1,133 @@
-# Dependencies
-/vendor/
-/node_modules/
+# Dependências
+node_modules/
+vendor/
+composer.lock
 
-# Environment files
+# Arquivos de ambiente e credenciais sensíveis
 .env
+*.env
 .env.local
 .env.production
-.env.staging
+.env.hostinger
+.local_env
 
-# Configuration files with sensitive data
-config/database.php
-config/asaas.php
-config/deployment.php
+# Arquivos de backup de deploy
+config.backup.php
+painel/config.backup.php
+*.backup.php
+*.backup
 
-# Logs
-/logs/
-*.log
+# Arquivos específicos de desenvolvimento local
+config.local.php
+config.dev.php
+painel/config.local.php
+painel/config.dev.php
 
-# Cache
-/cache/
-/tmp/
-
-# Uploads
-/storage/uploads/
-/public/uploads/
-
-# Database backups
-/backups/
-*.sql
-*.sql.gz
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Compiled assets
-/public/assets/compiled/
-/public/css/compiled/
-/public/js/compiled/
-
-# Session files
-/sessions/
-
-# Error logs
-error_log
-access_log
-
-# Temporary files
-*.tmp
-*.temp
-
-# SSL certificates
-*.pem
+# Credenciais e dados sensíveis específicos
+*password*
+*credential*
+*secret*
 *.key
-*.crt
+*.pem
+api_keys.php
+credentials.php
 
-# Hostinger specific
-private_html/
+# Sessões e cache do WhatsApp Web
+.wwebjs_auth/
+.wwebjs_cache/
+whatsapp-session/
 
-# Arquivos do sistema
-.DS_Store
-Thumbs.db
-desktop.ini
+# Sistema de cache do painel
+painel/cache/
+painel/cache/*.cache
+cache/
+*.cache
+
+# Logs e arquivos de debug
+logs/
+logs/*.log
+*.log
+debug_*.txt
+debug_*.json
+asaas_debug.json
+cobrancas_debug.json
+error_*.log
+cache_*.log
+whatsapp_*.log
+status_check_*.log
+webhook_*.log
+deploy.log
 
 # Arquivos temporários
 *.tmp
 *.temp
+tmp/
+temp/
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs e editores
+.vscode/
+.idea/
 *.swp
 *.swo
-
-# Arquivos de configuração local
-config_local.php
+*~
 
 # Arquivos de backup
 *.bak
 *.backup
+*.old
 
-# Arquivos de IDE
-.vscode/
-.idea/
-*.sublime-*
-
-# Arquivos de upload (se houver)
+# Arquivos de upload e media
 uploads/
-files/
+media/
+anexos/
+arquivos/
 
-# Arquivos de sessão
+# Arquivos de sessão PHP
 sessions/
 
-# Arquivos de configuração do servidor
+# Arquivos de teste e debug
+test_*.php
+*_test.php
+teste_*.php
+debug_*.php
+test_config.php
+
+# Arquivos de documentação temporária
+*.md.bak
+docs/temp/
+
+# Arquivos de build
+dist/
+build/
+
+# Arquivos de PM2
+.pm2/
+ecosystem.config.js
+
+# Arquivos de banco de dados locais
+*.db
+*.sqlite
+*.sqlite3
+dump.sql
+backup.sql
+
+# Arquivos de desenvolvimento
 .htaccess.local
+.htpasswd
+robots.txt.local
+
+# Dados de desenvolvimento/teste
+test-data/
+mock-data/
+
+# Arquivos de deployment
+deploy.sh
+
+# Arquivos específicos de desenvolvimento local
+painel/db.local.php
+config.local.json

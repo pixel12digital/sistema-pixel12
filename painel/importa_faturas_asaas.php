@@ -13,7 +13,7 @@ echo "Chave Asaas usada: ".$asaas->getApiKey()."\n";
 echo "Endpoint Asaas: ".$asaas->getApiUrl()."\n";
 
 do {
-    $resp = $asaas->request('GET', "payments?status=PENDING,OVERDUE&limit=100&offset=" . ($page * 100));
+    $resp = $asaas->request('GET', "payments?limit=100&offset=" . ($page * 100));
     if ($page === 0) {
         file_put_contents(__DIR__ . '/../asaas_debug.json', json_encode($resp, JSON_PRETTY_PRINT));
         echo "Resposta bruta da API Asaas:\n";
@@ -75,12 +75,12 @@ do {
                 // UPDATE
                 $stmt->close();
                 $stmt = $conn->prepare("UPDATE cobrancas SET cliente_id=?, valor=?, status=?, vencimento=?, data_pagamento=?, data_criacao=?, data_atualizacao=?, descricao=?, tipo=?, tipo_pagamento=?, url_fatura=?, parcela=?, assinatura_id=? WHERE asaas_payment_id=?");
-                $stmt->bind_param('idsssssssssss', $cliente_id, $valor, $status, $vencimento, $data_pagamento, $data_criacao, $data_atualizacao, $descricao, $tipo, $tipo, $url_fatura, $parcela, $assinatura_id, $asaas_payment_id);
+                $stmt->bind_param('idssssssssssss', $cliente_id, $valor, $status, $vencimento, $data_pagamento, $data_criacao, $data_atualizacao, $descricao, $tipo, $tipo, $url_fatura, $parcela, $assinatura_id, $asaas_payment_id);
             } else {
                 // INSERT
                 $stmt->close();
                 $stmt = $conn->prepare("INSERT INTO cobrancas (asaas_payment_id, cliente_id, valor, status, vencimento, data_pagamento, data_criacao, data_atualizacao, descricao, tipo, tipo_pagamento, url_fatura, parcela, assinatura_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param('sidssssssssss', $asaas_payment_id, $cliente_id, $valor, $status, $vencimento, $data_pagamento, $data_criacao, $data_atualizacao, $descricao, $tipo, $tipo, $url_fatura, $parcela, $assinatura_id);
+                $stmt->bind_param('sidsssssssssss', $asaas_payment_id, $cliente_id, $valor, $status, $vencimento, $data_pagamento, $data_criacao, $data_atualizacao, $descricao, $tipo, $tipo, $url_fatura, $parcela, $assinatura_id);
             }
             
             if ($stmt->execute()) {

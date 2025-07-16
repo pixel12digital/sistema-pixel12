@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste Endpoints Chat</title>
+</head>
+<body>
+    <h2>Teste dos Endpoints do Chat</h2>
+    
+    <div>
+        <label>Cliente ID: <input type="number" id="clienteId" value="156"></label>
+        <br><br>
+        <button onclick="testarDetalhes()">Testar api/detalhes_cliente.php</button>
+        <button onclick="testarMensagens()">Testar api/mensagens_cliente.php</button>
+        <button onclick="testarDados()">Testar api/dados_cliente.php</button>
+    </div>
+    
+    <div id="resultado" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; max-height: 400px; overflow-y: auto;"></div>
+
+    <h3>🔄 Sistema de Auto-Scroll Implementado</h3>
+    <ul>
+        <li>✅ Scroll automático ao carregar conversa</li>
+        <li>✅ Scroll automático ao enviar mensagem</li>
+        <li>✅ Scroll automático quando novas mensagens chegam via polling</li>
+        <li>✅ Observer de mutações para detectar novas mensagens automaticamente</li>
+        <li>✅ Animação suave como no WhatsApp</li>
+    </ul>
+
+    <script>
+        function log(message) {
+            document.getElementById('resultado').textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+        }
+
+        function testarDetalhes() {
+            const clienteId = document.getElementById('clienteId').value;
+            log('Testando detalhes_cliente.php...');
+            
+            fetch(`api/detalhes_cliente.php?cliente_id=${clienteId}`)
+                .then(response => response.text())
+                .then(data => {
+                    log('✅ Detalhes carregados: ' + data.length + ' caracteres');
+                })
+                .catch(error => {
+                    log('❌ Erro: ' + error.message);
+                });
+        }
+
+        function testarMensagens() {
+            const clienteId = document.getElementById('clienteId').value;
+            log('Testando mensagens_cliente.php...');
+            
+            fetch(`api/mensagens_cliente.php?cliente_id=${clienteId}`)
+                .then(response => response.text())
+                .then(data => {
+                    log('✅ Mensagens carregadas: ' + data.length + ' caracteres');
+                })
+                .catch(error => {
+                    log('❌ Erro: ' + error.message);
+                });
+        }
+
+        function testarDados() {
+            const clienteId = document.getElementById('clienteId').value;
+            log('Testando dados_cliente.php...');
+            
+            fetch(`api/dados_cliente.php?id=${clienteId}`)
+                .then(response => response.json())
+                .then(data => {
+                    log('✅ Dados carregados: ' + JSON.stringify(data, null, 2));
+                })
+                .catch(error => {
+                    log('❌ Erro: ' + error.message);
+                });
+        }
+    </script>
+</body>
+</html> 

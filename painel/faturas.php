@@ -1,142 +1,400 @@
-<?php $page = 'faturas.php'; ?>
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Faturas • Pixel12Digital</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 text-gray-800">
-  <?php include 'menu_lateral.php'; ?>
-  <main class="main-content">
-    <!-- Header -->
-    <header class="invoices-header bg-purple-700 text-white p-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
-      <h1 class="invoices-title text-2xl font-semibold flex-1">Faturas</h1>
-      <div class="flex-1 lg:max-w-md">
-        <label for="invoice-search" class="sr-only">Buscar fatura</label>
-        <input id="invoice-search" type="search" placeholder="Buscar por número ou cliente" class="invoices-search-bar w-full px-3 py-2 rounded-md text-gray-800" />
+<?php
+$page = 'faturas.php';
+$page_title = 'Faturas';
+$custom_header = '<button type="button" class="invoices-new-btn bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md flex items-center gap-2" id="btn-sincronizar"><span>🔄 Sincronizar com Asaas</span></button> <button type="button" class="invoices-new-btn bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md flex items-center gap-2">+ Nova Fatura</button>';
+
+function render_content() {
+?>
+<!-- Header -->
+<section class="invoices-filters bg-white shadow-sm p-4">
+  <div class="grid gap-4 md:grid-cols-4">
+    <div>
+      <label for="filter-status" class="block text-xs font-medium">Status</label>
+      <select id="filter-status" class="filter-status mt-1 w-full rounded-md border-gray-300">
+        <option value="">Todos</option>
+        <option value="PENDING">Aguardando pagamento</option>
+        <option value="OVERDUE">Vencida</option>
+        <option value="RECEIVED">Recebida</option>
+        <option value="CONFIRMED">Confirmada</option>
+      </select>
+    </div>
+    <div class="filtro-datas">
+      <label class="block text-xs font-medium">Vencimento</label>
+      <div style="display: flex; gap: 8px;">
+        <input type="date" class="filter-date-due-inicio" placeholder="dd/mm/aaaa" />
+        <input type="date" class="filter-date-due-fim" placeholder="dd/mm/aaaa" />
       </div>
-      <button type="button" class="invoices-new-btn bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md flex items-center gap-2" id="btn-sincronizar">
-        <span>🔄 Sincronizar com Asaas</span>
-      </button>
-      <div id="sync-status" style="display:none; margin-top:10px; width:300px;">
-        <div style="width:100%;background:#eee;border-radius:5px;">
-          <div id="sync-bar" style="width:0%;height:18px;background:#a259e6;border-radius:5px;transition:width 0.4s;"></div>
-        </div>
-        <span id="sync-msg" style="font-size:14px;color:#555;">Sincronizando...</span>
-      </div>
-      <button type="button" class="invoices-new-btn bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md flex items-center gap-2">
-        <span>+ Nova Fatura</span>
-        <svg class="hidden h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-        </svg>
-      </button>
-    </header>
-    <!-- Filters -->
-    <section class="invoices-filters bg-white shadow-sm p-4">
-      <div class="grid gap-4 md:grid-cols-4">
+    </div>
+    <div>
+      <label for="filter-client" class="block text-xs font-medium">Cliente</label>
+      <input id="filter-client" type="text" class="filter-client mt-1 w-full rounded-md border-gray-300" placeholder="Buscar cliente..." />
+    </div>
+    <div class="flex items-end">
+      <button id="btn-aplicar-filtros" class="bg-purple-600 hover:bg-purple-800 text-white px-4 py-2 rounded-md">Aplicar Filtros</button>
+    </div>
+  </div>
+</section>
+<!-- Summary -->
+<section class="invoices-summary grid grid-cols-2 md:grid-cols-4 gap-4 p-4">
+  <div class="summary-card summary-open bg-white p-4 rounded-lg shadow-sm">
+    <p class="text-xs uppercase text-gray-500">Em aberto</p>
+    <p class="text-xl font-semibold mt-1">R$ 0,00</p>
+  </div>
+  <div class="summary-card summary-pending bg-white p-4 rounded-lg shadow-sm">
+    <p class="text-xs uppercase text-gray-500">Pendentes</p>
+    <p class="text-xl font-semibold mt-1">0 (R$ 0,00)</p>
+  </div>
+  <div class="summary-card summary-overdue bg-white p-4 rounded-lg shadow-sm">
+    <p class="text-xs uppercase text-gray-500">Vencidas</p>
+    <p class="text-xl font-semibold mt-1">0 (R$ 0,00)</p>
+  </div>
+</section>
+<!-- Invoices Table -->
+<section class="p-4 overflow-x-auto">
+  <table class="invoices-table w-full text-sm whitespace-nowrap">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-3 py-2">Nº</th>
+        <th class="px-3 py-2">Cliente</th>
+        <th class="px-3 py-2">Contato Principal</th>
+        <th class="px-3 py-2">Valor</th>
+        <th class="px-3 py-2">Vencimento</th>
+        <th class="px-3 py-2">Status</th>
+        <th class="px-3 py-2">Última Interação</th>
+        <th class="px-3 py-2">Status Envio</th>
+        <th class="px-3 py-2">Ações</th>
+      </tr>
+    </thead>
+    <tbody id="invoices-tbody">
+      <!-- Linhas serão preenchidas via JS -->
+    </tbody>
+  </table>
+  <div id="pagination" class="flex justify-center items-center gap-2 mt-4"></div>
+  <div id="total-faturas-info" class="text-sm text-gray-600 mt-2 flex justify-end"></div>
+</section>
+<!-- Drawer Details -->
+<aside class="drawer-invoice-details fixed top-0 right-0 w-full sm:w-96 h-full bg-white shadow-xl transform translate-x-full transition-transform z-50">
+  <header class="details-header p-4 border-b flex items-center justify-between">
+    <h2 class="text-lg font-semibold">Fatura</h2>
+    <button aria-label="Fechar detalhes" class="close-details text-gray-400 hover:text-gray-600">&times;</button>
+  </header>
+  <div class="details-client p-4 border-b"></div>
+  <div class="details-items p-4 border-b"></div>
+  <div class="details-totals p-4 border-b"></div>
+  <div class="details-actions p-4 flex gap-2"></div>
+</aside>
+<!-- Toast container -->
+<div class="fixed top-4 right-4 space-y-2 z-50" id="toast-container"></div>
+<!-- Modal de log completo (inicialmente oculto) -->
+<div id="modal-log-completo" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#fff;padding:32px 24px;border-radius:12px;min-width:400px;max-width:90vw;max-height:90vh;overflow:auto;position:relative;box-shadow:0 8px 32px #0003;">
+    <button id="btn-fechar-log-completo" style="position:absolute;top:16px;right:20px;font-size:1.5em;background:none;border:none;color:#7c3aed;cursor:pointer;">&times;</button>
+    <h3 style="font-size:1.2em;font-weight:bold;margin-bottom:18px;color:#7c3aed;">Log completo da sincronização</h3>
+    <pre id="log-completo-area" style="background:#f3f4f6;padding:16px;border-radius:8px;max-height:65vh;overflow:auto;font-size:0.97em;color:#222;white-space:pre-wrap;"></pre>
+  </div>
+</div>
+<!-- Modal de progresso de sincronização -->
+<div id="modal-sync-progress" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.8);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;padding:0;border-radius:16px;min-width:500px;max-width:90vw;max-height:85vh;overflow:hidden;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <!-- Header do Modal -->
+    <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:24px 32px;position:relative;">
+      <button id="btn-fechar-sync-modal" style="position:absolute;top:20px;right:24px;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">&times;</button>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;">🔄</div>
         <div>
-          <label for="filter-status" class="block text-xs font-medium">Status</label>
-          <select id="filter-status" class="filter-status mt-1 w-full rounded-md border-gray-300">
-            <option value="">Todos</option>
-            <option value="PENDING">Aguardando pagamento</option>
-            <option value="OVERDUE">Vencida</option>
-            <option value="RECEIVED">Recebida</option>
-            <option value="CONFIRMED">Confirmada</option>
-          </select>
+          <h3 style="font-size:1.4em;font-weight:700;margin:0;">Sincronização com Asaas</h3>
+          <p style="margin:4px 0 0 0;opacity:0.9;font-size:0.95em;">Acompanhe o progresso em tempo real</p>
         </div>
+      </div>
+    </div>
+    <!-- Bloco de resumo do erro (inicialmente oculto) -->
+    <div id="sync-error-summary" style="display:none;background:#fef2f2;border-bottom:2px solid #fecaca;padding:18px 32px 10px 32px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:2em;color:#dc2626;">❌</div>
         <div>
-          <label class="block text-xs font-medium">Vencimento inicial</label>
-          <input type="date" class="filter-date-due-inicio mt-1 w-full rounded-md border-gray-300" />
-        </div>
-        <div>
-          <label class="block text-xs font-medium">Vencimento final</label>
-          <input type="date" class="filter-date-due-fim mt-1 w-full rounded-md border-gray-300" />
-        </div>
-        <div>
-          <label for="filter-client" class="block text-xs font-medium">Cliente</label>
-          <input id="filter-client" type="text" class="filter-client mt-1 w-full rounded-md border-gray-300" placeholder="Buscar cliente..." />
-        </div>
-        <div class="flex items-end">
-          <button id="btn-aplicar-filtros" class="bg-purple-600 hover:bg-purple-800 text-white px-4 py-2 rounded-md">Aplicar Filtros</button>
+          <div style="font-weight:700;color:#dc2626;font-size:1.1em;">Erro na sincronização</div>
+          <div id="sync-error-message" style="color:#b91c1c;font-size:0.98em;margin-top:2px;"></div>
         </div>
       </div>
-    </section>
-    <!-- Summary -->
-    <section class="invoices-summary grid grid-cols-2 md:grid-cols-4 gap-4 p-4">
-      <div class="summary-card summary-open bg-white p-4 rounded-lg shadow-sm">
-        <p class="text-xs uppercase text-gray-500">Em aberto</p>
-        <p class="text-xl font-semibold mt-1">R$ 0,00</p>
+      <div style="margin-top:8px;">
+        <button id="btn-ver-log-completo" style="background:#fff;color:#7c3aed;border:1px solid #7c3aed;padding:6px 18px;border-radius:6px;font-weight:600;cursor:pointer;transition:background 0.2s;">Ver log completo</button>
       </div>
-      <div class="summary-card summary-pending bg-white p-4 rounded-lg shadow-sm">
-        <p class="text-xs uppercase text-gray-500">Pendentes</p>
-        <p class="text-xl font-semibold mt-1">0 (R$ 0,00)</p>
+    </div>
+    <!-- Conteúdo do Modal -->
+    <div style="padding:32px;">
+      <!-- Status Geral -->
+      <div id="sync-status-card" style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:24px;transition:all 0.3s;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div id="status-icon" style="width:32px;height:32px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;">⏳</div>
+          <div>
+            <h4 id="status-title" style="margin:0;font-weight:600;color:#1e293b;">Iniciando sincronização...</h4>
+            <p id="status-description" style="margin:4px 0 0 0;color:#64748b;font-size:0.9em;">Preparando conexão com Asaas</p>
+          </div>
+        </div>
+        <!-- Barra de Progresso -->
+        <div style="margin-bottom:16px;">
+          <div style="width:100%;background:#e5e7eb;border-radius:8px;height:18px;overflow:hidden;">
+            <div id="sync-progress-bar" style="height:18px;width:0%;background:#7c3aed;transition:width 0.4s;"></div>
+          </div>
+          <div id="sync-progress-label" style="font-size:0.98em;color:#7c3aed;margin-top:4px;font-weight:500;">0%</div>
+        </div>
+        <!-- Estatísticas -->
+        <div id="sync-stats" style="display:flex;gap:24px;margin-bottom:10px;"></div>
       </div>
-      <div class="summary-card summary-overdue bg-white p-4 rounded-lg shadow-sm">
-        <p class="text-xs uppercase text-gray-500">Vencidas</p>
-        <p class="text-xl font-semibold mt-1">0 (R$ 0,00)</p>
-      </div>
-    </section>
-    <!-- Invoices Table -->
-    <section class="p-4 overflow-x-auto">
-      <table class="invoices-table w-full text-sm whitespace-nowrap">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-3 py-2">Nº</th>
-            <th class="px-3 py-2">Cliente</th>
-            <th class="px-3 py-2">Valor</th>
-            <th class="px-3 py-2">Emissão</th>
-            <th class="px-3 py-2">Vencimento</th>
-            <th class="px-3 py-2">Tipo de Pagamento</th>
-            <th class="px-3 py-2">Status</th>
-            <th class="px-3 py-2">Ações</th>
-          </tr>
-        </thead>
-        <tbody id="invoices-tbody">
-          <!-- Linhas serão preenchidas via JS -->
-        </tbody>
-      </table>
-      <div id="pagination" class="flex justify-center items-center gap-2 mt-4"></div>
-    </section>
-    <!-- Drawer Details -->
-    <aside class="drawer-invoice-details fixed top-0 right-0 w-full sm:w-96 h-full bg-white shadow-xl transform translate-x-full transition-transform z-50">
-      <header class="details-header p-4 border-b flex items-center justify-between">
-        <h2 class="text-lg font-semibold">Fatura</h2>
-        <button aria-label="Fechar detalhes" class="close-details text-gray-400 hover:text-gray-600">&times;</button>
-      </header>
-      <div class="details-client p-4 border-b"></div>
-      <div class="details-items p-4 border-b"></div>
-      <div class="details-totals p-4 border-b"></div>
-      <div class="details-actions p-4 flex gap-2"></div>
-    </aside>
-    <!-- Toast container -->
-    <div class="fixed top-4 right-4 space-y-2 z-50" id="toast-container"></div>
-  </main>
-  <script src="/painel/assets/invoices.js"></script>
-  <script src="assets/cobrancas.js"></script>
-  <script>
-    document.getElementById('btn-sincronizar').onclick = function() {
-      if (!confirm('Deseja realmente sincronizar as cobranças com o Asaas?')) return;
-      this.disabled = true;
-      this.innerHTML = 'Sincronizando...';
+      <!-- Logs -->
+      <div id="sync-logs-area" style="background:#f3f4f6;border-radius:8px;padding:16px;max-height:180px;overflow:auto;font-size:0.97em;color:#222;white-space:pre-wrap;"></div>
+    </div>
+  </div>
+</div>
+<!-- Modal de detalhes do cliente -->
+<div id="modal-cliente-detalhes" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:10001;align-items:center;justify-content:center;">
+  <div id="modal-cliente-detalhes-content" style="background:#fff;padding:32px 24px;border-radius:12px;min-width:400px;max-width:95vw;max-height:90vh;overflow:auto;position:relative;box-shadow:0 8px 32px #0003;">
+    <button id="btn-fechar-modal-cliente" style="position:absolute;top:16px;right:20px;font-size:1.5em;background:none;border:none;color:#7c3aed;cursor:pointer;">&times;</button>
+    <div id="modal-cliente-detalhes-body">Carregando...</div>
+  </div>
+</div>
+<script src="/painel/assets/invoices.js"></script>
+<script src="assets/cobrancas.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const btnSync = document.getElementById('btn-sincronizar');
+  const modal = document.getElementById('modal-sync-progress');
+  const btnFechar = document.getElementById('btn-fechar-sync-modal');
+  const btnVerLogCompleto = document.getElementById('btn-ver-log-completo');
+  const syncLogsArea = document.getElementById('sync-logs-area');
+  const syncProgressBar = document.getElementById('sync-progress-bar');
+  const syncProgressLabel = document.getElementById('sync-progress-label');
+  const syncStatusCard = document.getElementById('sync-status-card');
+  const statusIcon = document.getElementById('status-icon');
+  const statusTitle = document.getElementById('status-title');
+  const statusDescription = document.getElementById('status-description');
+  const syncErrorSummary = document.getElementById('sync-error-summary');
+  const syncErrorMessage = document.getElementById('sync-error-message');
+  const logCompletoArea = document.getElementById('log-completo-area');
+  const modalLogCompleto = document.getElementById('modal-log-completo');
+  const btnFecharLogCompleto = document.getElementById('btn-fechar-log-completo');
+  let syncInterval = null;
+
+  function abrirModalSync() {
+    modal.style.display = 'flex';
+    syncLogsArea.innerHTML = '<div style="color:#64748b;font-style:italic;">Aguardando início da sincronização...</div>';
+    syncProgressBar.style.width = '0%';
+    syncProgressLabel.textContent = '0%';
+    statusIcon.textContent = '⏳';
+    statusIcon.style.background = '#3b82f6';
+    statusTitle.textContent = 'Iniciando sincronização...';
+    statusDescription.textContent = 'Preparando conexão com Asaas';
+    syncErrorSummary.style.display = 'none';
+    syncErrorMessage.textContent = '';
+    if (syncInterval) clearInterval(syncInterval);
+  }
+
+  function fecharModalSync() {
+    modal.style.display = 'none';
+    if (syncInterval) clearInterval(syncInterval);
+  }
+
+  function atualizarProgresso(percent) {
+    syncProgressBar.style.width = percent + '%';
+    syncProgressLabel.textContent = percent + '%';
+  }
+
+  function adicionarLog(msg, tipo) {
+    const div = document.createElement('div');
+    div.textContent = msg;
+    if (tipo === 'error') div.style.color = '#dc2626';
+    if (tipo === 'success') div.style.color = '#059669';
+    syncLogsArea.appendChild(div);
+    syncLogsArea.scrollTop = syncLogsArea.scrollHeight;
+  }
+
+  function atualizarStatus(icon, title, desc, bg) {
+    statusIcon.textContent = icon;
+    statusIcon.style.background = bg;
+    statusTitle.textContent = title;
+    statusDescription.textContent = desc;
+  }
+
+  function mostrarErroSync(msg) {
+    syncErrorSummary.style.display = 'block';
+    syncErrorMessage.textContent = msg;
+    atualizarStatus('❌', 'Erro na sincronização', msg, '#dc2626');
+  }
+
+  function carregarLogCompleto() {
+    fetch('api/sync_status.php?all=1')
+      .then(r => r.json())
+      .then(logs => {
+        logCompletoArea.textContent = logs.join('\n');
+      });
+    modalLogCompleto.style.display = 'flex';
+  }
+
+  if (btnSync) {
+    btnSync.addEventListener('click', function() {
+      btnSync.disabled = true;
+      abrirModalSync();
+      adicionarLog('Iniciando sincronização...', '');
+      atualizarStatus('⏳', 'Iniciando sincronização...', 'Preparando conexão com Asaas', '#3b82f6');
       fetch('sincronizar_asaas_ajax.php')
         .then(r => r.json())
         .then(resp => {
           if (resp.success) {
-            alert('Sincronização concluída!');
-            location.reload();
+            adicionarLog('Sincronização concluída com sucesso!', 'success');
+            atualizarStatus('✅', 'Sincronização concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
+            atualizarProgresso(100);
           } else {
-            alert('Erro ao sincronizar!\n' + (resp.error || '') + '\n' + (resp.output || ''));
+            mostrarErroSync(resp.error || 'Erro desconhecido ao sincronizar.');
           }
         })
-        .catch(() => alert('Erro ao sincronizar!'))
+        .catch(() => {
+          mostrarErroSync('Erro ao conectar ao servidor!');
+        })
         .finally(() => {
-          this.disabled = false;
-          this.innerHTML = '🔄 Sincronizar com Asaas';
+          btnSync.disabled = false;
         });
-    };
-  </script>
-</body>
-</html> 
+      // Atualizar logs em tempo real
+      let progresso = 0;
+      syncInterval = setInterval(() => {
+        fetch('api/sync_status.php')
+          .then(r => r.json())
+          .then(logs => {
+            syncLogsArea.innerHTML = '';
+            let linhas = Array.isArray(logs) ? logs : (logs && Array.isArray(logs.lines) ? logs.lines : []);
+            if (Array.isArray(logs)) {
+              logs.forEach(l => adicionarLog(l, l.toLowerCase().includes('erro') ? 'error' : (l.toLowerCase().includes('sucesso') ? 'success' : '')));
+            } else if (logs && Array.isArray(logs.lines)) {
+              logs.lines.forEach(l => adicionarLog(l, l.toLowerCase().includes('erro') ? 'error' : (l.toLowerCase().includes('sucesso') ? 'success' : '')));
+            } else if (typeof logs === 'string') {
+              adicionarLog(logs, '');
+            }
+            // Atualizar status principal conforme o log
+            if (linhas.length > 0) {
+              const ultima = linhas[linhas.length - 1].toLowerCase();
+              if (ultima.includes('buscando clientes')) {
+                atualizarStatus('👥', 'Sincronizando clientes...', 'Buscando clientes no Asaas', '#3b82f6');
+              } else if (ultima.includes('clientes sincronizados')) {
+                atualizarStatus('💾', 'Clientes sincronizados!', 'Avançando para cobranças...', '#3b82f6');
+              } else if (ultima.includes('buscando cobran')) {
+                atualizarStatus('💸', 'Sincronizando cobranças...', 'Buscando cobranças no Asaas', '#3b82f6');
+              } else if (ultima.includes('cobranças sincronizadas')) {
+                atualizarStatus('💾', 'Cobranças sincronizadas!', 'Finalizando...', '#3b82f6');
+              } 
+              // Corrigir: detectar qualquer linha de sucesso/conclusão
+              if (ultima.includes('sincronização concluída') || ultima.includes('concluída com sucesso')) {
+                atualizarStatus('✅', 'Sincronização concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
+                atualizarProgresso(100);
+                if (syncInterval) clearInterval(syncInterval);
+              }
+            }
+            // Progresso estimado
+            if (!linhas.some(l => l.toLowerCase().includes('sincronização concluída') || l.toLowerCase().includes('concluída com sucesso'))) {
+              progresso = Math.min(95, progresso + 5);
+              atualizarProgresso(progresso);
+            }
+          });
+      }, 1500);
+    });
+  }
+
+  if (btnFechar) {
+    btnFechar.addEventListener('click', fecharModalSync);
+  }
+  if (btnVerLogCompleto) {
+    btnVerLogCompleto.addEventListener('click', carregarLogCompleto);
+  }
+  if (btnFecharLogCompleto) {
+    btnFecharLogCompleto.addEventListener('click', function() {
+      modalLogCompleto.style.display = 'none';
+    });
+  }
+
+  // Função showToast (caso não exista)
+  if (typeof showToast !== 'function') {
+    window.showToast = function(msg, tipo) {
+      const toast = document.createElement('div');
+      toast.textContent = msg;
+      toast.style = `position:fixed;top:24px;right:24px;z-index:9999;padding:12px 22px;background:${tipo==='success'?'#bbf7d0':'#fee2e2'};color:${tipo==='success'?'#166534':'#b91c1c'};border-radius:8px;font-weight:500;box-shadow:0 2px 8px #0002;transition:opacity 0.3s;`;
+      document.body.appendChild(toast);
+      setTimeout(()=>{
+        toast.style.opacity = '0';
+        setTimeout(()=>{toast.remove();}, 300);
+      }, 2500);
+    }
+  } 
+
+  // Funções para edição e exclusão de mensagens (disponíveis globalmente)
+  window.editarMensagem = function(id, textoAtual) {
+    console.log('Editando mensagem ID:', id, 'Texto atual:', textoAtual);
+    const novoTexto = prompt("Editar mensagem:", textoAtual);
+    if (novoTexto === null || novoTexto.trim() === "") return;
+    
+    console.log('Novo texto:', novoTexto);
+    
+    fetch("api/editar_mensagem.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "id=" + encodeURIComponent(id) + "&mensagem=" + encodeURIComponent(novoTexto.trim())
+    })
+    .then(r => {
+      console.log('Status da resposta:', r.status);
+      return r.json();
+    })
+    .then(resp => {
+      console.log('Resposta do servidor:', resp);
+      if (resp.success) {
+        // Atualizar o texto da mensagem diretamente no DOM
+        const mensagemElement = document.querySelector(`[data-mensagem-id="${id}"]`);
+        if (mensagemElement) {
+          const conteudoElement = mensagemElement.querySelector('.mensagem-conteudo');
+          if (conteudoElement) {
+            conteudoElement.textContent = novoTexto.trim();
+          }
+        }
+        showToast("Mensagem editada com sucesso!", "success");
+      } else {
+        showToast("Erro ao editar: " + (resp.error || "Erro desconhecido"), "error");
+      }
+    })
+    .catch(error => {
+      console.error('Erro na requisição:', error);
+      showToast("Erro ao conectar ao servidor: " + error.message, "error");
+    });
+  };
+
+  window.excluirMensagem = function(id) {
+    console.log('Excluindo mensagem ID:', id);
+    if (!confirm("Tem certeza que deseja excluir esta mensagem?")) return;
+    
+    fetch("api/excluir_mensagem.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "id=" + encodeURIComponent(id)
+    })
+    .then(r => {
+      console.log('Status da resposta:', r.status);
+      return r.json();
+    })
+    .then(resp => {
+      console.log('Resposta do servidor:', resp);
+      if (resp.success) {
+        // Remover a mensagem do DOM diretamente
+        const mensagemElement = document.querySelector(`[data-mensagem-id="${id}"]`);
+        if (mensagemElement) {
+          mensagemElement.remove();
+        }
+        showToast("Mensagem excluída com sucesso!", "success");
+      } else {
+        showToast("Erro ao excluir: " + (resp.error || "Erro desconhecido"), "error");
+      }
+    })
+    .catch(error => {
+      console.error('Erro na requisição:', error);
+      showToast("Erro ao conectar ao servidor: " + error.message, "error");
+    });
+  };
+});
+</script>
+<?php
+}
+include 'template.php'; 

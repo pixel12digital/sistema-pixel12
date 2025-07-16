@@ -4,7 +4,145 @@ $page_title = 'Detalhes do Cliente';
 $custom_header = '';
 require_once 'config.php';
 require_once 'db.php';
+
+// Processa salvamento do formulário de edição do cliente
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
+    $id = intval($_POST['id']);
+    $campos = [
+        'nome', 'contact_name', 'cpf_cnpj', 'razao_social', 'data_criacao', 'data_atualizacao', 'asaas_id', 'referencia_externa', 'criado_em_asaas',
+        'email', 'emails_adicionais', 'telefone', 'celular',
+        'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'pais',
+        'observacoes', 'plano', 'status'
+    ];
+    $set = [];
+    $params = [];
+    $types = '';
+    foreach ($campos as $campo) {
+        if (isset($_POST[$campo])) {
+            $valor = trim($_POST[$campo]);
+            // Limpar telefone/celular para conter apenas números
+            if (in_array($campo, ['telefone', 'celular'])) {
+                $valor = preg_replace('/\\D/', '', $valor);
+            }
+            // Limpar e padronizar emails_adicionais para texto simples
+            if ($campo === 'emails_adicionais') {
+                // Extrair todos os e-mails válidos
+                preg_match_all('/[\w\.-]+@[\w\.-]+/', $valor, $matches);
+                $emails = $matches[0];
+                // Remover o e-mail principal dos adicionais
+                $email_principal = $_POST['email'] ?? '';
+                $emails = array_filter($emails, function($e) use ($email_principal) {
+                  return strtolower($e) !== strtolower($email_principal);
+                });
+                $valor = $emails ? implode(', ', $emails) : '';
+            }
+            $set[] = "$campo = ?";
+            $params[] = $valor;
+            $types .= 's';
+        }
+    }
+    if ($set) {
+        $sql = "UPDATE clientes SET ".implode(', ', $set)." WHERE id = ?";
+        $stmt = $mysqli->prepare($sql);
+        $params[] = $id;
+        $types .= 'i';
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $stmt->close();
+    }
+    header("Location: cliente_detalhes.php?id=$id");
+    exit;
+}
+
 include 'template.php';
+// Função para formatar campos (agora fora de render_content)
+function formatar_campo($campo, $valor) {
+  if ($valor === null || $valor === '' || $valor === '0-0-0' || $valor === '0000-00-00') return '—';
+  $labels = [
+    'nome' => 'Nome',
+    'contact_name' => 'Contato',
+    'cpf_cnpj' => 'CPF/CNPJ',
+    'razao_social' => 'Razão Social',
+    'data_criacao' => 'Data de Criação',
+    'data_atualizacao' => 'Data de Atualização',
+    'asaas_id' => 'ID Asaas',
+    'referencia_externa' => 'Referência Externa',
+    'criado_em_asaas' => 'Criado no Asaas',
+    'email' => 'E-mail',
+    'emails_adicionais' => 'E-mails Adicionais',
+    'telefone' => 'Telefone',
+    'celular' => 'Celular',
+    'cep' => 'CEP',
+    'rua' => 'Rua',
+    'numero' => 'Número',
+    'complemento' => 'Complemento',
+    'bairro' => 'Bairro',
+    'cidade' => 'Cidade',
+    'estado' => 'Estado',
+    'pais' => 'País',
+    'id' => 'ID',
+    'observacoes' => 'Observações',
+    'plano' => 'Plano',
+    'status' => 'Status',
+  ];
+  $label = $labels[$campo] ?? ucfirst(str_replace('_', ' ', $campo));
+  // Datas
+  if (preg_match('/^\d{4}-\d{2}-\d{2}/', $valor)) {
+    $data = substr($valor, 0, 10);
+    $partes = explode('-', $data);
+    if (count($partes) === 3) return "$label: {$partes[2]}/{$partes[1]}/{$partes[0]}";
+  }
+  // CPF/CNPJ
+  if ($campo === 'cpf_cnpj' && preg_match('/^\d{11,14}$/', $valor)) {
+    if (strlen($valor) === 11) {
+      return "$label: " . preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $valor);
+    } else {
+      return "$label: " . preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $valor);
+    }
+  }
+  // Telefone/Celular
+  if (($campo === 'telefone' || $campo === 'celular') && preg_match('/^\d{10,11}$/', $valor)) {
+    $ddd = substr($valor, 0, 2);
+    if (strlen($valor) === 11) {
+      // Celular com nono dígito
+      $parte1 = substr($valor, 2, 5);
+      $parte2 = substr($valor, 7, 4);
+      return "$label: ($ddd) $parte1-$parte2";
+    } else {
+      // Telefone fixo ou celular antigo
+      $parte1 = substr($valor, 2, 4);
+      $parte2 = substr($valor, 6, 4);
+      return "$label: ($ddd) $parte1-$parte2";
+    }
+  }
+  // E-mails Adicionais
+  if ($campo === 'emails_adicionais' && !empty($valor)) {
+    // Tenta decodificar JSON
+    $emails = [];
+    $json = json_decode($valor, true);
+    if (is_array($json)) {
+      foreach ($json as $email) {
+        if (is_string($email)) $emails[] = $email;
+        elseif (is_array($email)) $emails = array_merge($emails, $email);
+      }
+    } elseif (preg_match_all('/[\w\.-]+@[\w\.-]+/', $valor, $matches)) {
+      $emails = $matches[0];
+    }
+    // Remover o e-mail principal dos adicionais
+    global $cliente;
+    $email_principal = $cliente['email'] ?? '';
+    $emails = array_filter($emails, function($e) use ($email_principal) {
+      return strtolower($e) !== strtolower($email_principal);
+    });
+    if ($emails) {
+      return $label . ': ' . implode(', ', $emails);
+    }
+    // Se não conseguir decodificar, mostra o valor bruto
+    return $label . ': ' . htmlspecialchars($valor);
+  }
+  // Label padrão
+  return "$label: $valor";
+}
 function render_content() {
   global $mysqli;
   echo '<style>
@@ -105,58 +243,6 @@ function render_content() {
   $contato = ['email', 'emails_adicionais', 'telefone', 'celular'];
   $endereco = ['cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'pais'];
   $outros = array_diff(array_keys($cliente ?? []), array_merge($dados_pessoais, $contato, $endereco));
-  // Função para formatar campos
-  function formatar_campo($campo, $valor) {
-    if ($valor === null || $valor === '' || $valor === '0-0-0' || $valor === '0000-00-00') return '—';
-    $labels = [
-      'nome' => 'Nome',
-      'contact_name' => 'Contato',
-      'cpf_cnpj' => 'CPF/CNPJ',
-      'razao_social' => 'Razão Social',
-      'data_criacao' => 'Data de Criação',
-      'data_atualizacao' => 'Data de Atualização',
-      'asaas_id' => 'ID Asaas',
-      'referencia_externa' => 'Referência Externa',
-      'criado_em_asaas' => 'Criado no Asaas',
-      'email' => 'E-mail',
-      'emails_adicionais' => 'E-mails Adicionais',
-      'telefone' => 'Telefone',
-      'celular' => 'Celular',
-      'cep' => 'CEP',
-      'rua' => 'Rua',
-      'numero' => 'Número',
-      'complemento' => 'Complemento',
-      'bairro' => 'Bairro',
-      'cidade' => 'Cidade',
-      'estado' => 'Estado',
-      'pais' => 'País',
-      'id' => 'ID',
-      'observacoes' => 'Observações',
-      'plano' => 'Plano',
-      'status' => 'Status',
-    ];
-    $label = $labels[$campo] ?? ucfirst(str_replace('_', ' ', $campo));
-    // Datas
-    if (preg_match('/^\d{4}-\d{2}-\d{2}/', $valor)) {
-      $data = substr($valor, 0, 10);
-      $partes = explode('-', $data);
-      if (count($partes) === 3) return "$label: {$partes[2]}/{$partes[1]}/{$partes[0]}";
-    }
-    // CPF/CNPJ
-    if ($campo === 'cpf_cnpj' && preg_match('/^\d{11,14}$/', $valor)) {
-      if (strlen($valor) === 11) {
-        return "$label: " . preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $valor);
-      } else {
-        return "$label: " . preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $valor);
-      }
-    }
-    // Telefone/Celular
-    if (($campo === 'telefone' || $campo === 'celular') && preg_match('/^\d{10,11}$/', $valor)) {
-      return "$label: (" . substr($valor,0,2) . ") " . substr($valor,-9,-4) . '-' . substr($valor,-4);
-    }
-    // Label padrão
-    return "$label: $valor";
-  }
   // Adicionar variável de modo edição
   $modo_edicao = isset($_GET['editar']) && $_GET['editar'] == '1';
 ?>
@@ -198,7 +284,17 @@ function render_content() {
             <h4>👤 Dados Pessoais</h4>
             <table>
               <tbody>
-                <?php foreach ($dados_pessoais as $campo): if (!isset($cliente[$campo])) continue; ?>
+                <!-- Nome -->
+                <tr>
+                  <td class="font-semibold text-gray-600">Nome:</td>
+                  <td><input type="text" name="nome" value="<?= htmlspecialchars($cliente['nome'] ?? '') ?>" class="painel-input"></td>
+                </tr>
+                <!-- Contato Principal -->
+                <tr>
+                  <td class="font-semibold text-gray-600">Contato Principal:</td>
+                  <td><input type="text" name="contact_name" value="<?= htmlspecialchars($cliente['contact_name'] ?? '') ?>" class="painel-input" placeholder="Ex: João" autocomplete="off"></td>
+                </tr>
+                <?php foreach ($dados_pessoais as $campo): if (!isset($cliente[$campo]) || in_array($campo, ['nome','contact_name'])) continue; ?>
                   <tr>
                     <td class="font-semibold text-gray-600"> <?= formatar_campo($campo, $cliente[$campo]) ?> </td>
                     <?php if ($campo === 'asaas_id'): ?>
@@ -219,7 +315,31 @@ function render_content() {
                 <?php foreach ($contato as $campo): if (!isset($cliente[$campo])) continue; ?>
                   <tr>
                     <td class="font-semibold text-gray-600"> <?= formatar_campo($campo, $cliente[$campo]) ?> </td>
-                    <td><input type="text" name="<?= $campo ?>" value="<?= htmlspecialchars($cliente[$campo]) ?>" class="painel-input"></td>
+                    <td>
+                      <?php if ($campo === 'emails_adicionais') {
+                        // Extrair e-mails para exibir no input
+                        $valor = $cliente[$campo];
+                        $emails = [];
+                        $json = json_decode($valor, true);
+                        if (is_array($json)) {
+                          foreach ($json as $email) {
+                            if (is_string($email)) $emails[] = $email;
+                            elseif (is_array($email)) $emails = array_merge($emails, $email);
+                          }
+                        } elseif (preg_match_all('/[\w\.-]+@[\w\.-]+/', $valor, $matches)) {
+                          $emails = $matches[0];
+                        }
+                        // Remover o e-mail principal dos adicionais
+                        $email_principal = $cliente['email'] ?? '';
+                        $emails = array_filter($emails, function($e) use ($email_principal) {
+                          return strtolower($e) !== strtolower($email_principal);
+                        });
+                        $input_value = $emails ? implode(', ', $emails) : '';
+                        echo '<input type="text" name="emails_adicionais" value="'.htmlspecialchars($input_value).'" class="painel-input">';
+                      } else {
+                        echo '<input type="text" name="'.$campo.'" value="'.htmlspecialchars($cliente[$campo]).'" class="painel-input">';
+                      } ?>
+                    </td>
                   </tr>
                 <?php endforeach; ?>
               </tbody>
@@ -268,7 +388,15 @@ function render_content() {
           <h4>👤 Dados Pessoais</h4>
           <table>
             <tbody>
-              <?php foreach ($dados_pessoais as $campo): if (!isset($cliente[$campo])) continue; ?>
+              <!-- Nome -->
+              <tr>
+                <td class="font-semibold text-gray-600">Nome: <?= htmlspecialchars($cliente['nome'] ?? '') ?></td>
+              </tr>
+              <!-- Contato Principal -->
+              <tr>
+                <td class="font-semibold text-gray-600">Contato Principal: <?= htmlspecialchars($cliente['contact_name'] ?? '—') ?></td>
+              </tr>
+              <?php foreach ($dados_pessoais as $campo): if (!isset($cliente[$campo]) || in_array($campo, ['nome','contact_name'])) continue; ?>
                 <tr>
                   <td class="font-semibold text-gray-600"> <?= formatar_campo($campo, $cliente[$campo]) ?> </td>
                 </tr>
@@ -322,7 +450,9 @@ function render_content() {
       <div class="painel-card"><h4>📁 Projetos</h4><p>Lista de projetos relacionados ao cliente.</p></div>
     </div>
     <div class="painel-tab painel-tab-relacionamento" style="display:none;">
-      <div class="painel-card" style="background:#181920;color:#fff;"> <h4 style="color:#fff;"> Suporte & Relacionamento</h4>
+      <div class="painel-card" style="background:#fff;color:#23232b; min-height:500px; max-height:calc(80vh - 32px); position:relative; padding-bottom:80px;">
+      <h4 style="color:#7c2ae8;"> Suporte & Relacionamento</h4>
+      <div id="mensagens-relacionamento" style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto; max-height: calc(80vh - 180px); min-height: 200px; padding-bottom: 8px;">
       <?php
       // Buscar todas as mensagens do cliente
       $historico = [];
@@ -336,6 +466,7 @@ function render_content() {
         echo '<div class="text-gray-500">Nenhuma interação registrada para este cliente.</div>';
       } else {
         $ultimo_dia = '';
+        echo '<div style="display: flex; flex-direction: column; gap: 10px;">';
         foreach ($historico as $msg) {
           $dia = date('d/m/Y', strtotime($msg['data_hora']));
           if ($dia !== $ultimo_dia) {
@@ -344,9 +475,11 @@ function render_content() {
             $ultimo_dia = $dia;
           }
           $is_received = $msg['direcao'] === 'recebido';
-          $bubble = $is_received ? 'background:#23232b;color:#fff;' : 'background:#7c2ae8;color:#fff;';
-          $canal = htmlspecialchars($msg['canal_nome'] ?? 'Canal');
+          $is_anotacao = isset($msg['tipo']) && $msg['tipo'] === 'anotacao';
+          $bubble = $is_anotacao ? 'background:#fbbf24;color:#23232b;' : ($is_received ? 'background:#23232b;color:#fff;' : 'background:#7c2ae8;color:#fff;');
+          $canal = $is_anotacao ? 'Anotação' : htmlspecialchars($msg['canal_nome'] ?? 'Canal');
           $hora = date('H:i', strtotime($msg['data_hora']));
+          $mensagem_original = $msg['mensagem'];
           $conteudo = '';
           if (!empty($msg['anexo'])) {
             $ext = strtolower(pathinfo($msg['anexo'], PATHINFO_EXTENSION));
@@ -357,15 +490,52 @@ function render_content() {
               $conteudo .= '<a href="' . htmlspecialchars($msg['anexo']) . '" target="_blank" style="color:#7c2ae8;text-decoration:underline;"><span style="color:#7c2ae8;">📎</span> ' . htmlspecialchars($nome_arquivo) . '</a><br>';
             }
           }
-          $conteudo .= htmlspecialchars($msg['mensagem']);
-          echo '<div style="' . $bubble . 'border-radius:10px;padding:10px 16px;margin-bottom:8px;max-width:520px;box-shadow:0 1px 4px #0001;display:inline-block;">';
-          echo '<div style="font-size:0.98em;font-weight:500;margin-bottom:2px;">' . $canal . ' <span style="font-size:0.92em;color:#888;font-weight:400;">' . ($is_received ? 'Recebido' : 'Enviado') . ' às ' . $hora . '</span></div>';
-          echo $conteudo;
+          $conteudo .= htmlspecialchars($mensagem_original);
+          $id_msg = intval($msg['id']);
+          $is_enviado = !$is_received && !$is_anotacao;
+          echo '<div style="' . $bubble . 'border-radius:10px;padding:10px 16px;margin-bottom:8px;max-width:520px;box-shadow:0 1px 4px #0001;display:block;position:relative;">';
+          echo '<div style="font-size:0.98em;font-weight:500;margin-bottom:2px;">' . $canal . ' <span style="font-size:0.92em;color:#888;font-weight:400;">' . ($is_anotacao ? '' : ($is_received ? 'Recebido' : 'Enviado') . ' às ' . $hora) . '</span></div>';
+          if ($is_anotacao && !empty($msg['titulo'])) {
+            echo '<div style="font-weight:bold;color:#7c2ae8;font-size:1.08em;margin-bottom:2px;">' . htmlspecialchars($msg['titulo']) . '</div>';
+          }
+          echo '<span class="msg-text" data-id="' . $id_msg . '">' . $conteudo . '</span>';
+          if ($is_enviado) {
+            echo '<button class="btn-editar-msg" data-id="' . $id_msg . '" style="position:absolute;top:8px;right:36px;background:none;border:none;cursor:pointer;color:#fff;opacity:0.7;">✏️</button>';
+            echo '<button class="btn-excluir-msg" data-id="' . $id_msg . '" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:#fff;opacity:0.7;">🗑️</button>';
+          }
           echo '</div>';
         }
         if ($ultimo_dia !== '') echo '</div>';
+        echo '</div>';
       }
       ?>
+      </div>
+      <form id="form-anotacao-manual" method="post" style="position:absolute;left:0;right:0;bottom:0;display:flex;gap:0;align-items:center;padding:18px 20px 18px 20px;background:#f9f9fb;border-top:1.5px solid #ede9fe;z-index:2;">
+        <input id="anotacao-mensagem" name="mensagem" type="text" maxlength="1000" placeholder="Digite sua mensagem..." style="flex:1;border-radius:8px 0 0 8px;padding:14px 18px;font-size:1.08em;border:1.5px solid #e0e7ff;background:#fff;outline:none;transition:border 0.2s;">
+        <button type="submit" style="background:#a259e6;color:#fff;font-weight:bold;padding:0 32px;height:48px;border:none;border-radius:0 8px 8px 0;cursor:pointer;font-size:1.08em;transition:background 0.2s;margin-left:-1px;">Enviar</button>
+      </form>
+      <div id="anotacao-msg-sucesso" style="display:none;color:#22c55e;font-weight:bold;margin-top:8px;position:absolute;left:0;right:0;bottom:70px;text-align:center;z-index:3;">Mensagem salva!</div>
+      <style>
+      #mensagens-relacionamento::-webkit-scrollbar { width: 8px; background: #ede9fe; }
+      #mensagens-relacionamento::-webkit-scrollbar-thumb { background: #a259e6; border-radius: 8px; }
+      #form-anotacao-manual input:focus {
+        border-color: #a259e6;
+        box-shadow: 0 0 0 2px #ede9fe;
+      }
+      #form-anotacao-manual button:hover {
+        background: #7c2ae8;
+      }
+      @media (max-width: 700px) {
+        #form-anotacao-manual { flex-direction:column; position:static; border-radius:0 0 16px 16px; }
+        #form-anotacao-manual input, #form-anotacao-manual button {
+          border-radius:8px !important;
+          width:100%;
+          margin:0;
+        }
+        #form-anotacao-manual button { margin-top:8px; height:44px; }
+        #mensagens-relacionamento { max-height: 40vh; }
+      }
+      </style>
       </div>
     </div>
     <div class="painel-tab painel-tab-financeiro" style="display:none;">
@@ -531,9 +701,78 @@ function render_content() {
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 </style>
 <script>
+var clienteIdGlobal = <?= json_encode($cliente_id) ?>;
+function ativarEdicaoMensagem(btn) {
+  const id = btn.getAttribute('data-id');
+  const span = document.querySelector('.msg-text[data-id="'+id+'"]');
+  const oldText = span.textContent;
+  const textarea = document.createElement('textarea');
+  textarea.value = oldText;
+  textarea.style.width = '96%';
+  textarea.style.minHeight = '90px';
+  textarea.style.borderRadius = '8px';
+  textarea.style.marginTop = '12px';
+  textarea.style.marginBottom = '12px';
+  textarea.style.padding = '10px 12px';
+  textarea.style.fontSize = '1.08em';
+  textarea.style.background = '#fff';
+  textarea.style.color = '#23232b';
+  textarea.style.border = '2px solid #a259e6';
+  textarea.style.boxShadow = '0 2px 12px #a259e620';
+  const btnSalvar = document.createElement('button');
+  btnSalvar.textContent = 'Salvar';
+  btnSalvar.style = 'margin-left:0;margin-top:8px;background:#7c2ae8;color:#fff;border:none;padding:8px 32px;border-radius:8px;cursor:pointer;font-weight:bold;font-size:1.08em;display:block;width:100%;max-width:220px;';
+  const card = span.closest('div[style*="border-radius"]');
+  if (card) {
+    card.style.background = '#fff';
+    card.style.border = '2px solid #a259e6';
+    card.style.boxShadow = '0 4px 24px #a259e620';
+    card.style.maxWidth = '600px';
+    card.style.width = '98%';
+    card.style.padding = '24px 24px 18px 24px';
+  }
+  span.replaceWith(textarea);
+  btn.style.display = 'none';
+  textarea.after(btnSalvar);
+  btnSalvar.onclick = function() {
+    const painelRelacionamento = document.querySelector('.painel-tab-relacionamento .painel-card');
+    fetch('/loja-virtual-revenda/painel/api/editar_mensagem_comunicacao.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'id='+encodeURIComponent(id)+'&mensagem='+encodeURIComponent(textarea.value)
+    })
+    .then(r => r.json())
+    .then(resp => {
+      if (resp.success) {
+        fetch('/loja-virtual-revenda/painel/api/relacionamento_cliente.php?cliente_id=' + encodeURIComponent(clienteIdGlobal))
+          .then(r => r.text())
+          .then(html => {
+            painelRelacionamento.innerHTML = html;
+            painelRelacionamento.querySelectorAll('.btn-editar-msg').forEach(novoBtn => {
+              novoBtn.addEventListener('click', function() {
+                ativarEdicaoMensagem(novoBtn);
+              });
+            });
+          });
+      } else {
+        alert('Erro ao salvar: ' + (resp.error || ''));
+      }
+    })
+    .catch(() => alert('Erro ao salvar mensagem.'));
+  };
+}
 document.addEventListener("DOMContentLoaded", function() {
   const abas = document.querySelectorAll(".painel-aba");
   const tabs = document.querySelectorAll(".painel-tab");
+  // Restaurar aba ativa do localStorage, se houver
+  const abaSalva = localStorage.getItem('aba_cliente_ativa');
+  if (abaSalva) {
+    abas.forEach(b => b.classList.remove("active"));
+    tabs.forEach(tab => tab.style.display = "none");
+    document.querySelector(".painel-aba[data-tab='"+abaSalva+"']").classList.add("active");
+    document.querySelector(".painel-tab-"+abaSalva).style.display = "block";
+    localStorage.removeItem('aba_cliente_ativa');
+  }
   abas.forEach(btn => {
     btn.addEventListener("click", function() {
       abas.forEach(b => b.classList.remove("active"));
@@ -542,67 +781,35 @@ document.addEventListener("DOMContentLoaded", function() {
       document.querySelector(".painel-tab-"+this.dataset.tab).style.display = "block";
     });
   });
+  document.querySelectorAll('.btn-editar-msg').forEach(btn => {
+    btn.addEventListener('click', function() {
+      ativarEdicaoMensagem(btn);
+    });
+  });
+  document.querySelectorAll('.btn-excluir-msg').forEach(btn => {
+    btn.addEventListener('click', function() {
+      if (!confirm('Tem certeza que deseja excluir esta mensagem?')) return;
+      const id = btn.getAttribute('data-id');
+      fetch('/loja-virtual-revenda/painel/api/excluir_mensagem_comunicacao.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'id=' + encodeURIComponent(id)
+      })
+      .then(r => r.json())
+      .then(resp => {
+        if (resp.success) {
+          // Remove a mensagem da tela
+          const bubble = btn.closest('div[style*="border-radius"]');
+          if (bubble) bubble.remove();
+        } else {
+          alert('Erro ao excluir: ' + (resp.error || '') + '\n' + (resp.query || ''));
+        }
+      })
+      .catch(() => alert('Erro ao excluir mensagem.'));
+    });
+  });
 });
 </script>
 <?php
-// No início do render_content, se $_SERVER['REQUEST_METHOD']==='POST', atualizar o banco
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  if (!isset($_POST['id'])) {
-    echo '<div style="background:#fef3c7;color:#92400e;padding:12px 18px;border-radius:8px;margin-bottom:18px;">Erro: ID do cliente não enviado no formulário.</div>';
-  } else {
-    $id = intval($_POST['id']);
-    $campos = array_merge($dados_pessoais, $contato, $endereco, $outros);
-    $set = [];
-    foreach ($campos as $campo) {
-      if (isset($_POST[$campo])) {
-        $valor = $mysqli->real_escape_string($_POST[$campo]);
-        $set[] = "$campo='$valor'";
-      }
-    }
-    if ($set) {
-      $sql = "UPDATE clientes SET ".implode(',', $set)." WHERE id=$id LIMIT 1";
-      if ($mysqli->query($sql)) {
-        // Atualizar também no Asaas se necessário
-        $cliente = $mysqli->query("SELECT * FROM clientes WHERE id=$id LIMIT 1")->fetch_assoc();
-        if ($cliente && !empty($cliente['asaas_id'])) {
-          require_once __DIR__ . '/../src/Services/AsaasService.php';
-          $asaasService = new \Services\AsaasService();
-          $asaasData = [];
-          if (!empty($_POST['nome'])) $asaasData['name'] = $_POST['nome'];
-          if (!empty($_POST['email'])) $asaasData['email'] = $_POST['email'];
-          if (!empty($_POST['telefone'])) $asaasData['phone'] = $_POST['telefone'];
-          if (!empty($_POST['celular'])) $asaasData['mobilePhone'] = $_POST['celular'];
-          if (!empty($cliente['cpf_cnpj'])) $asaasData['cpfCnpj'] = $cliente['cpf_cnpj'];
-          if (!empty($_POST['cep'])) $asaasData['postalCode'] = $_POST['cep'];
-          if (!empty($_POST['rua'])) $asaasData['address'] = $_POST['rua'];
-          if (!empty($_POST['numero'])) $asaasData['addressNumber'] = $_POST['numero'];
-          if (!empty($_POST['complemento'])) $asaasData['complement'] = $_POST['complemento'];
-          if (!empty($_POST['bairro'])) $asaasData['province'] = $_POST['bairro'];
-          if (!empty($_POST['cidade'])) $asaasData['city'] = $_POST['cidade'];
-          if (!empty($_POST['estado'])) $asaasData['state'] = $_POST['estado'];
-          if (!empty($_POST['pais'])) $asaasData['country'] = $_POST['pais'];
-          if (!empty($_POST['referencia_externa'])) $asaasData['externalReference'] = $_POST['referencia_externa'];
-          if (!empty($_POST['observacoes'])) $asaasData['observations'] = $_POST['observacoes'];
-          if (!empty($_POST['razao_social'])) $asaasData['company'] = $_POST['razao_social'];
-          try {
-            $asaasService->updateCustomer($cliente['asaas_id'], $asaasData);
-            echo '<div style="background:#d1fae5;color:#065f46;padding:12px 18px;border-radius:8px;margin-bottom:18px;">Dados atualizados com sucesso e sincronizados com o Asaas!</div>';
-          } catch (\Exception $e) {
-            echo '<div style="background:#fef3c7;color:#92400e;padding:12px 18px;border-radius:8px;margin-bottom:18px;">Dados atualizados localmente, mas houve erro ao sincronizar com o Asaas: ' . htmlspecialchars($e->getMessage()) . '</div>';
-          }
-        } else {
-          echo '<div style="background:#d1fae5;color:#065f46;padding:12px 18px;border-radius:8px;margin-bottom:18px;">Dados atualizados com sucesso!</div>';
-        }
-        // Redirecionar para a listagem de clientes
-        echo '<script>setTimeout(function(){window.location.href="clientes.php"},1200);</script>';
-      } else {
-        echo '<div style="background:#fef3c7;color:#92400e;padding:12px 18px;border-radius:8px;margin-bottom:18px;">Erro ao atualizar no banco: ' . htmlspecialchars($mysqli->error) . '</div>';
-      }
-    } else {
-      echo '<div style="background:#fef3c7;color:#92400e;padding:12px 18px;border-radius:8px;margin-bottom:18px;">Nenhum campo para atualizar foi enviado.</div>';
-    }
-  }
-}
-echo '<style>.painel-input{width:100%;padding:6px 8px;border-radius:6px;border:1.5px solid #d1d5db;font-size:1rem;margin:2px 0 2px 0;}</style>';
 }
 ?>
