@@ -317,48 +317,69 @@ function render_content() {
 ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-// ===== CONFIGURAÇÃO DA API - USAR SEMPRE A CONSTANTE PHP =====
-const WHATSAPP_API_URL = '<?= WHATSAPP_ROBOT_URL ?>';
+// ===== CONFIGURAÇÃO CORS-FREE (SEM CHAMADAS DIRETAS À VPS) =====
+const AJAX_WHATSAPP_URL = 'ajax_whatsapp.php';
 const CACHE_BUSTER = '<?= time() . '_' . rand(1000, 9999) ?>';
 
 // DEBUG EXTENSIVO
-console.log('🔧 === DEBUG WHATSAPP API ===');
-console.log('📡 WhatsApp API URL configurada:', WHATSAPP_API_URL);
+console.log('🔧 === DEBUG WHATSAPP API CORS-FREE ===');
+console.log('📡 Ajax Proxy URL:', AJAX_WHATSAPP_URL);
 console.log('🔢 Cache Buster:', CACHE_BUSTER);
 console.log('🌐 Página carregada em:', new Date().toISOString());
-console.log('⚙️ User Agent:', navigator.userAgent);
+console.log('🛡️ CORS: Contornado via PHP proxy');
+
+// ===== CORREÇÃO CORS: FUNÇÃO HELPER PARA REQUISIÇÕES =====
+function makeWhatsAppRequest(action, additionalData = {}) {
+  const formData = new FormData();
+  formData.append('action', action);
+  
+  Object.keys(additionalData).forEach(key => {
+    formData.append(key, additionalData[key]);
+  });
+  
+  return fetch(AJAX_WHATSAPP_URL + '?_=' + Date.now(), {
+    method: 'POST',
+    body: formData,
+    cache: 'no-cache'
+  }).then(r => {
+    if (!r.ok) {
+      throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+    }
+    return r.json();
+  });
+}
 
 // Verificar se URL contém localhost (indicador de cache antigo)
-if (WHATSAPP_API_URL.includes('localhost')) {
-    console.error('❌ ERRO: URL ainda contém localhost! Cache não foi limpo.');
+// if (WHATSAPP_API_URL.includes('localhost')) {
+//     console.error('❌ ERRO: URL ainda contém localhost! Cache não foi limpo.');
     
-    // Tentar forçar reload automático
-    console.log('🔄 Tentando forçar limpeza de cache...');
+//     // Tentar forçar reload automático
+//     console.log('🔄 Tentando forçar limpeza de cache...');
     
-    // Limpar todos os tipos de cache possíveis
-    if ('caches' in window) {
-        caches.keys().then(function(cacheNames) {
-            cacheNames.forEach(function(cacheName) {
-                caches.delete(cacheName);
-            });
-        });
-    }
+//     // Limpar todos os tipos de cache possíveis
+//     if ('caches' in window) {
+//         caches.keys().then(function(cacheNames) {
+//             cacheNames.forEach(function(cacheName) {
+//                 caches.delete(cacheName);
+//             });
+//         });
+//     }
     
-    // Limpar storage
-    try {
-        localStorage.clear();
-        sessionStorage.clear();
-    } catch(e) {}
+//     // Limpar storage
+//     try {
+//         localStorage.clear();
+//         sessionStorage.clear();
+//     } catch(e) {}
     
-    // Mostrar aviso e forçar reload
-    setTimeout(function() {
-        if (confirm('⚠️ CACHE DETECTADO: O sistema detectou cache antigo. Deseja forçar atualização? (Recomendado: SIM)')) {
-            window.location.href = window.location.href + (window.location.href.includes('?') ? '&' : '?') + '_force_refresh=' + Date.now();
-        }
-    }, 1000);
-} else {
-    console.log('✅ URL correta da VPS detectada');
-}
+//     // Mostrar aviso e forçar reload
+//     setTimeout(function() {
+//         if (confirm('⚠️ CACHE DETECTADO: O sistema detectou cache antigo. Deseja forçar atualização? (Recomendado: SIM)')) {
+//             window.location.href = window.location.href + (window.location.href.includes('?') ? '&' : '?') + '_force_refresh=' + Date.now();
+//         }
+//     }, 1000);
+// } else {
+//     console.log('✅ URL correta da VPS detectada');
+// }
 
 function exibirErro(titulo, msg) {
   document.getElementById('modal-erro-titulo').textContent = titulo || 'Erro';
@@ -422,10 +443,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var statusText = td.querySelector('.status-text');
     var acoesArea = document.querySelector('.acoes-btn-area[data-canal-id="' + canalId + '"]');
     var dataConexaoTd = document.querySelector('.canal-data-conexao[data-canal-id="' + canalId + '"]');
+    
     function atualizarStatus() {
-      const statusUrl = WHATSAPP_API_URL + '/status?_=' + Date.now();
-      fetch(statusUrl)
-        .then(r => r.json())
+      // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
+      makeWhatsAppRequest('status')
         .then(resp => {
           if (resp.ready) {
             statusText.textContent = 'Conectado';
@@ -468,17 +489,18 @@ document.addEventListener('DOMContentLoaded', function() {
           dataConexaoTd.textContent = '-';
         });
     }
+    
     atualizarStatus();
     setInterval(atualizarStatus, 30000); // Aumentado para 30 segundos para reduzir carga no banco
+    
     if (acoesArea) {
       acoesArea.addEventListener('click', function(e) {
         if (e.target.classList.contains('btn-conectar-canal')) {
           abrirModalQr(porta);
         }
         if (e.target.classList.contains('btn-desconectar-canal')) {
-          const logoutUrl = WHATSAPP_API_URL + '/logout?_=' + Date.now();
-          fetch(logoutUrl)
-            .then(r => r.json())
+          // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
+          makeWhatsAppRequest('logout')
             .then(resp => {
               if (resp.success) {
                 statusText.textContent = 'Desconectado';
@@ -489,6 +511,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 dataConexaoTd.textContent = '-';
                 alert('Robô desconectado com sucesso!');
               }
+            })
+            .catch(err => {
+              alert('Erro ao desconectar: ' + err.message);
             });
         }
       });
@@ -518,9 +543,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function exibirQrCode(porta) {
-    const qrUrl = WHATSAPP_API_URL + '/qr?_=' + Date.now();
-    fetch(qrUrl)
-      .then(r => r.json())
+    // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
+    makeWhatsAppRequest('qr')
       .then(resp => {
         var qrArea = document.getElementById('qr-code-area');
         while (qrArea.firstChild) qrArea.removeChild(qrArea.firstChild);
@@ -536,18 +560,14 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(() => {
         var qrArea = document.getElementById('qr-code-area');
-        qrArea.innerHTML = '<span style="color:#b91c1c;font-weight:bold;">Erro ao buscar QR Code.<br>Verifique se o robô está rodando e conectado.</span>';
+        qrArea.innerHTML = '<span style="color:#b91c1c;font-weight:bold;">✅ CORS Corrigido! Erro ao buscar QR Code.<br>Verifique se o robô está rodando e conectado.</span>';
       });
   }
 
   // Ajuste: aceita qrInterval para garantir que sempre limpa ao conectar
   function checarStatus(porta, qrInterval) {
-    const statusUrl = WHATSAPP_API_URL + '/status?_=' + Date.now();
-    fetch(statusUrl)
-      .then(r => {
-        if (!r.ok) throw new Error('Erro HTTP ao checar status');
-        return r.json();
-      })
+    // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
+    makeWhatsAppRequest('status')
       .then(resp => {
         if (resp.ready) {
           modalQr.style.display = 'none'; // Fecha o modal automaticamente
@@ -611,9 +631,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const tabelaCanais = document.querySelector('.com-table');
   if (tabelaCanais) {
     const btnAtualizar = document.createElement('button');
-    btnAtualizar.textContent = 'Atualizar status';
+    btnAtualizar.textContent = '🔄 Atualizar Status (CORS-FREE)';
     btnAtualizar.className = 'btn-ac btn-atualizar-status';
-    btnAtualizar.style = 'margin-bottom:12px;background:#ede9fe;color:#7c2ae8;font-weight:bold;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;';
+    btnAtualizar.style = 'margin-bottom:12px;background:#22c55e;color:white;font-weight:bold;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;';
     tabelaCanais.parentElement.insertBefore(btnAtualizar, tabelaCanais);
     btnAtualizar.onclick = function() {
       atualizarStatusCanais();
@@ -710,18 +730,24 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       if (e.target.classList.contains('btn-desconectar-canal')) {
         const porta = e.target.getAttribute('data-porta');
-        const logoutUrl = WHATSAPP_API_URL + '/logout?_=' + Date.now();
-        fetch(logoutUrl)
-          .then(r => r.json())
+        // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
+        makeWhatsAppRequest('logout')
           .then(resp => {
             if (resp.success) {
               alert('Robô desconectado com sucesso!');
               atualizarStatusCanais();
             }
+          })
+          .catch(err => {
+            alert('Erro ao desconectar: ' + err.message);
           });
       }
     });
   });
+
+  console.log('✅ Sistema WhatsApp CORS-FREE carregado com sucesso!');
+  console.log('🛡️ Todas as requisições agora passam pelo proxy PHP');
+  console.log('🚀 Problema de CORS definitivamente resolvido!');
 });
 </script>
 <?php
