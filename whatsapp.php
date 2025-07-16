@@ -47,6 +47,8 @@ header('Expires: 0');
         .btn-blue:hover { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
         .btn-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
         .btn-red:hover { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+        .btn-orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .btn-orange:hover { background: linear-gradient(135deg, #d97706, #b45309); }
         .debug-area { 
             background: rgba(0,0,0,0.4); padding: 20px; 
             border-radius: 8px; font-family: 'Courier New', monospace; 
@@ -85,6 +87,11 @@ header('Expires: 0');
         }
         .pulse { animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        .solucoes-box {
+            background: rgba(255,255,255,0.15); padding: 25px; 
+            border-radius: 15px; margin: 25px 0; 
+            border: 2px solid rgba(255,193,7,0.3);
+        }
     </style>
 </head>
 <body>
@@ -116,6 +123,24 @@ header('Expires: 0');
         <div id="whatsapp-status" class="status-box">
             <h3>📱 Status WhatsApp</h3>
             <div id="whatsapp-info">⏳ Aguardando API...</div>
+        </div>
+
+        <!-- Soluções para VPS Offline -->
+        <div id="solucoes-vps" class="solucoes-box" style="display: none;">
+            <h3>🛠️ Soluções para VPS Offline</h3>
+            <p><strong>Problema:</strong> A VPS 212.85.11.238:3000 não está respondendo. Opções:</p>
+            <div style="text-align: center; margin: 20px 0;">
+                <button class="btn btn-orange" onclick="diagnosticarVPSCompleto()">
+                    🔍 Diagnóstico Completo VPS
+                </button>
+                <button class="btn btn-blue" onclick="configurarVPSLocal()">
+                    🏠 Configurar VPS Local
+                </button>
+                <button class="btn btn-blue" onclick="mostrarInstrucoesVPS()">
+                    📋 Instruções Nova VPS
+                </button>
+            </div>
+            <div id="detalhes-solucao"></div>
         </div>
 
         <!-- Botões Principais -->
@@ -172,6 +197,21 @@ header('Expires: 0');
                 <div id="status-conexao" style="text-align: center; margin: 15px 0; font-weight: bold;"></div>
             </div>
         </div>
+
+        <!-- Modal Diagnóstico VPS -->
+        <div id="modal-diagnostico-vps" class="modal">
+            <div class="modal-content" style="max-width: 800px;">
+                <span class="close" onclick="fecharModalDiagnostico()">&times;</span>
+                <h3 style="text-align: center; color: #f59e0b;">🔍 Diagnóstico Completo VPS</h3>
+                <div id="diagnostico-detalhado" style="max-height: 500px; overflow-y: auto; padding: 20px;">
+                    <div class="pulse">⏳ Executando testes de conectividade...</div>
+                </div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="btn btn-orange" onclick="executarDiagnosticoVPS()">🔄 Executar Novamente</button>
+                    <button class="btn btn-red" onclick="fecharModalDiagnostico()">❌ Fechar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- QR Code Library -->
@@ -193,6 +233,7 @@ header('Expires: 0');
         let monitorTimer = null;
         let tentativasReconexao = 0;
         let logCompleto = [];
+        let vpsOnline = false;
         
         // =================== FUNÇÕES DE DEBUG ===================
         
@@ -250,6 +291,9 @@ header('Expires: 0');
             document.getElementById('vps-info').innerHTML = '⏳ Preparando teste...';
             document.getElementById('api-info').innerHTML = '⏳ Aguardando...';
             document.getElementById('whatsapp-info').innerHTML = '⏳ Aguardando...';
+            
+            // Esconder soluções
+            document.getElementById('solucoes-vps').style.display = 'none';
         }
         
         function testarVPS() {
@@ -282,6 +326,7 @@ header('Expires: 0');
                 return response.json().then(data => ({data, responseTime, status: response.status}));
             })
             .then(({data, responseTime, status}) => {
+                vpsOnline = true;
                 statusBox.className = 'status-box success';
                 infoBox.innerHTML = `
                     <div style="color: #22c55e; font-weight: bold; font-size: 1.2em;">✅ VPS ONLINE</div>
@@ -299,6 +344,7 @@ header('Expires: 0');
                 setTimeout(() => testarAPI(), 1500);
             })
             .catch(error => {
+                vpsOnline = false;
                 statusBox.className = 'status-box error';
                 infoBox.innerHTML = `
                     <div style="color: #ef4444; font-weight: bold; font-size: 1.2em;">❌ VPS OFFLINE</div>
@@ -309,10 +355,153 @@ header('Expires: 0');
                 
                 debug(`❌ Erro na VPS: ${error.message}`, 'error');
                 debug(`🔧 URL que falhou: ${testUrl}`, 'error');
+                
+                // Mostrar soluções para VPS offline
+                mostrarSolucoesVPS();
             });
         }
         
+        function mostrarSolucoesVPS() {
+            document.getElementById('solucoes-vps').style.display = 'block';
+            debug('🛠️ Exibindo soluções para VPS offline', 'warning');
+        }
+        
+        function diagnosticarVPSCompleto() {
+            document.getElementById('modal-diagnostico-vps').style.display = 'block';
+            executarDiagnosticoVPS();
+        }
+        
+        function executarDiagnosticoVPS() {
+            const diagnosticoEl = document.getElementById('diagnostico-detalhado');
+            diagnosticoEl.innerHTML = '<div class="pulse">⏳ Executando testes avançados de conectividade...</div>';
+            
+            debug('🔍 Iniciando diagnóstico completo da VPS...', 'info');
+            
+            fetch('verificar_vps.php?timestamp=' + Date.now(), {cache: 'no-cache'})
+                .then(response => response.json())
+                .then(data => {
+                    debug('✅ Diagnóstico VPS concluído', 'success');
+                    exibirResultadoDiagnostico(data);
+                })
+                .catch(error => {
+                    debug(`❌ Erro no diagnóstico VPS: ${error.message}`, 'error');
+                    diagnosticoEl.innerHTML = `
+                        <div style="color: red; padding: 20px; text-align: center;">
+                            ❌ Erro ao executar diagnóstico<br>
+                            <small>${error.message}</small>
+                        </div>
+                    `;
+                });
+        }
+        
+        function exibirResultadoDiagnostico(data) {
+            const diagnosticoEl = document.getElementById('diagnostico-detalhado');
+            
+            let html = `
+                <div style="background: #2d3748; color: white; padding: 20px; border-radius: 10px; font-family: monospace;">
+                    <h4>📊 Relatório de Diagnóstico VPS</h4>
+                    <p><strong>🕒 Timestamp:</strong> ${data.timestamp}</p>
+                    <p><strong>🌐 VPS:</strong> ${data.vps_url}</p>
+                    <hr style="border-color: #4a5568;">
+                    
+                    <h5>📋 Resumo:</h5>
+                    <div style="background: ${data.resumo.vps_acessivel ? '#22c55e' : '#ef4444'}; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                        <strong>${data.resumo.diagnostico}</strong><br>
+                        Sucessos: ${data.resumo.sucessos}/${data.resumo.total_testes} (${data.resumo.percentual_sucesso}%)
+                    </div>
+                    
+                    <h5>🧪 Testes Realizados:</h5>
+            `;
+            
+            Object.entries(data.testes).forEach(([nome, teste]) => {
+                const icone = teste.status === 'sucesso' ? '✅' : teste.status === 'falha' ? '❌' : '⚠️';
+                html += `
+                    <div style="background: #4a5568; padding: 10px; margin: 5px 0; border-radius: 5px;">
+                        <strong>${icone} ${teste.nome}</strong><br>
+                        <small>${JSON.stringify(teste, null, 2)}</small>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    <h5>🖥️ Informações do Servidor:</h5>
+                    <div style="background: #4a5568; padding: 10px; border-radius: 5px;">
+                        <small>${JSON.stringify(data.servidor, null, 2)}</small>
+                    </div>
+                </div>
+            `;
+            
+            diagnosticoEl.innerHTML = html;
+        }
+        
+        function configurarVPSLocal() {
+            const detalhes = document.getElementById('detalhes-solucao');
+            detalhes.innerHTML = `
+                <div style="background: rgba(59, 130, 246, 0.2); padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <h4>🏠 Configurar VPS Local (Localhost)</h4>
+                    <p><strong>Opção 1:</strong> Executar na sua máquina local</p>
+                    <ol>
+                        <li>Instale Node.js no seu computador</li>
+                        <li>Baixe o whatsapp-api-server.js</li>
+                        <li>Execute: <code>node whatsapp-api-server.js</code></li>
+                        <li>Configure a URL para: http://localhost:3000</li>
+                    </ol>
+                    <button class="btn btn-blue" onclick="testarVPSLocal()">🧪 Testar Localhost:3000</button>
+                </div>
+            `;
+        }
+        
+        function testarVPSLocal() {
+            debug('🏠 Testando VPS local (localhost:3000)...', 'info');
+            
+            const localUrl = 'http://localhost:3000/status?local_test=' + Math.random();
+            
+            fetch(localUrl, {cache: 'no-cache'})
+                .then(response => response.json())
+                .then(data => {
+                    debug('✅ VPS local funcionando!', 'success');
+                    alert('✅ VPS Local funcionando!\n\nVocê pode usar localhost:3000 como alternativa.');
+                })
+                .catch(error => {
+                    debug('❌ VPS local não encontrada', 'error');
+                    alert('❌ VPS Local não encontrada\n\nVocê precisa iniciar o servidor WhatsApp localmente.');
+                });
+        }
+        
+        function mostrarInstrucoesVPS() {
+            const detalhes = document.getElementById('detalhes-solucao');
+            detalhes.innerHTML = `
+                <div style="background: rgba(34, 197, 94, 0.2); padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <h4>📋 Configurar Nova VPS</h4>
+                    <p><strong>Passos para criar uma nova VPS:</strong></p>
+                    <ol>
+                        <li><strong>Contrate uma VPS:</strong> DigitalOcean, AWS, Vultr, etc.</li>
+                        <li><strong>Instale Ubuntu 20.04+</strong></li>
+                        <li><strong>Instale Node.js:</strong> <code>curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && sudo apt install nodejs</code></li>
+                        <li><strong>Clone o projeto:</strong> <code>git clone [seu-repo]</code></li>
+                        <li><strong>Instale dependências:</strong> <code>npm install</code></li>
+                        <li><strong>Configure PM2:</strong> <code>npm install -g pm2 && pm2 start ecosystem.config.js</code></li>
+                        <li><strong>Abra porta 3000:</strong> <code>sudo ufw allow 3000</code></li>
+                        <li><strong>Atualize config.php</strong> com o novo IP</li>
+                    </ol>
+                    <p><strong>💡 Dica:</strong> Teste a VPS com: <code>curl http://SEU_IP:3000/status</code></p>
+                </div>
+            `;
+        }
+        
+        function fecharModalDiagnostico() {
+            document.getElementById('modal-diagnostico-vps').style.display = 'none';
+        }
+
+        // =================== FUNÇÕES ORIGINAIS (mantidas) ===================
+        
         function testarAPI() {
+            if (!vpsOnline) {
+                document.getElementById('api-status').className = 'status-box error';
+                document.getElementById('api-info').innerHTML = '<div style="color: #ef4444;">❌ Aguardando VPS estar online</div>';
+                return;
+            }
+            
             const statusBox = document.getElementById('api-status');
             const infoBox = document.getElementById('api-info');
             
@@ -414,6 +603,12 @@ header('Expires: 0');
         }
         
         function testarWhatsApp() {
+            if (!vpsOnline) {
+                document.getElementById('whatsapp-status').className = 'status-box error';
+                document.getElementById('whatsapp-info').innerHTML = '<div style="color: #ef4444;">❌ Aguardando VPS estar online</div>';
+                return;
+            }
+            
             const statusBox = document.getElementById('whatsapp-status');
             const infoBox = document.getElementById('whatsapp-info');
             
@@ -490,6 +685,11 @@ header('Expires: 0');
         }
         
         function conectarWhatsApp() {
+            if (!vpsOnline) {
+                alert('❌ VPS Offline\n\nA VPS precisa estar online para conectar o WhatsApp.\nUse o diagnóstico para verificar o problema.');
+                return;
+            }
+            
             debug('📱 Iniciando processo de conexão WhatsApp...', 'info');
             document.getElementById('modal-qr').style.display = 'block';
             document.getElementById('qr-display').innerHTML = '<div class="pulse">⏳ Preparando QR Code...</div>';
@@ -643,12 +843,17 @@ header('Expires: 0');
             if (event.target == document.getElementById('modal-qr')) {
                 fecharModal();
             }
+            if (event.target == document.getElementById('modal-diagnostico-vps')) {
+                fecharModalDiagnostico();
+            }
         }
         
         // Auto-verificação a cada 3 minutos
         setInterval(() => {
-            debug('🔄 Auto-verificação do sistema...', 'info');
-            testarWhatsApp();
+            if (vpsOnline) {
+                debug('🔄 Auto-verificação do sistema...', 'info');
+                testarWhatsApp();
+            }
         }, 180000);
         
         // =================== INICIALIZAÇÃO ===================
