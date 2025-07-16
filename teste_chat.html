@@ -1,217 +1,206 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teste Chat - Charles Dietrich</title>
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="pragma" content="no-cache">
+    <meta http-equiv="expires" content="0">
+    <title>📱 WhatsApp System - Backup</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
-        .success { background-color: #d4edda; border-color: #c3e6cb; }
-        .error { background-color: #f8d7da; border-color: #f5c6cb; }
-        .info { background-color: #d1ecf1; border-color: #bee5eb; }
-        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
-        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
-        .dados-teste { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background: linear-gradient(135deg, #25D366, #128C7E); 
+            color: white; margin: 0; padding: 20px; min-height: 100vh;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header { 
+            background: rgba(0,0,0,0.2); padding: 20px; 
+            border-radius: 10px; text-align: center; margin-bottom: 20px;
+        }
+        .status { 
+            background: rgba(255,255,255,0.1); padding: 15px; 
+            border-radius: 8px; margin: 15px 0; border-left: 4px solid #22c55e;
+        }
+        .error { border-left-color: #ef4444; }
+        .warning { border-left-color: #f59e0b; }
+        .btn { 
+            background: #22c55e; color: white; padding: 12px 25px; 
+            border: none; border-radius: 6px; cursor: pointer; 
+            margin: 5px; font-size: 1em;
+        }
+        .btn:hover { background: #16a34a; }
+        .qr-area { 
+            background: white; color: black; padding: 20px; 
+            border-radius: 8px; text-align: center; margin: 20px 0;
+            min-height: 250px; display: flex; align-items: center; justify-content: center;
+        }
     </style>
 </head>
 <body>
-    <h1>Teste do Sistema de Chat - Charles Dietrich</h1>
-    
-    <div class="dados-teste">
-        <h3>📋 Dados de Teste</h3>
-        <p><strong>Cliente:</strong> Charles Dietrich (ID: 156)</p>
-        <p><strong>Celular:</strong> 47996164699</p>
-        <p><strong>Canal:</strong> Financeiro (ID: 36)</p>
-        <p><strong>Status:</strong> Conectado</p>
-    </div>
-    
-    <div class="test-section info">
-        <h3>1. Teste da API do Robô</h3>
-        <button onclick="testarRobo()">Testar Status do Robô</button>
-        <div id="resultado-robo"></div>
-    </div>
-    
-    <div class="test-section info">
-        <h3>2. Teste de Busca de Clientes</h3>
-        <input type="text" id="termo-busca" placeholder="Digite 'Charles' ou 'Dietrich'..." style="padding: 5px; margin-right: 10px;" value="Charles">
-        <button onclick="testarBusca()">Buscar Clientes</button>
-        <div id="resultado-busca"></div>
-    </div>
-    
-    <div class="test-section info">
-        <h3>3. Teste de Histórico de Mensagens</h3>
-        <input type="number" id="cliente-id" placeholder="ID do cliente" style="padding: 5px; margin-right: 10px;" value="156">
-        <button onclick="testarHistorico()">Buscar Histórico</button>
-        <div id="resultado-historico"></div>
-    </div>
-    
-    <div class="test-section info">
-        <h3>4. Teste de Detalhes do Cliente</h3>
-        <input type="number" id="cliente-id-detalhes" placeholder="ID do cliente" style="padding: 5px; margin-right: 10px;" value="156">
-        <button onclick="testarDetalhes()">Buscar Detalhes</button>
-        <div id="resultado-detalhes"></div>
-    </div>
-    
-    <div class="test-section info">
-        <h3>5. Teste de Formulário de Envio</h3>
-        <input type="number" id="cliente-id-form" placeholder="ID do cliente" style="padding: 5px; margin-right: 10px;" value="156">
-        <button onclick="testarFormulario()">Buscar Formulário</button>
-        <div id="resultado-formulario"></div>
-    </div>
-    
-    <div class="test-section info">
-        <h3>6. Teste de Envio de Mensagem</h3>
-        <form id="form-teste-envio">
-            <input type="number" name="cliente_id" placeholder="ID do cliente" style="padding: 5px; margin: 5px;" value="156" required><br>
-            <input type="number" name="canal_id" placeholder="ID do canal" style="padding: 5px; margin: 5px;" value="36" required><br>
-            <input type="text" name="mensagem" placeholder="Mensagem" style="padding: 5px; margin: 5px;" value="Teste do sistema de chat - " required><br>
-            <button type="submit">Enviar Mensagem</button>
-        </form>
-        <div id="resultado-envio"></div>
-    </div>
-    
-    <div class="test-section info">
-        <h3>7. Teste do Chat Principal</h3>
-        <p>Clique no link abaixo para abrir o chat principal com debug completo:</p>
-        <a href="painel/chat.php?cliente_id=156" target="_blank" style="background: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Abrir Chat Principal</a>
+    <div class="container">
+        <div class="header">
+            <h1>📱 WhatsApp Connect</h1>
+            <p>Sistema Backup | VPS: 212.85.11.238:3000</p>
+            <p>⏰ <span id="time"></span></p>
+        </div>
+
+        <div id="status" class="status">
+            <h3>🔧 Status Sistema</h3>
+            <div id="status-info">⏳ Carregando...</div>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="btn" onclick="testarConexao()">🧪 Testar VPS</button>
+            <button class="btn" onclick="conectarWhatsApp()">📱 Conectar</button>
+            <button class="btn" onclick="verificarStatus()">🔍 Status</button>
+        </div>
+
+        <div id="qr-container" style="display: none;">
+            <h3>📱 QR Code WhatsApp</h3>
+            <div id="qr-area" class="qr-area">Carregando...</div>
+            <div style="text-align: center;">
+                <button class="btn" onclick="atualizarQR()">🔄 Atualizar</button>
+                <button class="btn" onclick="fecharQR()">❌ Fechar</button>
+            </div>
+        </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
-        function testarRobo() {
-            const resultado = document.getElementById('resultado-robo');
-            resultado.innerHTML = 'Testando...';
+        const VPS = 'http://212.85.11.238:3000';
+        let qrInstance = null;
+        let timer = null;
+        
+        console.log('📱 WhatsApp Backup System');
+        console.log('🌐 VPS:', VPS);
+        
+        document.getElementById('time').textContent = new Date().toLocaleString();
+        
+        // Auto-start
+        setTimeout(testarConexao, 1000);
+        
+        function testarConexao() {
+            const status = document.getElementById('status');
+            const info = document.getElementById('status-info');
             
-            fetch('http://localhost:3000/status')
-                .then(response => response.json())
-                .then(data => {
-                    resultado.innerHTML = '<div class="success"><h4>✅ Robô funcionando!</h4><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+            status.className = 'status';
+            info.innerHTML = '⏳ Testando VPS...';
+            
+            fetch(VPS + '/status?test=' + Date.now(), {cache: 'no-cache'})
+                .then(r => {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
                 })
-                .catch(error => {
-                    resultado.innerHTML = '<div class="error"><h4>❌ Erro no robô</h4><pre>' + error.message + '</pre></div>';
+                .then(data => {
+                    status.className = 'status';
+                    info.innerHTML = `
+                        <div style="color: #22c55e;">✅ VPS ONLINE</div>
+                        <div>📡 ${VPS}</div>
+                        <div>📊 ${JSON.stringify(data)}</div>
+                    `;
+                    console.log('✅ VPS OK');
+                    setTimeout(verificarStatus, 1000);
+                })
+                .catch(err => {
+                    status.className = 'status error';
+                    info.innerHTML = `
+                        <div style="color: #ef4444;">❌ VPS OFFLINE</div>
+                        <div>🚨 ${err.message}</div>
+                    `;
+                    console.error('❌ VPS Error:', err);
                 });
         }
         
-        function testarBusca() {
-            const termo = document.getElementById('termo-busca').value;
-            const resultado = document.getElementById('resultado-busca');
-            
-            if (!termo) {
-                resultado.innerHTML = '<div class="error">Digite um termo para buscar</div>';
-                return;
-            }
-            
-            resultado.innerHTML = 'Buscando...';
-            
-            fetch('painel/api/buscar_clientes.php?termo=' + encodeURIComponent(termo))
-                .then(response => response.json())
+        function verificarStatus() {
+            fetch(VPS + '/status?check=' + Date.now(), {cache: 'no-cache'})
+                .then(r => r.json())
                 .then(data => {
-                    if (data.length > 0) {
-                        resultado.innerHTML = '<div class="success"><h4>✅ Clientes encontrados: ' + data.length + '</h4><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+                    const status = document.getElementById('status');
+                    const info = document.getElementById('status-info');
+                    
+                    if (data.ready) {
+                        status.className = 'status';
+                        info.innerHTML = `
+                            <div style="color: #22c55e;">✅ WHATSAPP CONECTADO</div>
+                            <div>📱 Pronto para uso</div>
+                        `;
                     } else {
-                        resultado.innerHTML = '<div class="info"><h4>ℹ️ Nenhum cliente encontrado</h4></div>';
+                        status.className = 'status warning';
+                        info.innerHTML = `
+                            <div style="color: #f59e0b;">🔴 WHATSAPP DESCONECTADO</div>
+                            <div>📱 Use "Conectar" para escanear QR</div>
+                        `;
                     }
                 })
-                .catch(error => {
-                    resultado.innerHTML = '<div class="error"><h4>❌ Erro na busca</h4><pre>' + error.message + '</pre></div>';
+                .catch(err => {
+                    console.error('Status error:', err);
                 });
         }
         
-        function testarHistorico() {
-            const clienteId = document.getElementById('cliente-id').value;
-            const resultado = document.getElementById('resultado-historico');
+        function conectarWhatsApp() {
+            document.getElementById('qr-container').style.display = 'block';
+            carregarQR();
+            timer = setInterval(monitorar, 3000);
+        }
+        
+        function carregarQR() {
+            const area = document.getElementById('qr-area');
+            area.innerHTML = 'Carregando QR...';
             
-            if (!clienteId) {
-                resultado.innerHTML = '<div class="error">Digite um ID de cliente</div>';
-                return;
-            }
-            
-            resultado.innerHTML = 'Buscando histórico...';
-            
-            fetch('painel/api/historico_mensagens.php?cliente_id=' + clienteId)
-                .then(response => response.text())
+            fetch(VPS + '/qr?load=' + Date.now(), {cache: 'no-cache'})
+                .then(r => r.json())
                 .then(data => {
-                    resultado.innerHTML = '<div class="success"><h4>✅ Histórico carregado</h4><div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">' + data + '</div></div>';
+                    area.innerHTML = '';
+                    if (data.qr) {
+                        qrInstance = new QRCode(area, {
+                            text: data.qr,
+                            width: 200,
+                            height: 200
+                        });
+                        console.log('📱 QR loaded');
+                    } else {
+                        area.innerHTML = '<div style="color: red;">❌ QR indisponível</div>';
+                    }
                 })
-                .catch(error => {
-                    resultado.innerHTML = '<div class="error"><h4>❌ Erro no histórico</h4><pre>' + error.message + '</pre></div>';
+                .catch(err => {
+                    area.innerHTML = '<div style="color: red;">❌ Erro: ' + err.message + '</div>';
                 });
         }
         
-        function testarDetalhes() {
-            const clienteId = document.getElementById('cliente-id-detalhes').value;
-            const resultado = document.getElementById('resultado-detalhes');
-            
-            if (!clienteId) {
-                resultado.innerHTML = '<div class="error">Digite um ID de cliente</div>';
-                return;
-            }
-            
-            resultado.innerHTML = 'Buscando detalhes...';
-            
-            fetch('painel/api/detalhes_cliente.php?cliente_id=' + clienteId)
-                .then(response => response.text())
+        function monitorar() {
+            fetch(VPS + '/status?monitor=' + Date.now(), {cache: 'no-cache'})
+                .then(r => r.json())
                 .then(data => {
-                    resultado.innerHTML = '<div class="success"><h4>✅ Detalhes carregados</h4><div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">' + data + '</div></div>';
+                    if (data.ready) {
+                        clearInterval(timer);
+                        document.getElementById('qr-area').innerHTML = 
+                            '<div style="color: green; font-size: 1.5em;">✅ CONECTADO!</div>';
+                        console.log('🎉 Connected!');
+                        setTimeout(() => {
+                            fecharQR();
+                            verificarStatus();
+                        }, 2000);
+                    }
                 })
-                .catch(error => {
-                    resultado.innerHTML = '<div class="error"><h4>❌ Erro nos detalhes</h4><pre>' + error.message + '</pre></div>';
-                });
+                .catch(err => console.log('Monitor error:', err));
         }
         
-        function testarFormulario() {
-            const clienteId = document.getElementById('cliente-id-form').value;
-            const resultado = document.getElementById('resultado-formulario');
-            
-            if (!clienteId) {
-                resultado.innerHTML = '<div class="error">Digite um ID de cliente</div>';
-                return;
+        function atualizarQR() {
+            carregarQR();
+        }
+        
+        function fecharQR() {
+            document.getElementById('qr-container').style.display = 'none';
+            if (timer) {
+                clearInterval(timer);
+                timer = null;
             }
-            
-            resultado.innerHTML = 'Buscando formulário...';
-            
-            fetch('painel/api/formulario_envio.php?cliente_id=' + clienteId)
-                .then(response => response.text())
-                .then(data => {
-                    resultado.innerHTML = '<div class="success"><h4>✅ Formulário carregado</h4><div style="max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">' + data + '</div></div>';
-                })
-                .catch(error => {
-                    resultado.innerHTML = '<div class="error"><h4>❌ Erro no formulário</h4><pre>' + error.message + '</pre></div>';
-                });
         }
         
-        document.getElementById('form-teste-envio').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const resultado = document.getElementById('resultado-envio');
-            const formData = new FormData(this);
-            
-            // Adicionar timestamp à mensagem
-            const timestamp = new Date().toLocaleString('pt-BR');
-            formData.set('mensagem', formData.get('mensagem') + timestamp);
-            
-            resultado.innerHTML = 'Enviando mensagem...';
-            
-            fetch('painel/chat_enviar.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    resultado.innerHTML = '<div class="success"><h4>✅ Mensagem enviada!</h4><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
-                } else {
-                    resultado.innerHTML = '<div class="error"><h4>❌ Erro no envio</h4><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
-                }
-            })
-            .catch(error => {
-                resultado.innerHTML = '<div class="error"><h4>❌ Erro no envio</h4><pre>' + error.message + '</pre></div>';
-            });
-        });
+        // Auto-refresh
+        setInterval(verificarStatus, 120000);
         
-        // Testar robô automaticamente ao carregar
-        window.addEventListener('load', function() {
-            testarRobo();
-        });
+        console.log('🎯 Backup system ready!');
     </script>
 </body>
 </html> 

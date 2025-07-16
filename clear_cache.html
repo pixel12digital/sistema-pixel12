@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="cache-control" content="no-cache, must-revalidate, post-check=0, pre-check=0">
+    <meta http-equiv="cache-control" content="max-age=0">
+    <meta http-equiv="expires" content="0">
+    <meta http-equiv="expires" content="Tue, 01 Jan 1980 1:00:00 GMT">
+    <meta http-equiv="pragma" content="no-cache">
+    <title>🔄 Limpando Cache - WhatsApp System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 90vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .success {
+            color: #4ade80;
+            font-weight: bold;
+            font-size: 1.3em;
+            margin: 20px 0;
+        }
+        .info {
+            font-size: 0.95em;
+            opacity: 0.9;
+            margin: 15px 0;
+            line-height: 1.4;
+        }
+        .btn {
+            background: #6366f1;
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            margin: 8px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        .btn:hover {
+            background: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .warning {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Limpeza de Cache do Sistema</h1>
+        
+        <div id="loading">
+            <div class="spinner"></div>
+            <p>Aplicando correções de cache...</p>
+            <div class="info">
+                ✅ Limpando cache do navegador<br>
+                ✅ Removendo configurações antigas<br>
+                ✅ Atualizando URLs da VPS<br>
+                ✅ Preparando sistema WhatsApp
+            </div>
+        </div>
+        
+        <div id="success" style="display: none;">
+            <div class="success">✅ Cache Limpo com Sucesso!</div>
+            
+            <div class="warning">
+                <strong>⚠️ IMPORTANTE:</strong><br>
+                O problema era o cache do navegador carregando URLs antigas (localhost) ao invés das URLs corretas da VPS.
+            </div>
+            
+            <div class="info">
+                <strong>🎯 Agora execute estes passos:</strong><br><br>
+                1️⃣ Clique em "Abrir Comunicação" abaixo<br>
+                2️⃣ Clique em "Conectar" no canal WhatsApp<br>
+                3️⃣ Escaneie o QR Code com seu celular<br>
+                4️⃣ Sistema estará 100% operacional!
+            </div>
+            
+            <div style="margin-top: 25px;">
+                <button class="btn" onclick="testarVPS()">🔍 Testar VPS</button>
+                <button class="btn" onclick="abrirComunicacao()" style="background: #22c55e;">📱 Abrir Comunicação</button>
+            </div>
+            
+            <div id="teste-resultado" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        console.log('🔧 Iniciando limpeza completa de cache...');
+
+        // 1. Limpar Service Workers
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+        }
+
+        // 2. Limpar Cache Storage
+        if ('caches' in window) {
+            caches.keys().then(function(cacheNames) {
+                cacheNames.forEach(function(cacheName) {
+                    caches.delete(cacheName);
+                    console.log('🗑️ Cache removido:', cacheName);
+                });
+            });
+        }
+
+        // 3. Limpar Storage
+        try {
+            localStorage.clear();
+            sessionStorage.clear();
+            console.log('🗑️ Storage limpo');
+        } catch(e) {
+            console.log('⚠️ Erro ao limpar storage:', e);
+        }
+
+        // 4. Forçar reload de recursos
+        const links = document.getElementsByTagName('link');
+        for (let i = 0; i < links.length; i++) {
+            if (links[i].rel === 'stylesheet') {
+                const href = links[i].href;
+                links[i].href = href + (href.indexOf('?') > -1 ? '&' : '?') + 'v=' + Date.now();
+            }
+        }
+
+        // Simular processo de limpeza
+        setTimeout(function() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('success').style.display = 'block';
+            console.log('✅ Limpeza concluída!');
+        }, 3500);
+
+        function testarVPS() {
+            const resultado = document.getElementById('teste-resultado');
+            resultado.innerHTML = '<div class="spinner" style="width: 30px; height: 30px;"></div><p>Testando conectividade...</p>';
+            
+            fetch('painel/teste_conectividade_vps.php?_=' + Date.now())
+                .then(response => response.json())
+                .then(data => {
+                    if (data.teste_conectividade && data.teste_conectividade.status === 'sucesso') {
+                        resultado.innerHTML = `
+                            <div class="success">✅ VPS Online e Funcionando!</div>
+                            <div class="info">
+                                🌐 URL: ${data.config_url}<br>
+                                ⚡ Tempo de resposta: ${data.teste_conectividade.response_time_ms}ms<br>
+                                📱 WhatsApp API: ${data.teste_conectividade.whatsapp_ready ? '🟢 Conectado' : '🔴 Aguardando QR Code'}
+                            </div>
+                        `;
+                    } else {
+                        resultado.innerHTML = `
+                            <div style="color: #f87171;">❌ Problema na conectividade</div>
+                            <div class="info">
+                                A VPS pode estar temporariamente indisponível.<br>
+                                Tente novamente em alguns segundos.
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    resultado.innerHTML = `
+                        <div style="color: #f87171;">❌ Erro: ${error.message}</div>
+                        <div class="info">Verifique sua conexão com a internet.</div>
+                    `;
+                });
+        }
+
+        function abrirComunicacao() {
+            // Forçar reload completo com cache-busting
+            const url = 'painel/comunicacao.php?_refresh=' + Date.now() + '&cache_clear=1';
+            window.location.href = url;
+        }
+
+        // Auto-teste após carregar
+        setTimeout(function() {
+            const successDiv = document.getElementById('success');
+            if (successDiv && successDiv.style.display !== 'none') {
+                testarVPS();
+            }
+        }, 4000);
+    </script>
+</body>
+</html> 

@@ -115,9 +115,13 @@ $payload = [
 
 // Usar cURL em vez de file_get_contents para melhor controle
 $ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, "http://localhost:$porta/send");
+curl_setopt($ch, CURLOPT_URL, WHATSAPP_ROBOT_URL . "/send/text");
 curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+    'sessionName' => 'default',
+    'number' => $numero,
+    'message' => $mensagem
+]));
 curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_TIMEOUT, 30); // Aumentar timeout para 30 segundos

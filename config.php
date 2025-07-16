@@ -82,7 +82,7 @@ define('CACHE_TTL_DEFAULT', 300);
 define('CACHE_MAX_SIZE', '100MB');
 
 /* ===== Configurações do WhatsApp ===== */
-define('WHATSAPP_ROBOT_URL', 'http://localhost:3000');
+define('WHATSAPP_ROBOT_URL', 'http://212.85.11.238:3000');
 define('WHATSAPP_TIMEOUT', 10);
 
 /* ===== Log para debug ===== */

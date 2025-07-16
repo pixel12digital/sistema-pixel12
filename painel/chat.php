@@ -1194,7 +1194,7 @@ function render_content() {
     
     robotStatus.checking = true;
     
-    fetch(`http://localhost:${robotStatus.port}/status`)
+    fetch(`http://212.85.11.238:3000/status`)
       .then(response => response.json())
       .then(data => {
         updateRobotUI(data.ready, data.number, null);
@@ -1234,7 +1234,7 @@ function render_content() {
   function gerenciarRobo() {
     if (robotStatus.connected) {
       // Desconectar robô
-      fetch(`http://localhost:${robotStatus.port}/logout`)
+      fetch(`http://212.85.11.238:3000/session/default/disconnect`)
         .then(response => response.json())
         .then(data => {
           if (data.success) {

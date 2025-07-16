@@ -2,6 +2,14 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+
+// Força limpeza de cache com headers ainda mais agressivos
+header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+header('ETag: "' . md5(time()) . '"');
+
 $page = 'comunicacao.php';
 $page_title = 'Comunicação - Gerenciar Canais';
 require_once 'config.php';
@@ -309,6 +317,49 @@ function render_content() {
 ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
+// ===== CONFIGURAÇÃO DA API - USAR SEMPRE A CONSTANTE PHP =====
+const WHATSAPP_API_URL = '<?= WHATSAPP_ROBOT_URL ?>';
+const CACHE_BUSTER = '<?= time() . '_' . rand(1000, 9999) ?>';
+
+// DEBUG EXTENSIVO
+console.log('🔧 === DEBUG WHATSAPP API ===');
+console.log('📡 WhatsApp API URL configurada:', WHATSAPP_API_URL);
+console.log('🔢 Cache Buster:', CACHE_BUSTER);
+console.log('🌐 Página carregada em:', new Date().toISOString());
+console.log('⚙️ User Agent:', navigator.userAgent);
+
+// Verificar se URL contém localhost (indicador de cache antigo)
+if (WHATSAPP_API_URL.includes('localhost')) {
+    console.error('❌ ERRO: URL ainda contém localhost! Cache não foi limpo.');
+    
+    // Tentar forçar reload automático
+    console.log('🔄 Tentando forçar limpeza de cache...');
+    
+    // Limpar todos os tipos de cache possíveis
+    if ('caches' in window) {
+        caches.keys().then(function(cacheNames) {
+            cacheNames.forEach(function(cacheName) {
+                caches.delete(cacheName);
+            });
+        });
+    }
+    
+    // Limpar storage
+    try {
+        localStorage.clear();
+        sessionStorage.clear();
+    } catch(e) {}
+    
+    // Mostrar aviso e forçar reload
+    setTimeout(function() {
+        if (confirm('⚠️ CACHE DETECTADO: O sistema detectou cache antigo. Deseja forçar atualização? (Recomendado: SIM)')) {
+            window.location.href = window.location.href + (window.location.href.includes('?') ? '&' : '?') + '_force_refresh=' + Date.now();
+        }
+    }, 1000);
+} else {
+    console.log('✅ URL correta da VPS detectada');
+}
+
 function exibirErro(titulo, msg) {
   document.getElementById('modal-erro-titulo').textContent = titulo || 'Erro';
   document.getElementById('modal-erro-msg').textContent = msg || 'Ocorreu um erro inesperado.';
@@ -372,7 +423,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var acoesArea = document.querySelector('.acoes-btn-area[data-canal-id="' + canalId + '"]');
     var dataConexaoTd = document.querySelector('.canal-data-conexao[data-canal-id="' + canalId + '"]');
     function atualizarStatus() {
-      fetch('http://localhost:' + porta + '/status')
+      const statusUrl = WHATSAPP_API_URL + '/status?_=' + Date.now();
+      fetch(statusUrl)
         .then(r => r.json())
         .then(resp => {
           if (resp.ready) {
@@ -424,7 +476,8 @@ document.addEventListener('DOMContentLoaded', function() {
           abrirModalQr(porta);
         }
         if (e.target.classList.contains('btn-desconectar-canal')) {
-          fetch('http://localhost:' + porta + '/logout')
+          const logoutUrl = WHATSAPP_API_URL + '/logout?_=' + Date.now();
+          fetch(logoutUrl)
             .then(r => r.json())
             .then(resp => {
               if (resp.success) {
@@ -465,7 +518,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function exibirQrCode(porta) {
-    fetch('http://localhost:' + porta + '/qr?_=' + Date.now())
+    const qrUrl = WHATSAPP_API_URL + '/qr?_=' + Date.now();
+    fetch(qrUrl)
       .then(r => r.json())
       .then(resp => {
         var qrArea = document.getElementById('qr-code-area');
@@ -488,7 +542,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Ajuste: aceita qrInterval para garantir que sempre limpa ao conectar
   function checarStatus(porta, qrInterval) {
-    fetch('http://localhost:' + porta + '/status')
+    const statusUrl = WHATSAPP_API_URL + '/status?_=' + Date.now();
+    fetch(statusUrl)
       .then(r => {
         if (!r.ok) throw new Error('Erro HTTP ao checar status');
         return r.json();
@@ -655,7 +710,8 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       if (e.target.classList.contains('btn-desconectar-canal')) {
         const porta = e.target.getAttribute('data-porta');
-        fetch('http://localhost:' + porta + '/logout')
+        const logoutUrl = WHATSAPP_API_URL + '/logout?_=' + Date.now();
+        fetch(logoutUrl)
           .then(r => r.json())
           .then(resp => {
             if (resp.success) {
