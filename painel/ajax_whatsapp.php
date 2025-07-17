@@ -141,118 +141,93 @@ switch ($action) {
         break;
     
     case 'qr':
-        // Baseado no diagnóstico: apenas /status e /sessions funcionam
-        // Esta API pode usar endpoints diferentes ou ter QR Code no próprio /status
+        // Usar o novo endpoint /qr da VPS
+        $qr_endpoint = '/qr?' . http_build_query(['_' => time()]);
+        $result = makeVPSRequest($qr_endpoint);
         
-        // Primeiro, verificar se o QR está na resposta do /status
-        $status_result = makeVPSRequest('/status?' . http_build_query(['_' => time()]));
-        
-        if ($status_result['success'] && $status_result['data']) {
-            // Verificar se o QR está na resposta do status (caminho correto)
-            $qr_data = $status_result['data']['clients_status']['default']['qr'] ?? null;
-            $qr_status = $status_result['data']['clients_status']['default']['status'] ?? null;
+        if ($result['success'] && $result['data']) {
+            $qr_data = $result['data']['qr'] ?? null;
+            $qr_ready = $result['data']['ready'] ?? false;
+            $qr_status = $result['data']['status'] ?? null;
+            $qr_message = $result['data']['message'] ?? '';
             
             if (!empty($qr_data)) {
                 echo json_encode([
                     'qr' => $qr_data,
-                    'ready' => $qr_status === 'ready',
-                    'message' => $status_result['data']['clients_status']['default']['message'] ?? 'QR Code encontrado via /status',
-                    'endpoint_used' => '/status',
+                    'ready' => $qr_ready,
+                    'message' => $qr_message,
+                    'endpoint_used' => '/qr',
                     'debug' => [
                         'qr_available' => true,
                         'qr_length' => strlen($qr_data),
-                        'source' => 'status_endpoint',
+                        'source' => 'qr_endpoint',
                         'qr_status' => $qr_status,
-                        'full_path' => 'clients_status.default.qr'
+                        'performance' => [
+                            'latency_ms' => $result['latency_ms'] ?? 0,
+                            'optimized' => true
+                        ]
+                    ]
+                ]);
+                break;
+            } else if ($qr_ready) {
+                echo json_encode([
+                    'qr' => null,
+                    'ready' => true,
+                    'message' => 'WhatsApp já está conectado',
+                    'endpoint_used' => '/qr',
+                    'debug' => [
+                        'qr_available' => false,
+                        'status' => 'already_connected',
+                        'source' => 'qr_endpoint'
                     ]
                 ]);
                 break;
             }
         }
         
-        // Se não há QR no status, tentar endpoints alternativos otimizados
-        $possible_endpoints = [
-            // Endpoints mais comuns primeiro (performance)
-            '/qr',
-            '/sessions/qr',
-            '/sessions/default/qr',
-            '/client/qr',
-            '/api/qr',
-            '/generate-qr',
-            '/session/qr',
-            '/whatsapp/qr',
-            '/session/default/qr',
-            '/qrcode',
-            '/start',
-            '/init'
-        ];
+        // Se o endpoint /qr não funcionou, tentar via /status
+        $status_result = makeVPSRequest('/status?' . http_build_query(['_' => time()]));
         
-        $qr_result = null;
-        $successful_endpoint = null;
-        
-        // Timeout reduzido para melhor performance
-        foreach ($possible_endpoints as $endpoint) {
-            $endpoint_with_cache = $endpoint . '?' . http_build_query(['_' => time()]);
+        if ($status_result['success'] && $status_result['data']) {
+            // Verificar se o QR está na resposta do status
+            $qr_data = $status_result['data']['qr'] ?? null;
+            $qr_ready = $status_result['data']['ready'] ?? false;
             
-            // Fazer requisição com timeout menor para performance
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $vps_url . $endpoint_with_cache);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 3); // Reduzido de 10 para 3 segundos
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2); // Reduzido de 5 para 2 segundos
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'User-Agent: WhatsApp-Ajax-Proxy/1.0',
-                'Accept: application/json',
-                'Content-Type: application/json'
-            ]);
-            
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-            curl_close($ch);
-            
-            error_log("[WhatsApp Ajax] QR Endpoint $endpoint: HTTP $httpCode");
-            
-            if ($httpCode === 200 && $response) {
-                $data = json_decode($response, true);
-                if ($data && !empty($data['qr'])) {
-                    $qr_result = ['data' => $data, 'success' => true];
-                    $successful_endpoint = $endpoint;
-                    break;
-                }
+            if (!empty($qr_data)) {
+                echo json_encode([
+                    'qr' => $qr_data,
+                    'ready' => $qr_ready,
+                    'message' => 'QR Code encontrado via /status',
+                    'endpoint_used' => '/status',
+                    'debug' => [
+                        'qr_available' => true,
+                        'qr_length' => strlen($qr_data),
+                        'source' => 'status_endpoint',
+                        'performance' => [
+                            'latency_ms' => $status_result['latency_ms'] ?? 0,
+                            'fallback' => true
+                        ]
+                    ]
+                ]);
+                break;
             }
         }
         
-        if ($qr_result && $successful_endpoint) {
-            echo json_encode([
-                'qr' => $qr_result['data']['qr'] ?? null,
-                'ready' => $qr_result['data']['ready'] ?? false,
-                'message' => 'QR Code encontrado via ' . $successful_endpoint,
-                'endpoint_used' => $successful_endpoint,
-                'debug' => [
-                    'qr_available' => !empty($qr_result['data']['qr']),
-                    'qr_length' => strlen($qr_result['data']['qr'] ?? ''),
-                    'raw_keys' => array_keys($qr_result['data']),
-                    'successful_endpoint' => $successful_endpoint,
-                    'performance_optimized' => true
-                ]
-            ]);
-        } else {
-            // QR Code não disponível - retornar informações do status
-            echo json_encode([
-                'qr' => null,
-                'ready' => false,
-                'error' => 'QR Code não disponível nesta API WhatsApp',
-                'message' => 'Esta API pode usar métodos diferentes para gerar QR Code',
-                'debug' => [
-                    'tested_endpoints' => $possible_endpoints,
-                    'vps_status_working' => $status_result['success'] ?? false,
-                    'suggestion' => 'Verificar documentação da API WhatsApp ou usar método alternativo',
-                    'status_data' => $status_result['data'] ?? null,
-                    'help' => 'Pode ser necessário inicializar sessão via outro método'
-                ]
-            ]);
-        }
+        // Se nenhum QR foi encontrado, retornar informações de diagnóstico
+        echo json_encode([
+            'qr' => null,
+            'ready' => false,
+            'error' => 'QR Code não disponível',
+            'message' => 'Aguarde alguns segundos e tente novamente',
+            'debug' => [
+                'qr_endpoint_working' => $result['success'] ?? false,
+                'status_endpoint_working' => $status_result['success'] ?? false,
+                'qr_endpoint_response' => $result['data'] ?? null,
+                'status_endpoint_response' => $status_result['data'] ?? null,
+                'suggestion' => 'Verifique se a sessão WhatsApp foi iniciada corretamente',
+                'help' => 'Use POST /session/start/default para iniciar uma nova sessão'
+            ]
+        ]);
         break;
     
     case 'logout':

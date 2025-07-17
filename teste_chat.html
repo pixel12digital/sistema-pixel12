@@ -42,29 +42,29 @@
             <h1>📱 WhatsApp Connect</h1>
             <p>Sistema Backup | VPS: 212.85.11.238:3000</p>
             <p>⏰ <span id="time"></span></p>
-        </div>
-
+    </div>
+    
         <div id="status" class="status">
             <h3>🔧 Status Sistema</h3>
             <div id="status-info">⏳ Carregando...</div>
-        </div>
-
+    </div>
+    
         <div style="text-align: center;">
             <button class="btn" onclick="testarConexao()">🧪 Testar VPS</button>
             <button class="btn" onclick="conectarWhatsApp()">📱 Conectar</button>
             <button class="btn" onclick="verificarStatus()">🔍 Status</button>
-        </div>
-
+    </div>
+    
         <div id="qr-container" style="display: none;">
             <h3>📱 QR Code WhatsApp</h3>
             <div id="qr-area" class="qr-area">Carregando...</div>
             <div style="text-align: center;">
                 <button class="btn" onclick="atualizarQR()">🔄 Atualizar</button>
                 <button class="btn" onclick="fecharQR()">❌ Fechar</button>
-            </div>
-        </div>
     </div>
-
+    </div>
+    </div>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
         const VPS = 'http://212.85.11.238:3000';
