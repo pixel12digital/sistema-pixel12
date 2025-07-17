@@ -455,9 +455,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (pollingStatusInterval) clearInterval(pollingStatusInterval);
     pollingStatusPaused = false;
     atualizarStatusCanais();
+    // CORREÇÃO: Reduzir frequência de polling para evitar oscilação
     pollingStatusInterval = setInterval(function() {
       if (!pollingStatusPaused) atualizarStatusCanais();
-    }, 600000); // 10 minutos
+    }, 300000); // 5 minutos ao invés de 10 minutos
   }
   function pausarPollingStatus() {
     pollingStatusPaused = true;
@@ -478,7 +479,34 @@ document.addEventListener('DOMContentLoaded', function() {
       // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
       makeWhatsAppRequest('status')
         .then(resp => {
-          if (resp.ready) {
+          // DEBUG: Mostrar resposta completa
+          debug('🟦 Resposta completa do status: ' + JSON.stringify(resp), 'info');
+          
+          // CORREÇÃO: Extrair status do raw_response_preview se existir
+          let realStatus = null;
+          if (resp.debug && resp.debug.raw_response_preview) {
+            try {
+              const parsedResponse = JSON.parse(resp.debug.raw_response_preview);
+              realStatus = parsedResponse.status?.status || parsedResponse.status;
+              debug('🔍 Status extraído do raw_response_preview: ' + realStatus, 'info');
+            } catch (e) {
+              debug('❌ Erro ao fazer parse do raw_response_preview: ' + e.message, 'error');
+            }
+          }
+          
+          // CORREÇÃO: Priorizar o status do raw_response_preview sobre o campo ready
+          const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status, realStatus];
+          const isConnected =
+            (realStatus && ['connected', 'already_connected', 'authenticated', 'ready'].includes(realStatus)) ||
+            resp.ready === true ||
+            statusList.includes('ready') ||
+            statusList.includes('connected') ||
+            statusList.includes('already_connected') ||
+            statusList.includes('authenticated');
+          
+          debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, realStatus=${realStatus}, statusList=${JSON.stringify(statusList)})`, isConnected ? 'success' : 'warning');
+          
+          if (isConnected) {
             statusText.textContent = 'Conectado';
             td.classList.remove('status-verificando');
             td.classList.add('status-conectado');
@@ -520,8 +548,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // CORREÇÃO: Reduzir frequência de verificação para evitar oscilação
     atualizarStatus();
-    setInterval(atualizarStatus, 30000); // Aumentado para 30 segundos para reduzir carga no banco
+    setInterval(atualizarStatus, 60000); // Aumentado para 60 segundos (1 minuto)
     
     if (acoesArea) {
       acoesArea.addEventListener('click', function(e) {

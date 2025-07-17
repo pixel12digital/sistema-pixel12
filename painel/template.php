@@ -106,28 +106,29 @@ $custom_header = $custom_header ?? '';
           // DEBUG: Log para verificar o que está acontecendo
           console.log(`[Template] Canais WhatsApp: ${totalWhatsapp} total, ${conectados} conectados, ${desconectados} desconectados`);
           
-          // Exibir notificação SOMENTE se houver pelo menos 1 desconectado e pelo menos 1 canal WhatsApp
-          if (totalWhatsapp > 0 && desconectados > 0) {
-            showPushNotification('Atenção: Existem canais WhatsApp desconectados!', 0);
+          // CORREÇÃO: Só mostrar notificação se houver pelo menos 1 WhatsApp desconectado E pelo menos 1 WhatsApp total
+          if (desconectados > 0 && totalWhatsapp > 0) {
             console.log('[Template] Notificação de desconectados EXIBIDA');
+            showPushNotification('Atenção: Existem canais WhatsApp desconectados!', 0);
           } else {
-            // Esconde notificação se todos conectados ou não há canais
-            var el = document.getElementById('push-notification');
-            var msgEl = document.getElementById('push-notification-msg');
-            if (el && msgEl && msgEl.textContent === 'Atenção: Existem canais WhatsApp desconectados!') {
-              el.style.display = 'none';
-              console.log('[Template] Notificação de desconectados OCULTADA');
+            console.log('[Template] Notificação de desconectados OCULTA');
+            // Esconder notificação se todos conectados ou nenhum WhatsApp
+            const notification = document.getElementById('push-notification');
+            if (notification) {
+              notification.style.display = 'none';
             }
           }
         })
-        .catch((error) => {
+        .catch(error => {
           console.error('[Template] Erro ao verificar canais:', error);
         });
     }
+
+    // Executar verificação a cada 2 minutos (reduzido de 60s para 120s)
+    setInterval(checarCanaisWhatsappDesconectados, 120000);
     
-    // Reduzir frequência de verificação para evitar conflitos
-    setInterval(checarCanaisWhatsappDesconectados, 120000); // 2 minutos ao invés de 1 minuto
-    document.addEventListener('DOMContentLoaded', checarCanaisWhatsappDesconectados);
+    // Executar verificação inicial após 5 segundos
+    setTimeout(checarCanaisWhatsappDesconectados, 5000);
   </script>
   <?php include 'menu_lateral.php'; ?>
   <main class="main-content">
