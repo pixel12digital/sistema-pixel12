@@ -869,8 +869,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function atualizarStatusIndividual(td, canalId, porta) {
     const statusText = td.querySelector('.status-text');
-    const acoesArea = document.querySelector('.acoes-btn-area[data-canal-id=' + canalId + '"]');
-    const dataConexaoTd = document.querySelector('.canal-data-conexao[data-canal-id=' + canalId + '"]');
+    // CORREÇÃO: Remover aspas duplas extras no seletor
+    const acoesArea = document.querySelector('.acoes-btn-area[data-canal-id="' + canalId + '"]');
+    const dataConexaoTd = document.querySelector('.canal-data-conexao[data-canal-id="' + canalId + '"]');
     
     statusText.textContent = 'Verificando...';
     td.className = 'canal-status-area status-verificando';
@@ -880,9 +881,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Verificar múltiplas condições de status conectado
         const isConnected = resp.ready || 
                            resp.debug?.qr_status === 'ready' || 
+                           resp.status === 'connected' ||
                            (resp.clients_status && resp.clients_status.default && resp.clients_status.default.status === 'ready');
         
-        debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, qr_status=${resp.debug?.qr_status || 'N/A'})`, isConnected ? 'success' : 'warning');
+        debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, status=${resp.status || 'N/A'})`, isConnected ? 'success' : 'warning');
         
         if (isConnected) {
           // CANAL CONECTADO
@@ -924,7 +926,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       })
       .catch(error => {
-        debug(`❌ Erro no canal ${canalId}: ${error.message}`, error);
+        debug(`❌ Erro no canal ${canalId}: ${error.message}`, 'error');
         statusText.textContent = 'Erro';
         td.classList.remove('status-verificando');
         td.classList.remove('status-conectado');
