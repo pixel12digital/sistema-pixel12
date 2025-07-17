@@ -648,7 +648,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
     makeWhatsAppRequest('status')
       .then(resp => {
-        debug(`🔍 Verificando status durante QR: ready=${resp.ready}, status=${resp.debug?.qr_status || 'N/A'}`);
+        debug(`🔍 Verificando status durante QR: ready=${resp.ready}, status=${resp.status || resp.debug?.qr_status || 'N/A'}`);
         
         // Verificar se está conectado (ready=true OU status=ready, connected, already_connected, authenticated)
         const status = resp.status || resp.debug?.qr_status;
@@ -679,7 +679,7 @@ document.addEventListener('DOMContentLoaded', function() {
           
           debug('✅ Fluxo de conexão completado com sucesso', 'success');
         } else {
-          debug(`⏳ Aguardando conexão... Status atual: ${resp.debug?.qr_status || 'Desconectado'}`, 'warning');
+          debug(`⏳ Aguardando conexão... Status atual: ${status || 'Desconectado'}`, 'warning');
         }
       })
       .catch((err) => {
@@ -878,28 +878,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     makeWhatsAppRequest('status')
       .then(resp => {
-        // Verificar múltiplas condições de status conectado
-        const isConnected = resp.ready || 
-                           resp.debug?.qr_status === 'ready' || 
-                           resp.status === 'connected' ||
-                           (resp.clients_status && resp.clients_status.default && resp.clients_status.default.status === 'ready');
-        
-        debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, status=${resp.status || 'N/A'})`, isConnected ? 'success' : 'warning');
-        
+        const status = resp.status || resp.debug?.qr_status;
+        const isConnected = resp.ready ||
+          status === 'ready' ||
+          status === 'connected' ||
+          status === 'already_connected' ||
+          status === 'authenticated';
+        debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, status=${status || 'N/A'})`, isConnected ? 'success' : 'warning');
         if (isConnected) {
-          // CANAL CONECTADO
           statusText.textContent = 'Conectado';
           td.classList.remove('status-verificando');
           td.classList.add('status-conectado');
           td.classList.remove('status-pendente');
-          
-          // Mudar botão para "Desconectar"
           if (acoesArea) {
             acoesArea.innerHTML = '<button class="btn-ac btn-desconectar btn-desconectar-canal" data-porta="' + porta + '">Desconectar</button>';
             debug(`🔄 Botão alterado para "Desconectarno canal ${canalId}`, 'success');
           }
-          
-          // Atualizar data da última sessão
           if (resp.lastSession) {
             var dt = new Date(resp.lastSession);
             dataConexaoTd.textContent = dt.toLocaleString('pt-BR');
@@ -908,20 +902,15 @@ document.addEventListener('DOMContentLoaded', function() {
           }
           debug(`✅ Status do canal ${canalId} atualizado para CONECTADO`, 'success');
         } else {
-          // CANAL DESCONECTADO
           statusText.textContent = 'Desconectado';
           td.classList.remove('status-verificando');
           td.classList.remove('status-conectado');
           td.classList.add('status-pendente');
-          
-          // Mudar botão para "Conectar"
           if (acoesArea) {
             acoesArea.innerHTML = '<button class="btn-ac btn-conectar btn-conectar-canal" data-porta="' + porta + '">Conectar</button>';
             debug(`🔄 Botão alterado para "Conectarno canal ${canalId}`, 'warning');
           }
-          
           dataConexaoTd.textContent = '-';
-          
           debug(`⚠️ Status do canal ${canalId} atualizado para DESCONECTADO`, 'warning');
         }
       })
