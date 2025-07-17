@@ -172,6 +172,10 @@ function render_content() {
   echo '<button id="close-modal-qr" style="position:absolute;top:12px;right:16px;font-size:1.3rem;background:none;border:none;cursor:pointer;">&times;</button>';
   echo '<h3 class="text-lg font-bold mb-4">Conectar WhatsApp</h3>';
   echo '<div id="qr-code-area" class="flex flex-col items-center justify-center" style="min-height:180px;"></div>';
+  echo '<div style="text-align: center; margin-top: 15px;">';
+  echo '<button id="btn-atualizar-qr" style="background: #3b82f6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🔄 Atualizar QR Code</button>';
+  echo '<button id="btn-forcar-novo-qr" style="background: #f59e0b; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🆕 Forçar Novo QR</button>';
+  echo '</div>';
   echo '</div></div>';
 
   // Modal de confirmação de exclusão
@@ -551,7 +555,7 @@ document.addEventListener('DOMContentLoaded', function() {
     modalQr.style.display = 'flex';
     document.getElementById('qr-code-area').innerHTML = 'Aguardando QR Code...';
     exibirQrCode(porta); // Exibe imediatamente
-    // Atualiza o QR Code e checa status a cada 7 segundos enquanto o modal estiver aberto
+    // Atualiza o QR Code e checa status a cada 3 segundos enquanto o modal estiver aberto (reduzido de 7s para 3s)
     let qrInterval = setInterval(function() {
       if (modalQr.style.display === 'flex') {
         exibirQrCode(porta);
@@ -559,34 +563,83 @@ document.addEventListener('DOMContentLoaded', function() {
       } else {
         clearInterval(qrInterval);
       }
-    }, 7000);
+    }, 3000); // Reduzido de 7000ms para 3000ms
     closeQr.onclick = function() {
       modalQr.style.display = 'none';
       pararPollingQr();
       clearInterval(qrInterval);
       retomarPollingStatus();
     };
+    
+    // Botões de atualização do QR Code
+    document.getElementById('btn-atualizar-qr').onclick = function() {
+      debug('🔄 Usuário clicou em Atualizar QR Code', 'info');
+      exibirQrCode(porta);
+    };
+    
+    document.getElementById('btn-forcar-novo-qr').onclick = function() {
+      debug('🆕 Usuário clicou em Forçar Novo QR', 'info');
+      // Forçar nova geração de QR no VPS
+      makeWhatsAppRequest('logout')
+        .then(() => {
+          debug('✅ Logout realizado, gerando novo QR...', 'success');
+          setTimeout(() => exibirQrCode(porta), 1000);
+        })
+        .catch(err => {
+          debug(`❌ Erro ao forçar novo QR: ${err.message}`, 'error');
+          exibirQrCode(porta); // Tentar mesmo assim
+        });
+    };
   }
 
   function exibirQrCode(porta) {
     // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
+    debug('🔄 Buscando QR Code atualizado...', 'info');
+    
     makeWhatsAppRequest('qr')
       .then(resp => {
         var qrArea = document.getElementById('qr-code-area');
+        
+        // Limpar área do QR Code
         while (qrArea.firstChild) qrArea.removeChild(qrArea.firstChild);
+        
         if (resp.qr) {
+          debug(`✅ QR Code encontrado! Tamanho: ${resp.qr.length} chars`, 'success');
+          debug(`🔗 Endpoint usado: ${resp.endpoint_used || 'N/A'}`, 'info');
+          
+          // Gerar novo QR Code
           new QRCode(qrArea, {
             text: resp.qr,
             width: 220,
-            height: 220
+            height: 220,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
           });
+          
+          // Adicionar informações de debug
+          const infoDiv = document.createElement('div');
+          infoDiv.style.cssText = 'margin-top: 10px; font-size: 12px; color: #666; text-align: center;';
+          infoDiv.innerHTML = `QR Code atualizado em: ${new Date().toLocaleTimeString()}<br>Status: ${resp.debug?.qr_status || 'Aguardando escaneamento'}`;
+          qrArea.appendChild(infoDiv);
+          
         } else {
-          qrArea.innerHTML = 'QR Code não disponível. Aguarde...';
+          debug('❌ QR Code não disponível na resposta', 'warning');
+          qrArea.innerHTML = '<div style="color:#f59e0b;font-weight:bold;text-align:center;padding:20px;">QR Code não disponível. Aguarde...</div>';
+          
+          // Mostrar informações de debug
+          if (resp.debug) {
+            const debugDiv = document.createElement('div');
+            debugDiv.style.cssText = 'margin-top: 10px; font-size: 11px; color: #999; text-align: center;';
+            debugDiv.innerHTML = `Debug: ${JSON.stringify(resp.debug)}`;
+            qrArea.appendChild(debugDiv);
+          }
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        debug(`❌ Erro ao buscar QR Code: ${error.message}`, 'error');
         var qrArea = document.getElementById('qr-code-area');
-        qrArea.innerHTML = '<span style="color:#b91c1c;font-weight:bold;">✅ CORS Corrigido! Erro ao buscar QR Code.<br>Verifique se o robô está rodando e conectado.</span>';
+        qrArea.innerHTML = '<span style="color:#b91c1c;font-weight:bold;text-align:center;display:block;padding:20px;">✅ CORS Corrigido! Erro ao buscar QR Code.<br>Verifique se o robô está rodando e conectado.</span>';
       });
   }
 
