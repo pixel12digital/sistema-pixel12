@@ -650,8 +650,15 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(resp => {
         debug(`🔍 Verificando status durante QR: ready=${resp.ready}, status=${resp.debug?.qr_status || 'N/A'}`);
         
-        // Verificar se está conectado (ready=true OU status=ready)
-        if (resp.ready || resp.debug?.qr_status === 'ready') {
+        // Verificar se está conectado (ready=true OU status=ready, connected, already_connected, authenticated)
+        const status = resp.status || resp.debug?.qr_status;
+        if (
+          resp.ready ||
+          status === 'ready' ||
+          status === 'connected' ||
+          status === 'already_connected' ||
+          status === 'authenticated'
+        ) {
           debug('🎉 WHATSAPP CONECTADO! Fechando modal e atualizando status...', 'success');
           
           // Fechar modal automaticamente
