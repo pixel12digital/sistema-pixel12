@@ -648,43 +648,32 @@ document.addEventListener('DOMContentLoaded', function() {
     // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
     makeWhatsAppRequest('status')
       .then(resp => {
-        debug(`🔍 Verificando status durante QR: ready=${resp.ready}, status=${resp.status || resp.debug?.qr_status || 'N/A'}`);
-        
-        // Verificar se está conectado (ready=true OU status=ready, connected, already_connected, authenticated)
-        const status = resp.status || resp.debug?.qr_status;
-        if (
-          resp.ready ||
-          status === 'ready' ||
-          status === 'connected' ||
-          status === 'already_connected' ||
-          status === 'authenticated'
-        ) {
+        // DEBUG: Mostrar resposta completa
+        debug('🟦 Resposta completa do status: ' + JSON.stringify(resp), 'info');
+        // Unificar todos os campos possíveis de status
+        const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status];
+        const isConnected =
+          resp.ready === true ||
+          statusList.includes('ready') ||
+          statusList.includes('connected') ||
+          statusList.includes('already_connected') ||
+          statusList.includes('authenticated');
+        debug(`🔍 Verificando status durante QR: ready=${resp.ready}, statusList=${JSON.stringify(statusList)}`);
+        if (isConnected) {
           debug('🎉 WHATSAPP CONECTADO! Fechando modal e atualizando status...', 'success');
-          
-          // Fechar modal automaticamente
           modalQr.style.display = 'none';
-          
-          // Parar polling do QR
           pararPollingQr();
           if (qrInterval) clearInterval(qrInterval);
-          
-          // Retomar polling global
           retomarPollingStatus();
-          
-          // Atualizar status visual imediatamente
           atualizarStatusCanais();
-          
-          // Mostrar sucesso
           alert('Canal conectado com sucesso!');
-          
           debug('✅ Fluxo de conexão completado com sucesso', 'success');
         } else {
-          debug(`⏳ Aguardando conexão... Status atual: ${status || 'Desconectado'}`, 'warning');
+          debug(`⏳ Aguardando conexão... Status atual: ${JSON.stringify(statusList)}`, 'warning');
         }
       })
       .catch((err) => {
         debug(`❌ Erro ao verificar status durante QR: ${err.message}`, 'error');
-        // Não exibe erro se for polling automático
       });
   }
 
@@ -872,19 +861,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // CORREÇÃO: Remover aspas duplas extras no seletor
     const acoesArea = document.querySelector('.acoes-btn-area[data-canal-id="' + canalId + '"]');
     const dataConexaoTd = document.querySelector('.canal-data-conexao[data-canal-id="' + canalId + '"]');
-    
     statusText.textContent = 'Verificando...';
     td.className = 'canal-status-area status-verificando';
-    
     makeWhatsAppRequest('status')
       .then(resp => {
-        const status = resp.status || resp.debug?.qr_status;
-        const isConnected = resp.ready ||
-          status === 'ready' ||
-          status === 'connected' ||
-          status === 'already_connected' ||
-          status === 'authenticated';
-        debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, status=${status || 'N/A'})`, isConnected ? 'success' : 'warning');
+        // DEBUG: Mostrar resposta completa
+        debug('🟦 Resposta completa do status: ' + JSON.stringify(resp), 'info');
+        const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status];
+        const isConnected =
+          resp.ready === true ||
+          statusList.includes('ready') ||
+          statusList.includes('connected') ||
+          statusList.includes('already_connected') ||
+          statusList.includes('authenticated');
+        debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, statusList=${JSON.stringify(statusList)})`, isConnected ? 'success' : 'warning');
         if (isConnected) {
           statusText.textContent = 'Conectado';
           td.classList.remove('status-verificando');
@@ -892,7 +882,7 @@ document.addEventListener('DOMContentLoaded', function() {
           td.classList.remove('status-pendente');
           if (acoesArea) {
             acoesArea.innerHTML = '<button class="btn-ac btn-desconectar btn-desconectar-canal" data-porta="' + porta + '">Desconectar</button>';
-            debug(`🔄 Botão alterado para "Desconectarno canal ${canalId}`, 'success');
+            debug(`🔄 Botão alterado para "Desconectar" no canal ${canalId}`, 'success');
           }
           if (resp.lastSession) {
             var dt = new Date(resp.lastSession);
@@ -908,7 +898,7 @@ document.addEventListener('DOMContentLoaded', function() {
           td.classList.add('status-pendente');
           if (acoesArea) {
             acoesArea.innerHTML = '<button class="btn-ac btn-conectar btn-conectar-canal" data-porta="' + porta + '">Conectar</button>';
-            debug(`🔄 Botão alterado para "Conectarno canal ${canalId}`, 'warning');
+            debug(`🔄 Botão alterado para "Conectar" no canal ${canalId}`, 'warning');
           }
           dataConexaoTd.textContent = '-';
           debug(`⚠️ Status do canal ${canalId} atualizado para DESCONECTADO`, 'warning');
