@@ -927,10 +927,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // ===== FUNÇÃO PARA FECHAR NOTIFICAÇÃO AUTOMATICAMENTE =====
   function fecharNotificacaoDesconectados() {
-    const notification = document.getElementById('push-notification');
-    if (notification) {
-      notification.style.display = 'none';
-      debug('🔕 Notificação de desconectados fechada automaticamente', 'success');
+    // CORREÇÃO: Usar função global do template se disponível
+    if (typeof gerenciarNotificacaoWhatsApp === 'function') {
+      gerenciarNotificacaoWhatsApp('conectado');
+    } else {
+      // Fallback para função local
+      const notification = document.getElementById('push-notification');
+      if (notification) {
+        notification.style.display = 'none';
+        debug('🔕 Notificação de desconectados fechada automaticamente', 'success');
+      }
     }
   }
 

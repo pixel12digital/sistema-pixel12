@@ -86,42 +86,119 @@ $custom_header = $custom_header ?? '';
     }
   </script>
   <script>
+    // ===== FUNÇÃO GLOBAL PARA GERENCIAR NOTIFICAÇÃO DE STATUS =====
+    function gerenciarNotificacaoWhatsApp(status) {
+      const notification = document.getElementById('push-notification');
+      if (!notification) return;
+      
+      if (status === 'conectado') {
+        // WhatsApp conectado - fechar notificação
+        notification.style.display = 'none';
+        console.log('[Sistema] WhatsApp conectado - notificação fechada');
+      } else if (status === 'desconectado') {
+        // WhatsApp desconectado - mostrar notificação
+        showPushNotification('Atenção: Existem canais WhatsApp desconectados!', 0);
+        console.log('[Sistema] WhatsApp desconectado - notificação exibida');
+      }
+    }
+    
+    // Função para verificar status real do WhatsApp
+    function verificarStatusRealWhatsApp() {
+      return fetch('ajax_whatsapp.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'action=status'
+      })
+      .then(r => r.json())
+      .then(resp => {
+        // Extrair status real do WhatsApp
+        let realStatus = null;
+        if (resp.debug && resp.debug.raw_response_preview) {
+          try {
+            const parsedResponse = JSON.parse(resp.debug.raw_response_preview);
+            realStatus = parsedResponse.status?.status || parsedResponse.status;
+          } catch (e) {
+            console.error('[Sistema] Erro ao fazer parse do raw_response_preview:', e);
+          }
+        }
+        
+        // Verificar se WhatsApp está realmente conectado
+        const isWhatsAppConnected = 
+          (realStatus && ['connected', 'already_connected', 'authenticated', 'ready'].includes(realStatus)) ||
+          resp.ready === true ||
+          resp.status === 'connected' ||
+          resp.status === 'already_connected' ||
+          resp.status === 'authenticated' ||
+          resp.status === 'ready';
+        
+        console.log(`[Sistema] Status real do WhatsApp: ${realStatus}, isConnected: ${isWhatsAppConnected}`);
+        
+        // Gerenciar notificação baseado no status real
+        gerenciarNotificacaoWhatsApp(isWhatsAppConnected ? 'conectado' : 'desconectado');
+        
+        return isWhatsAppConnected;
+      })
+      .catch(error => {
+        console.error('[Sistema] Erro ao verificar status real do WhatsApp:', error);
+        // Em caso de erro, assumir desconectado
+        gerenciarNotificacaoWhatsApp('desconectado');
+        return false;
+      });
+    }
+
     // Verificação de canais WhatsApp desconectados
     function checarCanaisWhatsappDesconectados() {
-      fetch('api/status_canais.php')
-        .then(r => r.json())
-        .then(statusList => {
-          let totalWhatsapp = 0;
-          let desconectados = 0;
-          let conectados = 0;
-          
-          statusList.forEach(st => {
-            if (st.tipo === 'whatsapp') {
-              totalWhatsapp++;
-              if (!st.conectado) desconectados++;
-              else conectados++;
-            }
-          });
-          
-          // DEBUG: Log para verificar o que está acontecendo
-          console.log(`[Template] Canais WhatsApp: ${totalWhatsapp} total, ${conectados} conectados, ${desconectados} desconectados`);
-          
-          // CORREÇÃO: Só mostrar notificação se houver pelo menos 1 WhatsApp desconectado E pelo menos 1 WhatsApp total
-          if (desconectados > 0 && totalWhatsapp > 0) {
-            console.log('[Template] Notificação de desconectados EXIBIDA');
-            showPushNotification('Atenção: Existem canais WhatsApp desconectados!', 0);
-          } else {
-            console.log('[Template] Notificação de desconectados OCULTA');
-            // Esconder notificação se todos conectados ou nenhum WhatsApp
-            const notification = document.getElementById('push-notification');
-            if (notification) {
-              notification.style.display = 'none';
-            }
+      // CORREÇÃO: Usar função global para verificar status real do WhatsApp
+      verificarStatusRealWhatsApp()
+      .then(isConnected => {
+        if (isConnected) {
+          console.log('[Template] WhatsApp conectado - notificação gerenciada automaticamente');
+          return; // Parar aqui, não verificar mais
+        }
+        
+        // Se WhatsApp não está conectado, verificar via endpoint como fallback
+        return fetch('api/status_canais.php');
+      })
+      .then(r => {
+        if (!r) return; // Se retornou undefined, WhatsApp está conectado
+        return r.json();
+      })
+      .then(statusList => {
+        if (!statusList) return; // Se retornou undefined, WhatsApp está conectado
+        
+        let totalWhatsapp = 0;
+        let desconectados = 0;
+        let conectados = 0;
+        
+        statusList.forEach(st => {
+          if (st.tipo === 'whatsapp') {
+            totalWhatsapp++;
+            if (!st.conectado) desconectados++;
+            else conectados++;
           }
-        })
-        .catch(error => {
-          console.error('[Template] Erro ao verificar canais:', error);
         });
+        
+        // DEBUG: Log para verificar o que está acontecendo
+        console.log(`[Template] Canais WhatsApp: ${totalWhatsapp} total, ${conectados} conectados, ${desconectados} desconectados`);
+        
+        // CORREÇÃO: Só mostrar notificação se houver pelo menos 1 WhatsApp desconectado E pelo menos 1 WhatsApp total
+        if (desconectados > 0 && totalWhatsapp > 0) {
+          console.log('[Template] Notificação de desconectados EXIBIDA');
+          showPushNotification('Atenção: Existem canais WhatsApp desconectados!', 0);
+        } else {
+          console.log('[Template] Notificação de desconectados OCULTA');
+          // Esconder notificação se todos conectados ou nenhum WhatsApp
+          const notification = document.getElementById('push-notification');
+          if (notification) {
+            notification.style.display = 'none';
+          }
+        }
+      })
+      .catch(error => {
+        console.error('[Template] Erro ao verificar canais:', error);
+      });
     }
 
     // Executar verificação a cada 2 minutos (reduzido de 60s para 120s)
@@ -129,6 +206,12 @@ $custom_header = $custom_header ?? '';
     
     // Executar verificação inicial após 5 segundos
     setTimeout(checarCanaisWhatsappDesconectados, 5000);
+    
+    // CORREÇÃO: Verificação inicial imediata do status do WhatsApp
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('[Sistema] Verificação inicial do status do WhatsApp...');
+      verificarStatusRealWhatsApp();
+    });
   </script>
   <?php include 'menu_lateral.php'; ?>
   <main class="main-content">
