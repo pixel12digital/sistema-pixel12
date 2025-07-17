@@ -593,20 +593,31 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function exibirQrCode(porta) {
-    // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
     debug('🔄 Buscando QR Code atualizado...', 'info');
-    
     makeWhatsAppRequest('qr')
       .then(resp => {
         var qrArea = document.getElementById('qr-code-area');
-        
         // Limpar área do QR Code
         while (qrArea.firstChild) qrArea.removeChild(qrArea.firstChild);
-        
+
+        // FECHAR MODAL SE JÁ ESTIVER CONECTADO
+        if (
+          resp.status === 'connected' ||
+          resp.status === 'already_connected' ||
+          resp.status === 'authenticated' ||
+          resp.status === 'ready'
+        ) {
+          debug('🎉 WhatsApp já está conectado! Fechando modal QR.', 'success');
+          modalQr.style.display = 'none';
+          pararPollingQr();
+          retomarPollingStatus();
+          atualizarStatusCanais();
+          return;
+        }
+
         if (resp.qr) {
           debug(`✅ QR Code encontrado! Tamanho: ${resp.qr.length} chars`, 'success');
           debug(`🔗 Endpoint usado: ${resp.endpoint_used || 'N/A'}`, 'info');
-          
           // Gerar novo QR Code
           new QRCode(qrArea, {
             text: resp.qr,
@@ -616,17 +627,14 @@ document.addEventListener('DOMContentLoaded', function() {
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.H
           });
-          
           // Adicionar informações de debug
           const infoDiv = document.createElement('div');
           infoDiv.style.cssText = 'margin-top: 10px; font-size: 12px; color: #666; text-align: center;';
           infoDiv.innerHTML = `QR Code atualizado em: ${new Date().toLocaleTimeString()}<br>Status: ${resp.debug?.qr_status || 'Aguardando escaneamento'}`;
           qrArea.appendChild(infoDiv);
-          
         } else {
           debug('❌ QR Code não disponível na resposta', 'warning');
           qrArea.innerHTML = '<div style="color:#f59e0b;font-weight:bold;text-align:center;padding:20px;">QR Code não disponível. Aguarde...</div>';
-          
           // Mostrar informações de debug
           if (resp.debug) {
             const debugDiv = document.createElement('div');
