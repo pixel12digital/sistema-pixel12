@@ -34,8 +34,38 @@ $status = cache_remember('status_canais_completo', function() use ($mysqli) {
                 error_log("Erro cURL canal {$canal_id}: " . curl_error($ch));
             } else if ($httpCode === 200) {
                 $json = json_decode($result, true);
-                if ($json && isset($json['ready']) && $json['ready']) {
-                    $conectado = true;
+                
+                // CORREÇÃO: Usar a mesma lógica do frontend
+                if ($json) {
+                    // Verificar se está conectado usando múltiplos campos
+                    $isConnected = false;
+                    
+                    // 1. Verificar campo ready
+                    if (isset($json['ready']) && $json['ready'] === true) {
+                        $isConnected = true;
+                    }
+                    
+                    // 2. Verificar status direto
+                    if (isset($json['status']) && in_array($json['status'], ['connected', 'already_connected', 'authenticated', 'ready'])) {
+                        $isConnected = true;
+                    }
+                    
+                    // 3. Verificar raw_response_preview (mesma lógica do frontend)
+                    if (isset($json['debug']['raw_response_preview'])) {
+                        try {
+                            $parsedResponse = json_decode($json['debug']['raw_response_preview'], true);
+                            if ($parsedResponse) {
+                                $realStatus = $parsedResponse['status']['status'] ?? $parsedResponse['status'] ?? null;
+                                if (in_array($realStatus, ['connected', 'already_connected', 'authenticated', 'ready'])) {
+                                    $isConnected = true;
+                                }
+                            }
+                        } catch (Exception $e) {
+                            // Ignorar erro de parse
+                        }
+                    }
+                    
+                    $conectado = $isConnected;
                     $lastSession = $json['lastSession'] ?? null;
                 }
             }

@@ -1194,15 +1194,51 @@ function render_content() {
     
     robotStatus.checking = true;
     
-    fetch(`http://212.85.11.238:3000/status`)
+    // CORREÇÃO: Usar proxy PHP ao invés de chamada direta ao VPS
+    fetch('ajax_whatsapp.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: 'action=status'
+    })
       .then(response => response.json())
       .then(data => {
-        updateRobotUI(data.ready, data.number, null);
-        robotStatus.connected = data.ready;
+        // CORREÇÃO: Usar a mesma lógica do frontend principal
+        let isConnected = false;
+        
+        // 1. Verificar campo ready
+        if (data.ready === true) {
+          isConnected = true;
+        }
+        
+        // 2. Verificar status direto
+        if (data.status && ['connected', 'already_connected', 'authenticated', 'ready'].includes(data.status)) {
+          isConnected = true;
+        }
+        
+        // 3. Verificar raw_response_preview (mesma lógica do frontend)
+        if (data.debug && data.debug.raw_response_preview) {
+          try {
+            const parsedResponse = JSON.parse(data.debug.raw_response_preview);
+            const realStatus = parsedResponse.status?.status || parsedResponse.status;
+            if (['connected', 'already_connected', 'authenticated', 'ready'].includes(realStatus)) {
+              isConnected = true;
+            }
+          } catch (e) {
+            // Ignorar erro de parse
+          }
+        }
+        
+        updateRobotUI(isConnected, data.number, null);
+        robotStatus.connected = isConnected;
         robotStatus.lastCheck = Date.now();
+        
+        console.log('[Chat] Status do robô verificado:', isConnected ? 'CONECTADO' : 'DESCONECTADO');
       })
       .catch(error => {
-        updateRobotUI(false, null, 'Robô desconectado');
+        console.error('[Chat] Erro ao verificar status do robô:', error);
+        updateRobotUI(false, null, 'Erro de conexão');
         robotStatus.connected = false;
         robotStatus.lastCheck = Date.now();
       })
@@ -1233,16 +1269,26 @@ function render_content() {
   
   function gerenciarRobo() {
     if (robotStatus.connected) {
-      // Desconectar robô
-      fetch(`http://212.85.11.238:3000/session/default/disconnect`)
+      // Desconectar robô usando proxy PHP
+      fetch('ajax_whatsapp.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'action=logout'
+      })
         .then(response => response.json())
         .then(data => {
           if (data.success) {
             updateRobotUI(false, null, 'Desconectado pelo usuário');
             robotStatus.connected = false;
+            console.log('[Chat] Robô desconectado com sucesso');
+          } else {
+            alert('Erro ao desconectar robô: ' + (data.error || 'Erro desconhecido'));
           }
         })
         .catch(error => {
+          console.error('[Chat] Erro ao desconectar robô:', error);
           alert('Erro ao desconectar robô: ' + error.message);
         });
     } else {
@@ -1258,13 +1304,13 @@ function render_content() {
     }
     
     try {
-      // Usar endpoint PHP como proxy para evitar CORS
-      const response = await fetch('enviar_mensagem_whatsapp.php', {
+      // Usar proxy PHP para enviar mensagem
+      const response = await fetch('ajax_whatsapp.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: `cliente_id=0&canal_id=36&mensagem=${encodeURIComponent(mensagem)}&numero_direto=${encodeURIComponent(numero)}`
+        body: `action=send&to=${encodeURIComponent(numero)}&message=${encodeURIComponent(mensagem)}`
       });
       
       if (!response.ok) {
@@ -1277,9 +1323,10 @@ function render_content() {
         throw new Error(data.error || 'Falha no envio via robô');
       }
       
+      console.log('[Chat] Mensagem enviada via robô:', data);
       return data;
     } catch (error) {
-      console.error('Erro ao enviar via robô:', error);
+      console.error('[Chat] Erro ao enviar via robô:', error);
       throw error;
     }
   }

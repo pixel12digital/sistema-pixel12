@@ -94,6 +94,7 @@ $custom_header = $custom_header ?? '';
           let totalWhatsapp = 0;
           let desconectados = 0;
           let conectados = 0;
+          
           statusList.forEach(st => {
             if (st.tipo === 'whatsapp') {
               totalWhatsapp++;
@@ -101,21 +102,31 @@ $custom_header = $custom_header ?? '';
               else conectados++;
             }
           });
+          
+          // DEBUG: Log para verificar o que está acontecendo
+          console.log(`[Template] Canais WhatsApp: ${totalWhatsapp} total, ${conectados} conectados, ${desconectados} desconectados`);
+          
           // Exibir notificação SOMENTE se houver pelo menos 1 desconectado e pelo menos 1 canal WhatsApp
           if (totalWhatsapp > 0 && desconectados > 0) {
             showPushNotification('Atenção: Existem canais WhatsApp desconectados!', 0);
+            console.log('[Template] Notificação de desconectados EXIBIDA');
           } else {
-            // Esconde notificação se todos conectados
+            // Esconde notificação se todos conectados ou não há canais
             var el = document.getElementById('push-notification');
             var msgEl = document.getElementById('push-notification-msg');
             if (el && msgEl && msgEl.textContent === 'Atenção: Existem canais WhatsApp desconectados!') {
               el.style.display = 'none';
+              console.log('[Template] Notificação de desconectados OCULTADA');
             }
           }
         })
-        .catch(() => {/* Silencioso */});
+        .catch((error) => {
+          console.error('[Template] Erro ao verificar canais:', error);
+        });
     }
-    setInterval(checarCanaisWhatsappDesconectados, 60000); // 60 segundos
+    
+    // Reduzir frequência de verificação para evitar conflitos
+    setInterval(checarCanaisWhatsappDesconectados, 120000); // 2 minutos ao invés de 1 minuto
     document.addEventListener('DOMContentLoaded', checarCanaisWhatsappDesconectados);
   </script>
   <?php include 'menu_lateral.php'; ?>
