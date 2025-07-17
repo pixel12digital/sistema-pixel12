@@ -93,18 +93,22 @@ $custom_header = $custom_header ?? '';
         .then(statusList => {
           let totalWhatsapp = 0;
           let desconectados = 0;
+          let conectados = 0;
           statusList.forEach(st => {
             if (st.tipo === 'whatsapp') {
               totalWhatsapp++;
               if (!st.conectado) desconectados++;
+              else conectados++;
             }
           });
+          // Exibir notificação SOMENTE se houver pelo menos 1 desconectado e pelo menos 1 canal WhatsApp
           if (totalWhatsapp > 0 && desconectados > 0) {
             showPushNotification('Atenção: Existem canais WhatsApp desconectados!', 0);
           } else {
+            // Esconde notificação se todos conectados
             var el = document.getElementById('push-notification');
             var msgEl = document.getElementById('push-notification-msg');
-            if (msgEl.textContent === 'Atenção: Existem canais WhatsApp desconectados!') {
+            if (el && msgEl && msgEl.textContent === 'Atenção: Existem canais WhatsApp desconectados!') {
               el.style.display = 'none';
             }
           }
