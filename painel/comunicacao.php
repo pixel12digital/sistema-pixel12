@@ -658,15 +658,30 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(resp => {
         // DEBUG: Mostrar resposta completa
         debug('🟦 Resposta completa do status: ' + JSON.stringify(resp), 'info');
+        
+        // CORREÇÃO: Extrair status do raw_response_preview se existir
+        let realStatus = null;
+        if (resp.debug && resp.debug.raw_response_preview) {
+          try {
+            const parsedResponse = JSON.parse(resp.debug.raw_response_preview);
+            realStatus = parsedResponse.status?.status || parsedResponse.status;
+            debug('🔍 Status extraído do raw_response_preview: ' + realStatus, 'info');
+          } catch (e) {
+            debug('❌ Erro ao fazer parse do raw_response_preview: ' + e.message, 'error');
+          }
+        }
+        
         // Unificar todos os campos possíveis de status
-        const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status];
+        const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status, realStatus];
         const isConnected =
           resp.ready === true ||
           statusList.includes('ready') ||
           statusList.includes('connected') ||
           statusList.includes('already_connected') ||
           statusList.includes('authenticated');
+        
         debug(`🔍 Verificando status durante QR: ready=${resp.ready}, statusList=${JSON.stringify(statusList)}`);
+        
         if (isConnected) {
           debug('🎉 WHATSAPP CONECTADO! Fechando modal e atualizando status...', 'success');
           modalQr.style.display = 'none';
@@ -875,14 +890,29 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(resp => {
         // DEBUG: Mostrar resposta completa
         debug('🟦 Resposta completa do status: ' + JSON.stringify(resp), 'info');
-        const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status];
+        
+        // CORREÇÃO: Extrair status do raw_response_preview se existir
+        let realStatus = null;
+        if (resp.debug && resp.debug.raw_response_preview) {
+          try {
+            const parsedResponse = JSON.parse(resp.debug.raw_response_preview);
+            realStatus = parsedResponse.status?.status || parsedResponse.status;
+            debug('🔍 Status extraído do raw_response_preview: ' + realStatus, 'info');
+          } catch (e) {
+            debug('❌ Erro ao fazer parse do raw_response_preview: ' + e.message, 'error');
+          }
+        }
+        
+        const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status, realStatus];
         const isConnected =
           resp.ready === true ||
           statusList.includes('ready') ||
           statusList.includes('connected') ||
           statusList.includes('already_connected') ||
           statusList.includes('authenticated');
+        
         debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, statusList=${JSON.stringify(statusList)})`, isConnected ? 'success' : 'warning');
+        
         if (isConnected) {
           statusText.textContent = 'Conectado';
           td.classList.remove('status-verificando');
