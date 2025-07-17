@@ -148,17 +148,22 @@ switch ($action) {
         $status_result = makeVPSRequest('/status?' . http_build_query(['_' => time()]));
         
         if ($status_result['success'] && $status_result['data']) {
-            // Verificar se o QR está na resposta do status
-            if (!empty($status_result['data']['qr'])) {
+            // Verificar se o QR está na resposta do status (caminho correto)
+            $qr_data = $status_result['data']['clients_status']['default']['qr'] ?? null;
+            $qr_status = $status_result['data']['clients_status']['default']['status'] ?? null;
+            
+            if (!empty($qr_data)) {
                 echo json_encode([
-                    'qr' => $status_result['data']['qr'],
-                    'ready' => $status_result['data']['ready'] ?? false,
-                    'message' => 'QR Code encontrado via /status',
+                    'qr' => $qr_data,
+                    'ready' => $qr_status === 'ready',
+                    'message' => $status_result['data']['clients_status']['default']['message'] ?? 'QR Code encontrado via /status',
                     'endpoint_used' => '/status',
                     'debug' => [
                         'qr_available' => true,
-                        'qr_length' => strlen($status_result['data']['qr']),
-                        'source' => 'status_endpoint'
+                        'qr_length' => strlen($qr_data),
+                        'source' => 'status_endpoint',
+                        'qr_status' => $qr_status,
+                        'full_path' => 'clients_status.default.qr'
                     ]
                 ]);
                 break;
