@@ -21,18 +21,24 @@ $status = cache_remember('status_canais_completo', function() use ($mysqli) {
             $conectado = false;
             $lastSession = null;
             
-            // Fazer request HTTP apenas se não estiver em cache
-            $ch = curl_init("http://127.0.0.1:$porta/status");
+            // CORREÇÃO: Usar proxy PHP ao invés de chamada direta ao localhost
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, 'http://localhost/loja-virtual-revenda/painel/ajax_whatsapp.php');
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, 'action=status');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 2);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 1);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/x-www-form-urlencoded',
+                'User-Agent: Status-Canais-API/1.0'
+            ]);
             
             $result = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
             
-            if ($result === false) {
-                error_log("Erro cURL canal {$canal_id}: " . curl_error($ch));
-            } else if ($httpCode === 200) {
+            if ($result && $httpCode === 200) {
                 $json = json_decode($result, true);
                 
                 // CORREÇÃO: Usar a mesma lógica do frontend
@@ -69,7 +75,6 @@ $status = cache_remember('status_canais_completo', function() use ($mysqli) {
                     $lastSession = $json['lastSession'] ?? null;
                 }
             }
-            curl_close($ch);
             
             // Atualizar status no banco apenas se mudou
             $novo_status = $conectado ? 'conectado' : 'pendente';

@@ -600,13 +600,28 @@ document.addEventListener('DOMContentLoaded', function() {
         // Limpar área do QR Code
         while (qrArea.firstChild) qrArea.removeChild(qrArea.firstChild);
 
-        // FECHAR MODAL SE JÁ ESTIVER CONECTADO
-        if (
+        // CORREÇÃO: Extrair status do raw_response_preview para verificar se já está conectado
+        let realStatus = null;
+        if (resp.debug && resp.debug.raw_response_preview) {
+          try {
+            const parsedResponse = JSON.parse(resp.debug.raw_response_preview);
+            realStatus = parsedResponse.status?.status || parsedResponse.status;
+            debug('🔍 Status extraído do raw_response_preview: ' + realStatus, 'info');
+          } catch (e) {
+            debug('❌ Erro ao fazer parse do raw_response_preview: ' + e.message, 'error');
+          }
+        }
+
+        // FECHAR MODAL SE JÁ ESTIVER CONECTADO (CORREÇÃO)
+        const isAlreadyConnected = 
+          (realStatus && ['connected', 'already_connected', 'authenticated', 'ready'].includes(realStatus)) ||
           resp.status === 'connected' ||
           resp.status === 'already_connected' ||
           resp.status === 'authenticated' ||
-          resp.status === 'ready'
-        ) {
+          resp.status === 'ready' ||
+          resp.ready === true;
+
+        if (isAlreadyConnected) {
           debug('🎉 WhatsApp já está conectado! Fechando modal QR.', 'success');
           modalQr.style.display = 'none';
           pararPollingQr();
@@ -632,22 +647,45 @@ document.addEventListener('DOMContentLoaded', function() {
           infoDiv.style.cssText = 'margin-top: 10px; font-size: 12px; color: #666; text-align: center;';
           infoDiv.innerHTML = `QR Code atualizado em: ${new Date().toLocaleTimeString()}<br>Status: ${resp.debug?.qr_status || 'Aguardando escaneamento'}`;
           qrArea.appendChild(infoDiv);
+          
+          // Adicionar informações de debug detalhadas
+          const debugDiv = document.createElement('div');
+          debugDiv.style.cssText = 'margin-top: 10px; font-size: 11px; color: #999; text-align: left; background: #f5f5f5; padding: 8px; border-radius: 4px;';
+          debugDiv.innerHTML = `Debug: ${JSON.stringify(resp.debug || {}, null, 2)}`;
+          qrArea.appendChild(debugDiv);
+          
+          qrCodeErrorShown = false; // Resetar flag de erro
         } else {
-          debug('❌ QR Code não disponível na resposta', 'warning');
-          qrArea.innerHTML = '<div style="color:#f59e0b;font-weight:bold;text-align:center;padding:20px;">QR Code não disponível. Aguarde...</div>';
-          // Mostrar informações de debug
-          if (resp.debug) {
-            const debugDiv = document.createElement('div');
-            debugDiv.style.cssText = 'margin-top: 10px; font-size: 11px; color: #999; text-align: center;';
-            debugDiv.innerHTML = `Debug: ${JSON.stringify(resp.debug)}`;
-            qrArea.appendChild(debugDiv);
+          debug('⚠️ ❌ QR Code não disponível na resposta', 'warning');
+          qrArea.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: #f59e0b;">
+              <div style="font-size: 3rem; margin-bottom: 1rem;">📱</div>
+              <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">QR Code não disponível</div>
+              <div style="font-size: 0.9rem; color: #666;">Aguarde alguns segundos e tente novamente</div>
+              <div style="margin-top: 1rem; font-size: 0.8rem; color: #999;">
+                Status: ${resp.debug?.status || 'Desconhecido'}<br>
+                Endpoint: ${resp.endpoint_used || 'N/A'}
+              </div>
+            </div>
+          `;
+          
+          // Mostrar erro apenas uma vez para evitar spam
+          if (!qrCodeErrorShown) {
+            debug('❌ QR Code não disponível - aguardando nova tentativa', 'error');
+            qrCodeErrorShown = true;
           }
         }
       })
-      .catch((error) => {
-        debug(`❌ Erro ao buscar QR Code: ${error.message}`, 'error');
+      .catch(err => {
+        debug('❌ Erro ao buscar QR Code: ' + err.message, 'error');
         var qrArea = document.getElementById('qr-code-area');
-        qrArea.innerHTML = '<span style="color:#b91c1c;font-weight:bold;text-align:center;display:block;padding:20px;">✅ CORS Corrigido! Erro ao buscar QR Code.<br>Verifique se o robô está rodando e conectado.</span>';
+        qrArea.innerHTML = `
+          <div style="text-align: center; padding: 40px 20px; color: #ef4444;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
+            <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">Erro ao carregar QR Code</div>
+            <div style="font-size: 0.9rem; color: #666;">${err.message}</div>
+          </div>
+        `;
       });
   }
 
@@ -671,16 +709,17 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         }
         
-        // Unificar todos os campos possíveis de status
+        // CORREÇÃO: Priorizar o status do raw_response_preview sobre o campo ready
         const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status, realStatus];
         const isConnected =
+          (realStatus && ['connected', 'already_connected', 'authenticated', 'ready'].includes(realStatus)) ||
           resp.ready === true ||
           statusList.includes('ready') ||
           statusList.includes('connected') ||
           statusList.includes('already_connected') ||
           statusList.includes('authenticated');
         
-        debug(`🔍 Verificando status durante QR: ready=${resp.ready}, statusList=${JSON.stringify(statusList)}`);
+        debug(`🔍 Verificando status durante QR: ready=${resp.ready}, realStatus=${realStatus}, statusList=${JSON.stringify(statusList)}`);
         
         if (isConnected) {
           debug('🎉 WHATSAPP CONECTADO! Fechando modal e atualizando status...', 'success');
@@ -695,8 +734,8 @@ document.addEventListener('DOMContentLoaded', function() {
           debug(`⏳ Aguardando conexão... Status atual: ${JSON.stringify(statusList)}`, 'warning');
         }
       })
-      .catch((err) => {
-        debug(`❌ Erro ao verificar status durante QR: ${err.message}`, 'error');
+      .catch(err => {
+        debug('❌ Erro ao verificar status: ' + err.message, 'error');
       });
   }
 
@@ -903,53 +942,49 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         }
         
+        // CORREÇÃO: Priorizar o status do raw_response_preview sobre o campo ready
         const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status, realStatus];
         const isConnected =
+          (realStatus && ['connected', 'already_connected', 'authenticated', 'ready'].includes(realStatus)) ||
           resp.ready === true ||
           statusList.includes('ready') ||
           statusList.includes('connected') ||
           statusList.includes('already_connected') ||
           statusList.includes('authenticated');
         
-        debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, statusList=${JSON.stringify(statusList)})`, isConnected ? 'success' : 'warning');
+        debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, realStatus=${realStatus}, statusList=${JSON.stringify(statusList)})`, isConnected ? 'success' : 'warning');
         
         if (isConnected) {
           statusText.textContent = 'Conectado';
           td.classList.remove('status-verificando');
           td.classList.add('status-conectado');
           td.classList.remove('status-pendente');
-          if (acoesArea) {
-            acoesArea.innerHTML = '<button class="btn-ac btn-desconectar btn-desconectar-canal" data-porta="' + porta + '">Desconectar</button>';
-            debug(`🔄 Botão alterado para "Desconectar" no canal ${canalId}`, 'success');
-          }
+          if (acoesArea) acoesArea.innerHTML = '<button class="btn-ac btn-desconectar btn-desconectar-canal" data-porta="' + porta + '">Desconectar</button>';
           if (resp.lastSession) {
             var dt = new Date(resp.lastSession);
             dataConexaoTd.textContent = dt.toLocaleString('pt-BR');
           } else {
             dataConexaoTd.textContent = '-';
           }
-          debug(`✅ Status do canal ${canalId} atualizado para CONECTADO`, 'success');
+          debug('✅ Botão alterado para "Desconectar" no canal ' + canalId, 'success');
         } else {
           statusText.textContent = 'Desconectado';
           td.classList.remove('status-verificando');
           td.classList.remove('status-conectado');
           td.classList.add('status-pendente');
-          if (acoesArea) {
-            acoesArea.innerHTML = '<button class="btn-ac btn-conectar btn-conectar-canal" data-porta="' + porta + '">Conectar</button>';
-            debug(`🔄 Botão alterado para "Conectar" no canal ${canalId}`, 'warning');
-          }
+          if (acoesArea) acoesArea.innerHTML = '<button class="btn-ac btn-conectar btn-conectar-canal" data-porta="' + porta + '">Conectar</button>';
           dataConexaoTd.textContent = '-';
-          debug(`⚠️ Status do canal ${canalId} atualizado para DESCONECTADO`, 'warning');
+          debug('❌ Botão alterado para "Conectar" no canal ' + canalId, 'warning');
         }
+        
+        debug('✅ Status do canal ' + canalId + ' atualizado para ' + (isConnected ? 'CONECTADO' : 'DESCONECTADO'), 'success');
       })
-      .catch(error => {
-        debug(`❌ Erro no canal ${canalId}: ${error.message}`, 'error');
+      .catch(err => {
+        debug('❌ Erro ao atualizar status individual: ' + err.message, 'error');
         statusText.textContent = 'Erro';
         td.classList.remove('status-verificando');
         td.classList.remove('status-conectado');
         td.classList.add('status-pendente');
-        if (acoesArea) acoesArea.innerHTML = '<button class="btn-ac btn-conectar btn-conectar-canal" data-porta="' + porta + '">Conectar</button>';
-        dataConexaoTd.textContent = '-';
       });
   }
 
