@@ -529,6 +529,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }).then(() => location.reload());
               }
             }
+            
+            // CORREÇÃO: Fechar notificação automaticamente quando conectado
+            fecharNotificacaoDesconectados();
           } else {
             statusText.textContent = 'Desconectado';
             td.classList.remove('status-verificando');
@@ -757,6 +760,10 @@ document.addEventListener('DOMContentLoaded', function() {
           if (qrInterval) clearInterval(qrInterval);
           retomarPollingStatus();
           atualizarStatusCanais();
+          
+          // CORREÇÃO: Fechar notificação automaticamente quando conectado
+          fecharNotificacaoDesconectados();
+          
           alert('Canal conectado com sucesso!');
           debug('✅ Fluxo de conexão completado com sucesso', 'success');
         } else {
@@ -918,6 +925,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 3000);
   }
 
+  // ===== FUNÇÃO PARA FECHAR NOTIFICAÇÃO AUTOMATICAMENTE =====
+  function fecharNotificacaoDesconectados() {
+    const notification = document.getElementById('push-notification');
+    if (notification) {
+      notification.style.display = 'none';
+      debug('🔕 Notificação de desconectados fechada automaticamente', 'success');
+    }
+  }
+
   // ===== CORREÇÃO: FUNÇÃO ATUALIZAR STATUS USANDO PROXY =====
   function atualizarStatusCanais() {
     debug('🔄 Iniciando atualização de status dos canais via proxy...', 'info');
@@ -996,6 +1012,9 @@ document.addEventListener('DOMContentLoaded', function() {
             dataConexaoTd.textContent = '-';
           }
           debug('✅ Botão alterado para "Desconectar" no canal ' + canalId, 'success');
+          
+          // CORREÇÃO: Fechar notificação automaticamente quando conectado
+          fecharNotificacaoDesconectados();
         } else {
           statusText.textContent = 'Desconectado';
           td.classList.remove('status-verificando');
@@ -1101,6 +1120,11 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           // Esconde notificação se todos conectados
           document.getElementById('push-notification').style.display = 'none';
+          
+          // CORREÇÃO: Fechar notificação automaticamente quando há canais conectados
+          if (conectados > 0) {
+            fecharNotificacaoDesconectados();
+          }
         }
         pushStatusErrorShown = false; // Resetar flag de erro ao sucesso
       })
