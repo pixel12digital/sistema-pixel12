@@ -474,8 +474,11 @@ document.addEventListener('DOMContentLoaded', function() {
       // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
       makeWhatsAppRequest('status')
         .then(resp => {
+          // Usar o novo campo status_display se disponível, senão usar lógica antiga
+          const statusToShow = resp.status_display || (resp.ready ? 'Conectado' : 'Desconectado');
+          
           if (resp.ready) {
-            statusText.textContent = 'Conectado';
+            statusText.textContent = statusToShow;
             td.classList.remove('status-verificando');
             td.classList.add('status-conectado');
             td.classList.remove('status-pendente');
@@ -498,12 +501,17 @@ document.addEventListener('DOMContentLoaded', function() {
               }
             }
           } else {
-            statusText.textContent = 'Desconectado';
+            statusText.textContent = statusToShow;
             td.classList.remove('status-verificando');
             td.classList.remove('status-conectado');
             td.classList.add('status-pendente');
             if (acoesArea) acoesArea.innerHTML = '<button class="btn-ac btn-conectar btn-conectar-canal" data-porta="' + porta + '">Conectar</button>';
             dataConexaoTd.textContent = '-';
+          }
+          
+          // Debug para produção
+          if (resp.status_display) {
+            console.log('📱 Status WhatsApp:', resp.status_display, 'Raw:', resp.raw_status);
           }
         })
         .catch(() => {

@@ -104,13 +104,42 @@ switch ($action) {
         if ($result['success'] && $result['data']) {
             // Formatar resposta para compatibilidade com JavaScript original
             $status = $result['data']['clients_status']['default']['status'] ?? 'disconnected';
+            $number = $result['data']['clients_status']['default']['number'] ?? null;
+            $message = $result['data']['clients_status']['default']['message'] ?? '';
+            
+            // Interpretar corretamente os status da API WhatsApp
+            $is_ready = false;
+            $status_display = 'Desconectado';
+            
+            switch ($status) {
+                case 'ready':
+                    $is_ready = true;
+                    $status_display = 'Conectado';
+                    break;
+                case 'qr_ready':
+                    $is_ready = false;
+                    $status_display = 'QR Disponível';
+                    break;
+                case 'connecting':
+                    $is_ready = false;
+                    $status_display = 'Conectando...';
+                    break;
+                case 'disconnected':
+                default:
+                    $is_ready = false;
+                    $status_display = 'Desconectado';
+                    break;
+            }
+            
             echo json_encode([
-                'ready' => $status === 'ready',
-                'number' => $result['data']['clients_status']['default']['number'] ?? null,
+                'ready' => $is_ready,
+                'number' => $number,
                 'lastSession' => $result['data']['timestamp'] ?? null,
                 'sessions' => $result['data']['sessions'] ?? 0,
-                'message' => $result['data']['message'] ?? '',
+                'message' => $message,
                 'clients_status' => $result['data']['clients_status'] ?? [],
+                'status_display' => $status_display,
+                'raw_status' => $status,
                 'performance' => [
                     'latency_ms' => $result['latency_ms'] ?? 0,
                     'optimized' => true
