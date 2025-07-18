@@ -69,7 +69,7 @@ function renderizarTabelaCobrancas() {
     const pageData = cobrancasFiltradas.slice(inicio, fim);
     if (pageData.length === 0) {
         const tr = document.createElement('tr');
-        tr.innerHTML = '<td colspan="9" style="text-align:center;">Nenhuma cobrança encontrada.</td>';
+        tr.innerHTML = '<td colspan="10" style="text-align:center;">Nenhuma cobrança encontrada.</td>';
         tbody.appendChild(tr);
         atualizarTotaisCobrancas([]);
         atualizarTotalFaturasInfo([]);
@@ -106,11 +106,27 @@ function renderizarTabelaCobrancas() {
         } else {
             contatoHtml = `<input type="text" class="input-contato-principal" data-cliente="${cob.cliente_id}" placeholder="Preencher nome..." style="min-width:80px;max-width:120px;padding:2px 6px;border:1px solid #a259e6;border-radius:4px;" />`;
         }
-        // Remover a geração do botão Corrigir:
-        // let btnCorrigir = '';
-        // if (cob.whatsapp_status === 'enviado' && cob.whatsapp_msg_id && Number(cob.whatsapp_msg_id) > 0) {
-        //   btnCorrigir = `<button class="btn-corrigir-status" data-msg-id="${cob.whatsapp_msg_id}" title="Corrigir status para Pendente" style="background:#fde68a;color:#b45309;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:0.95em;">Corrigir</button>`;
-        // }
+        
+        // Coluna de Monitoramento
+        const celularCliente = cob.cliente_celular || '';
+        const monitoramentoHtml = `
+            <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                    <input type="checkbox" class="checkbox-monitoramento" data-cliente-id="${cob.cliente_id}" style="width: 14px; height: 14px;">
+                    <span>Monitorar</span>
+                </label>
+                <button class="btn-validar-cliente" 
+                        data-cliente-id="${cob.cliente_id}" 
+                        data-cliente-nome="${cob.cliente_nome || ''}" 
+                        data-cliente-celular="${celularCliente}"
+                        style="background: #10b981; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;"
+                        ${!celularCliente ? 'disabled' : ''}
+                        title="${!celularCliente ? 'Cliente sem celular' : 'Enviar mensagem de validação'}">
+                    Validar
+                </button>
+            </div>
+        `;
+        
         tr.innerHTML = `
             <td class="px-3 py-2 text-center">${inicio + idx + 1}</td>
             <td class="px-2 py-2 text-left" style="min-width:100px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${cob.cliente_nome || '-'}</td>
@@ -120,6 +136,7 @@ function renderizarTabelaCobrancas() {
             <td class="px-3 py-2 text-center">${traduzirStatus(cob.status)}</td>
             <td class="px-2 py-2 text-center ultima-interacao-cell" data-cliente="${cob.cliente_id}" data-cobranca="${cob.id}" data-valor="${cob.ultima_interacao || ''}" title="Clique para editar" style="cursor:pointer;">${formatarDataHoraBR(cob.ultima_interacao)}</td>
             <td class="px-2 py-2 text-center status-envio-cell" data-cliente="${cob.cliente_id}" data-cobranca="${cob.id}" data-status="${cob.whatsapp_status || ''}" title="Clique para corrigir status" style="cursor:pointer;">${statusHtml}</td>
+            <td class="px-2 py-2 text-center">${monitoramentoHtml}</td>
             <td class="px-3 py-2 text-center" style="min-width:90px; white-space:nowrap;"><span style='display:flex;align-items:center;gap:6px;justify-content:center;'>${iconeBoleto}${iconeCliente}${iconeWhats}</span></td>
         `;
         tbody.appendChild(tr);

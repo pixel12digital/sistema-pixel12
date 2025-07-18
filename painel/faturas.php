@@ -98,6 +98,7 @@ function render_content() {
         <th class="px-3 py-2">Status</th>
         <th class="px-3 py-2">Última Interação</th>
         <th class="px-3 py-2">Status Envio</th>
+        <th class="px-3 py-2">Monitoramento</th>
         <th class="px-3 py-2">Ações</th>
       </tr>
     </thead>
@@ -860,6 +861,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const scriptMonitoramento = document.createElement('script');
   scriptMonitoramento.src = 'monitoramento_otimizado.js';
   document.head.appendChild(scriptMonitoramento);
+  
+  // Carregar o sistema de monitoramento de clientes
+  const scriptMonitoramentoClientes = document.createElement('script');
+  scriptMonitoramentoClientes.src = 'assets/faturas_monitoramento.js';
+  document.head.appendChild(scriptMonitoramentoClientes);
   
   // Configurar botões do monitoramento
   const btnVerificarChave = document.getElementById('btn-verificar-chave');
