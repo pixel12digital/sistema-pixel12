@@ -427,7 +427,7 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
       }
       $is_received = $msg['direcao'] === 'recebido';
       $is_anotacao = isset($msg['tipo']) && $msg['tipo'] === 'anotacao';
-      $bubble = $is_anotacao ? 'background:#fbbf24;color:#23232b;' : ($is_received ? 'background:#23232b;color:#fff;' : 'background:#7c2ae8;color:#fff;');
+      $bubble = $is_anotacao ? 'background:#fef3c7;color:#23232b;' : ($is_received ? 'background:#23232b;color:#fff;' : 'background:#7c2ae8;color:#fff;');
       $canal = $is_anotacao ? 'Anotação' : htmlspecialchars($msg['canal_nome'] ?? 'Canal');
       $hora = date('H:i', strtotime($msg['data_hora']));
       $mensagem_original = $msg['mensagem'];
@@ -467,7 +467,7 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
       <form id="form-anotacao-manual" method="post" style="position:absolute;left:0;right:0;bottom:0;display:flex;gap:8px;align-items:center;padding:18px 20px;background:#f1f5f9;border-top:3px solid #7c2ae8;z-index:10;box-shadow:0 -2px 8px rgba(124,42,232,0.1);">
         <input type="text" id="titulo-anotacao" placeholder="Título da anotação (opcional)" style="flex:1;padding:10px 12px;border:2px solid #cbd5e1;border-radius:8px;font-size:0.9em;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
         <input type="text" id="anotacao-manual" placeholder="Digite sua anotação..." style="flex:2;padding:10px 12px;border:2px solid #cbd5e1;border-radius:8px;font-size:0.9em;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-        <button type="submit" style="background:#7c2ae8;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:500;font-size:0.9em;transition:background 0.2s;box-shadow:0 2px 4px rgba(124,42,232,0.3);" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c2ae8'">Salvar</button>
+        <button type="submit" style="background:#7c2ae8;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:500;font-size:0.9em;transition:background 0.2s;box-shadow:0 2px 4px rgba(124,42,232,0.3);" onmouseover="this.style.background=\'#6d28d9\'" onmouseout="this.style.background=\'#7c2ae8\'">Salvar</button>
       </form>
     </div>
   </div>';
@@ -583,7 +583,7 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
             
             // Criar anotação
             const anotacaoDiv = document.createElement("div");
-            anotacaoDiv.style = "background:#fbbf24;color:#23232b;border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid #f59e0b;";
+            anotacaoDiv.style = "background:#fef3c7;color:#23232b;border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid #f59e0b;";
             anotacaoDiv.setAttribute("data-mensagem-id", resp.id);
             
             let conteudo = "<div style=\"font-size:0.9em;font-weight:600;margin-bottom:6px;opacity:0.9;\">Anotação <span style=\"font-size:0.85em;font-weight:400;margin-left:8px;\">Enviado às " + agora + "</span></div>";

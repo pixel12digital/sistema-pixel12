@@ -423,7 +423,7 @@ foreach ($cobrancas as $cob) {
               
               $is_received = $msg['direcao'] === 'recebido';
               $is_anotacao = isset($msg['tipo']) && $msg['tipo'] === 'anotacao';
-              $bubble = $is_anotacao ? 'background:#fbbf24;color:#23232b;' : ($is_received ? 'background:#23232b;color:#fff;' : 'background:#7c2ae8;color:#fff;');
+              $bubble = $is_anotacao ? 'background:#fef3c7;color:#23232b;' : ($is_received ? 'background:#23232b;color:#fff;' : 'background:#7c2ae8;color:#fff;');
               $canal = $is_anotacao ? 'Anotação' : htmlspecialchars($msg['canal_nome'] ?? 'Canal');
               $hora = date('H:i', strtotime($msg['data_hora']));
               $mensagem_original = $msg['mensagem'];
@@ -569,7 +569,7 @@ document.addEventListener("DOMContentLoaded", function() {
           
           // Criar anotação
           const anotacaoDiv = document.createElement("div");
-          anotacaoDiv.style = "background:#fbbf24;color:#23232b;border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid #f59e0b;";
+          anotacaoDiv.style = "background:#fef3c7;color:#23232b;border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid #f59e0b;";
           anotacaoDiv.setAttribute("data-mensagem-id", resp.id);
           
           let conteudo = "<div style=\"font-size:0.9em;font-weight:600;margin-bottom:6px;opacity:0.9;\">Anotação <span style=\"font-size:0.85em;font-weight:400;margin-left:8px;\">Enviado às " + agora + "</span></div>";

@@ -1,57 +1,46 @@
 <?php
-// Prevent any HTML output before JSON response
-ob_start();
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../db.php';
 
-require_once '../config.php';
-
-// Check database connection before including db.php
-try {
-    $mysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-    if ($mysqli->connect_errno) {
-        throw new Exception('Erro ao conectar ao MySQL: ' . $mysqli->connect_error);
-    }
-    $mysqli->set_charset('utf8mb4');
-    
-    // Configurar timeout para evitar conexões órfãs
-    $mysqli->query("SET SESSION wait_timeout=300");
-    $mysqli->query("SET SESSION interactive_timeout=300");
-} catch (Exception $e) {
-    // Clear any output buffer
-    ob_end_clean();
-    
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['success' => false, 'error' => 'Erro de conexão com banco de dados: ' . $e->getMessage()]);
-    exit;
-}
-
-// Clear any output buffer and set JSON header
-ob_end_clean();
 header('Content-Type: application/json; charset=utf-8');
 
-// Log para debug
-error_log("[DEBUG] editar_cliente.php - Iniciando processamento");
+// Capturar output para evitar HTML misturado com JSON
+ob_start();
 
-// Processa salvamento do formulário de edição do cliente
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
+try {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Método não permitido');
+    }
+
+    if (!isset($_POST['id']) || !is_numeric($_POST['id'])) {
+        throw new Exception('ID de cliente inválido');
+    }
+
     $id = intval($_POST['id']);
     error_log("[DEBUG] editar_cliente.php - ID do cliente: $id");
     
+    // TODOS os campos da tabela clientes
     $campos = [
-        'nome', 'contact_name', 'cpf_cnpj', 'razao_social', 'data_criacao', 'data_atualizacao', 'asaas_id', 'referencia_externa', 'criado_em_asaas',
+        'nome', 'contact_name', 'cpf_cnpj', 'razao_social',
         'email', 'emails_adicionais', 'telefone', 'celular',
         'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'pais',
-        'observacoes', 'plano', 'status'
+        'notificacao_desativada', 'referencia_externa', 'observacoes',
+        'asaas_id', 'criado_em_asaas'
     ];
+    
     $set = [];
     $params = [];
     $types = '';
+    
     foreach ($campos as $campo) {
         if (isset($_POST[$campo])) {
             $valor = trim($_POST[$campo]);
+            
             // Limpar telefone/celular para conter apenas números
             if (in_array($campo, ['telefone', 'celular'])) {
                 $valor = preg_replace('/\\D/', '', $valor);
             }
+            
             // Limpar e padronizar emails_adicionais para texto simples
             if ($campo === 'emails_adicionais') {
                 // Extrair todos os e-mails válidos
@@ -64,45 +53,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
                 });
                 $valor = $emails ? implode(', ', $emails) : '';
             }
+            
+            // Tratar campo boolean notificacao_desativada
+            if ($campo === 'notificacao_desativada') {
+                $valor = ($valor === '1' || $valor === 'true' || $valor === 'Sim') ? 1 : 0;
+            }
+            
             $set[] = "$campo = ?";
             $params[] = $valor;
             $types .= 's';
             error_log("[DEBUG] editar_cliente.php - Campo $campo: $valor");
         }
     }
-    if ($set) {
-        $sql = "UPDATE clientes SET ".implode(', ', $set)." WHERE id = ?";
-        error_log("[DEBUG] editar_cliente.php - SQL: $sql");
-        
-        $stmt = $mysqli->prepare($sql);
-        if (!$stmt) {
-            error_log("[ERROR] editar_cliente.php - Erro no prepare: " . $mysqli->error);
-            echo json_encode(['success' => false, 'error' => 'Erro na preparação da query: ' . $mysqli->error]);
-            exit;
-        }
-        
-        $params[] = $id;
-        $types .= 'i';
-        $stmt->bind_param($types, ...$params);
-        $result = $stmt->execute();
-        
-        if (!$result) {
-            error_log("[ERROR] editar_cliente.php - Erro no execute: " . $stmt->error);
-            echo json_encode(['success' => false, 'error' => 'Erro na execução: ' . $stmt->error]);
-        } else {
-            error_log("[DEBUG] editar_cliente.php - Cliente atualizado com sucesso");
-            echo json_encode(['success' => true, 'message' => 'Cliente atualizado com sucesso']);
-        }
-        $stmt->close();
-    } else {
-        error_log("[DEBUG] editar_cliente.php - Nenhum campo para atualizar");
-        echo json_encode(['success' => false, 'error' => 'Nenhum campo para atualizar']);
+    
+    if (empty($set)) {
+        throw new Exception('Nenhum campo para atualizar');
     }
-} else {
-    error_log("[DEBUG] editar_cliente.php - Método não permitido ou ID não fornecido");
-    echo json_encode(['success' => false, 'error' => 'Método não permitido']);
+    
+    // Adicionar data_atualizacao automaticamente
+    $set[] = "data_atualizacao = NOW()";
+    
+    $sql = "UPDATE clientes SET " . implode(', ', $set) . " WHERE id = ?";
+    $params[] = $id;
+    $types .= 'i';
+    
+    error_log("[DEBUG] editar_cliente.php - SQL: $sql");
+    error_log("[DEBUG] editar_cliente.php - Params: " . json_encode($params));
+    
+    $stmt = $mysqli->prepare($sql);
+    if (!$stmt) {
+        throw new Exception('Erro ao preparar query: ' . $mysqli->error);
+    }
+    
+    $stmt->bind_param($types, ...$params);
+    
+    if (!$stmt->execute()) {
+        throw new Exception('Erro ao executar query: ' . $stmt->error);
+    }
+    
+    if ($stmt->affected_rows > 0) {
+        // Limpar qualquer output anterior
+        ob_clean();
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Cliente atualizado com sucesso',
+            'affected_rows' => $stmt->affected_rows
+        ]);
+    } else {
+        // Limpar qualquer output anterior
+        ob_clean();
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Nenhuma alteração foi necessária',
+            'affected_rows' => 0
+        ]);
+    }
+    
+    $stmt->close();
+    
+} catch (Exception $e) {
+    // Limpar qualquer output anterior
+    ob_clean();
+    
+    error_log("[ERROR] editar_cliente.php - " . $e->getMessage());
+    
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ]);
+} catch (Error $e) {
+    // Limpar qualquer output anterior
+    ob_clean();
+    
+    error_log("[ERROR] editar_cliente.php - " . $e->getMessage());
+    
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Erro interno do servidor'
+    ]);
 }
 
-// Close database connection
-$mysqli->close();
+// Garantir que nada mais seja enviado
+ob_end_flush();
 ?> 

@@ -9,30 +9,47 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     echo '<div class="painel-container"><div class="painel-header"><div class="painel-nome">Cliente não encontrado</div></div></div>';
     return;
   }
+  
+  // TODOS os campos da tabela clientes organizados por categoria
   $dados_pessoais = [
-    'nome', 'contact_name', 'cpf_cnpj', 'razao_social', 'data_criacao', 'data_atualizacao', 'asaas_id', 'referencia_externa', 'criado_em_asaas'
+    'nome', 'contact_name', 'cpf_cnpj', 'razao_social'
   ];
-  $contato = ['email', 'emails_adicionais', 'telefone', 'celular'];
-  $endereco = ['cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'pais'];
-  $outros = array_diff(array_keys($cliente ?? []), array_merge($dados_pessoais, $contato, $endereco));
+  $contato = [
+    'email', 'emails_adicionais', 'telefone', 'celular'
+  ];
+  $endereco = [
+    'cep', 'rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'pais'
+  ];
+  $sistema = [
+    'id', 'asaas_id', 'data_criacao', 'data_atualizacao', 'criado_em_asaas'
+  ];
+  $configuracoes = [
+    'notificacao_desativada', 'referencia_externa', 'observacoes'
+  ];
+  
   // Função auxiliar para formatar campos
   if (!function_exists('formatar_campo')) {
     function formatar_campo($campo, $valor) {
       if ($valor === null || $valor === '' || $valor === '0-0-0' || $valor === '0000-00-00') return '—';
       $labels = [
-        'nome' => 'Nome', 'contact_name' => 'Contato', 'cpf_cnpj' => 'CPF/CNPJ', 'razao_social' => 'Razão Social',
+        'nome' => 'Nome', 'contact_name' => 'Contato Principal', 'cpf_cnpj' => 'CPF/CNPJ', 'razao_social' => 'Razão Social',
         'data_criacao' => 'Data de Criação', 'data_atualizacao' => 'Data de Atualização', 'asaas_id' => 'ID Asaas',
         'referencia_externa' => 'Referência Externa', 'criado_em_asaas' => 'Criado no Asaas', 'email' => 'E-mail',
         'emails_adicionais' => 'E-mails Adicionais', 'telefone' => 'Telefone', 'celular' => 'Celular', 'cep' => 'CEP',
         'rua' => 'Rua', 'numero' => 'Número', 'complemento' => 'Complemento', 'bairro' => 'Bairro', 'cidade' => 'Cidade',
         'estado' => 'Estado', 'pais' => 'País', 'id' => 'ID', 'observacoes' => 'Observações', 'plano' => 'Plano', 'status' => 'Status',
+        'notificacao_desativada' => 'Notificações Desativadas'
       ];
       $label = $labels[$campo] ?? ucfirst(str_replace('_', ' ', $campo));
+      
+      // Datas
       if (preg_match('/^\d{4}-\d{2}-\d{2}/', $valor)) {
         $data = substr($valor, 0, 10);
         $partes = explode('-', $data);
         if (count($partes) === 3) return "$label: {$partes[2]}/{$partes[1]}/{$partes[0]}";
       }
+      
+      // CPF/CNPJ
       if ($campo === 'cpf_cnpj' && preg_match('/^\d{11,14}$/', $valor)) {
         if (strlen($valor) === 11) {
           return "$label: " . preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $valor);
@@ -40,12 +57,71 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
           return "$label: " . preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $valor);
         }
       }
+      
+      // Telefone/Celular
       if (($campo === 'telefone' || $campo === 'celular') && preg_match('/^\d{10,11}$/', $valor)) {
         return "$label: (" . substr($valor,0,2) . ") " . substr($valor,-9,-4) . '-' . substr($valor,-4);
       }
+      
+      // Notificação desativada (boolean)
+      if ($campo === 'notificacao_desativada') {
+        return "$label: " . ($valor ? 'Sim' : 'Não');
+      }
+      
+      // Label padrão
       return "$label: $valor";
     }
   }
+  
+  // Função para renderizar campo editável
+  function render_campo_editavel($campo, $valor, $cliente_id, $cliente) {
+    $valor_exibicao = $valor;
+    if ($valor === null || $valor === '' || $valor === '0-0-0' || $valor === '0000-00-00') {
+      $valor_exibicao = '—';
+    }
+    
+    // Campos que não devem ser editáveis
+    $campos_nao_editaveis = ['id', 'data_criacao', 'data_atualizacao'];
+    
+    if (in_array($campo, $campos_nao_editaveis)) {
+      // Campo somente leitura
+      if ($campo === 'id') {
+        return '<span style="font-family:monospace; background:#f3f4f6; padding:4px 8px; border-radius:6px; color:#7c2ae8;">' . htmlspecialchars($valor_exibicao) . '</span>';
+      } elseif (in_array($campo, ['data_criacao', 'data_atualizacao'])) {
+        return '<span style="color:#64748b; font-size:0.9em;">' . htmlspecialchars($valor_exibicao) . '</span>';
+      }
+    }
+    
+    // Campo editável
+    $valor_original = $valor ?? '';
+    $placeholder = '';
+    
+    // Placeholders específicos
+    if ($campo === 'contact_name') $placeholder = 'Ex: João Silva';
+    elseif ($campo === 'email') $placeholder = 'exemplo@email.com';
+    elseif ($campo === 'telefone') $placeholder = '(11) 99999-9999';
+    elseif ($campo === 'celular') $placeholder = '(11) 99999-9999';
+    elseif ($campo === 'cpf_cnpj') $placeholder = '123.456.789-00';
+    elseif ($campo === 'cep') $placeholder = '12345-678';
+    
+    // Caso especial para celular com link WhatsApp
+    if ($campo === 'celular' && !empty($valor)) {
+      $celularLimpo = preg_replace('/\D/', '', $valor);
+      if (strlen($celularLimpo) === 11 && strpos($celularLimpo, '55') !== 0) {
+        $celularLimpo = '55' . $celularLimpo;
+      }
+      if (preg_match('/^55\d{11}$/', $celularLimpo)) {
+        return '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($valor_original) . '" data-placeholder="' . $placeholder . '">
+          <a href="#" class="abrir-whats-url" style="color:#25D366;text-decoration:underline;" title="Abrir chat interno" data-numero="' . $celularLimpo . '" data-cliente-id="' . intval($cliente['id']) . '">' . htmlspecialchars($valor_exibicao) . '</a>
+        </span>';
+      }
+    }
+    
+    return '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($valor_original) . '" data-placeholder="' . $placeholder . '">
+      ' . htmlspecialchars($valor_exibicao) . '
+    </span>';
+  }
+  
   echo '<style>
 .painel-container { max-width: 900px !important; margin: 40px auto !important; background: #f3f4f6 !important; border-radius: 18px !important; box-shadow: 0 6px 32px #7c2ae820, 0 2px 12px #0003 !important; padding: 32px 24px !important; }
 .painel-card { background: #fff !important; border-radius: 16px !important; box-shadow: 0 6px 24px rgba(124,42,232,0.12), 0 2px 12px rgba(0,0,0,0.10) !important; padding: 24px 20px !important; margin-bottom: 24px !important; border: 1.5px solid #ede9fe !important; transition: box-shadow 0.2s; }
@@ -335,34 +411,16 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     };
     </script>";
   } else {
-    // Dados Gerais
+    // Dados Gerais - MOSTRAR TODOS OS CAMPOS
     echo '<div class="painel-tab painel-tab-dados" style="display:block;">
       <div class="painel-grid">';
+    
     // Dados Pessoais
     echo '<div class="painel-card"><h4>👤 Dados Pessoais</h4><table><tbody>';
-    // Nome
-    echo '<tr><td class="font-semibold text-gray-600">Nome:</td><td>
-      <span class="campo-editavel" data-campo="nome" data-valor="' . htmlspecialchars($cliente['nome'] ?? '') . '">
-        ' . htmlspecialchars($cliente['nome'] ?? '') . '
-      </span>
-    </td></tr>';
-    // Contato Principal
-    echo '<tr><td class="font-semibold text-gray-600">Contato Principal:</td><td>
-      <span class="campo-editavel" data-campo="contact_name" data-valor="' . htmlspecialchars($cliente['contact_name'] ?? '') . '" data-placeholder="Ex: João">
-        ' . htmlspecialchars($cliente['contact_name'] ?? '—') . '
-      </span>
-    </td></tr>';
-    // Outros campos de dados pessoais (excluindo nome e contact_name que já foram exibidos)
     foreach ($dados_pessoais as $campo) {
-      if (!isset($cliente[$campo]) || in_array($campo, ['nome','contact_name'])) continue;
-      echo '<tr><td class="font-semibold text-gray-600">' . ucfirst(str_replace('_', ' ', $campo)) . ':</td><td>';
-      if ($campo === 'asaas_id') {
-        echo '<span style="font-family:monospace; background:#f3f4f6; padding:4px 8px; border-radius:6px; color:#7c2ae8;">' . htmlspecialchars($cliente[$campo]) . '</span>';
-      } else {
-        echo '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-          ' . htmlspecialchars($cliente[$campo]) . '
-        </span>';
-      }
+      $label = ucfirst(str_replace('_', ' ', $campo));
+      echo '<tr><td class="font-semibold text-gray-600">' . $label . ':</td><td>';
+      echo render_campo_editavel($campo, $cliente[$campo] ?? null, $cliente_id, $cliente);
       echo '</td></tr>';
     }
     echo '</tbody></table></div>';
@@ -370,30 +428,9 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     // Contato
     echo '<div class="painel-card"><h4>✉️ Contato</h4><table><tbody>';
     foreach ($contato as $campo) {
-      if (!isset($cliente[$campo])) continue;
-      echo '<tr><td class="font-semibold text-gray-600">' . ucfirst(str_replace('_', ' ', $campo)) . ':</td><td>';
-      if ($campo === 'celular' && !empty($cliente[$campo])) {
-        // Deixar o número clicável para abrir o chat
-        $celularLimpo = preg_replace('/\D/', '', $cliente[$campo]);
-        if (strlen($celularLimpo) === 11 && strpos($celularLimpo, '55') !== 0) {
-          $celularLimpo = '55' . $celularLimpo;
-        }
-        // Garante que o link só é gerado se o número for válido
-        if (preg_match('/^55\d{11}$/', $celularLimpo)) {
-          echo '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-            <a href="#" class="abrir-whats-url" style="color:#25D366;text-decoration:underline;" title="Abrir chat interno" data-numero="' . $celularLimpo . '" data-cliente-id="' . intval($cliente['id']) . '">' . htmlspecialchars($cliente[$campo]) . '</a>
-          </span>';
-        } else {
-          // Se não for válido, apenas exibe o número sem link
-          echo '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-            ' . htmlspecialchars($cliente[$campo]) . '
-          </span>';
-        }
-      } else {
-        echo '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-          ' . htmlspecialchars($cliente[$campo]) . '
-        </span>';
-      }
+      $label = ucfirst(str_replace('_', ' ', $campo));
+      echo '<tr><td class="font-semibold text-gray-600">' . $label . ':</td><td>';
+      echo render_campo_editavel($campo, $cliente[$campo] ?? null, $cliente_id, $cliente);
       echo '</td></tr>';
     }
     echo '</tbody></table></div>';
@@ -401,25 +438,33 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     // Endereço
     echo '<div class="painel-card"><h4>📍 Endereço</h4><table><tbody>';
     foreach ($endereco as $campo) {
-      if (!isset($cliente[$campo])) continue;
-      echo '<tr><td class="font-semibold text-gray-600">' . ucfirst(str_replace('_', ' ', $campo)) . ':</td><td>
-        <span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-          ' . htmlspecialchars($cliente[$campo]) . '
-        </span>
-      </td></tr>';
+      $label = ucfirst(str_replace('_', ' ', $campo));
+      echo '<tr><td class="font-semibold text-gray-600">' . $label . ':</td><td>';
+      echo render_campo_editavel($campo, $cliente[$campo] ?? null, $cliente_id, $cliente);
+      echo '</td></tr>';
     }
     echo '</tbody></table></div>';
     
-    // Outros
-    echo '<div class="painel-card"><h4>🗂️ Outros</h4><table><tbody>';
-    foreach ($outros as $campo) {
-      echo '<tr><td class="font-semibold text-gray-600">' . ucfirst(str_replace('_', ' ', $campo)) . ':</td><td>
-        <span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-          ' . htmlspecialchars($cliente[$campo]) . '
-        </span>
-      </td></tr>';
+    // Sistema
+    echo '<div class="painel-card"><h4>⚙️ Sistema</h4><table><tbody>';
+    foreach ($sistema as $campo) {
+      $label = ucfirst(str_replace('_', ' ', $campo));
+      echo '<tr><td class="font-semibold text-gray-600">' . $label . ':</td><td>';
+      echo render_campo_editavel($campo, $cliente[$campo] ?? null, $cliente_id, $cliente);
+      echo '</td></tr>';
     }
     echo '</tbody></table></div>';
+    
+    // Configurações
+    echo '<div class="painel-card"><h4>🔧 Configurações</h4><table><tbody>';
+    foreach ($configuracoes as $campo) {
+      $label = ucfirst(str_replace('_', ' ', $campo));
+      echo '<tr><td class="font-semibold text-gray-600">' . $label . ':</td><td>';
+      echo render_campo_editavel($campo, $cliente[$campo] ?? null, $cliente_id, $cliente);
+      echo '</td></tr>';
+    }
+    echo '</tbody></table></div>';
+    
     echo '</div></div>';
   }
   // Projetos
@@ -459,7 +504,7 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
       }
       $is_received = $msg['direcao'] === 'recebido';
       $is_anotacao = isset($msg['tipo']) && $msg['tipo'] === 'anotacao';
-      $bubble = $is_anotacao ? 'background:#fbbf24;color:#23232b;' : ($is_received ? 'background:#23232b;color:#fff;' : 'background:#7c2ae8;color:#fff;');
+      $bubble = $is_anotacao ? 'background:#fef3c7;color:#23232b;' : ($is_received ? 'background:#23232b;color:#fff;' : 'background:#7c2ae8;color:#fff;');
       $canal = $is_anotacao ? 'Anotação' : htmlspecialchars($msg['canal_nome'] ?? 'Canal');
       $hora = date('H:i', strtotime($msg['data_hora']));
       $mensagem_original = $msg['mensagem'];
@@ -608,7 +653,7 @@ document.addEventListener("DOMContentLoaded", function() {
             mensagensArea.appendChild(grupoHoje);
           }
           const anotacaoDiv = document.createElement("div");
-          anotacaoDiv.style = "background:#fbbf24;color:#23232b;border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid #f59e0b;";
+          anotacaoDiv.style = "background:#fef3c7;color:#23232b;border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid #f59e0b;";
           anotacaoDiv.setAttribute("data-mensagem-id", resp.id);
           let conteudo = "<div style='font-size:0.9em;font-weight:600;margin-bottom:6px;opacity:0.9;'>Anotação <span style='font-size:0.85em;font-weight:400;margin-left:8px;'>Enviado às " + agora + "</span></div>";
           if (titulo) {

@@ -399,7 +399,7 @@ function render_content() {
           }
           $is_received = $msg['direcao'] === 'recebido';
           $is_anotacao = isset($msg['tipo']) && $msg['tipo'] === 'anotacao';
-          $bubble = $is_anotacao ? 'background:#fbbf24;color:#23232b;' : ($is_received ? 'background:#23232b;color:#fff;' : 'background:#7c2ae8;color:#fff;');
+          $bubble = $is_anotacao ? 'background:#fef3c7;color:#23232b;' : ($is_received ? 'background:#23232b;color:#fff;' : 'background:#7c2ae8;color:#fff;');
           $canal = $is_anotacao ? 'Anotação' : htmlspecialchars($msg['canal_nome'] ?? 'Canal');
           $hora = date('H:i', strtotime($msg['data_hora']));
           $mensagem_original = $msg['mensagem'];
