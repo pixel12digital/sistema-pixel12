@@ -114,9 +114,10 @@ invalidate_message_cache($cliente_id, [
 $enviado_api = false;
 
 try {
-    $api_url = WHATSAPP_ROBOT_URL . "/send";
+    $api_url = WHATSAPP_ROBOT_URL . "/send/text";
     $api_data = [
-        'to' => $numero,
+        'sessionName' => 'default',
+        'number' => $numero,
         'message' => $mensagem
     ];
     
