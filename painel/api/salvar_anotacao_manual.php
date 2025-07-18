@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 require_once '../config.php';
 require_once '../db.php';
 header('Content-Type: application/json');
@@ -16,12 +19,16 @@ if (!$cliente_id || !$anotacao) {
 $mensagem = $titulo ? ($titulo . "\n" . $anotacao) : $anotacao;
 
 $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (cliente_id, mensagem, tipo, data_hora, direcao) VALUES (?, ?, 'anotacao', NOW(), 'enviado')");
+if (!$stmt) {
+    echo json_encode(['success' => false, 'error' => 'Erro prepare: ' . $mysqli->error]);
+    exit;
+}
 $stmt->bind_param('is', $cliente_id, $mensagem);
 if ($stmt->execute()) {
     $id = $stmt->insert_id;
     echo json_encode(['success' => true, 'id' => $id]);
 } else {
-    echo json_encode(['success' => false, 'error' => 'Erro ao salvar no banco.']);
+    echo json_encode(['success' => false, 'error' => 'Erro execute: ' . $stmt->error]);
 }
 $stmt->close();
 ?> 
