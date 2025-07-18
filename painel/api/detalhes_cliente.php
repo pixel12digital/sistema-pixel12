@@ -15,6 +15,9 @@ if (!$cliente_id) {
     exit;
 }
 
+// Incluir o arquivo JavaScript com as funções de edição e exclusão
+echo '<script src="../assets/chat-functions.js"></script>';
+
 // Não usar cache se estiver em modo edição
 if ($modo_edicao) {
     render_cliente_ficha($cliente_id, true);

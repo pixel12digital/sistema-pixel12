@@ -82,9 +82,9 @@ while ($cob = $res_cob && $res_cob->num_rows ? $res_cob->fetch_assoc() : null) {
   $cobrancas[] = $cob;
 }
 
-// Buscar mensagens do cliente
+// Buscar apenas anotações (não mensagens de conversa)
 $mensagens = [];
-$res_msg = $mysqli->query("SELECT m.*, c.nome_exibicao as canal_nome FROM mensagens_comunicacao m LEFT JOIN canais_comunicacao c ON m.canal_id = c.id WHERE m.cliente_id = $cliente_id ORDER BY m.data_hora DESC");
+$res_msg = $mysqli->query("SELECT m.*, c.nome_exibicao as canal_nome FROM mensagens_comunicacao m LEFT JOIN canais_comunicacao c ON m.canal_id = c.id WHERE m.cliente_id = $cliente_id AND (m.tipo = 'anotacao' OR m.tipo IS NULL AND m.direcao = 'enviado' AND m.mensagem LIKE '%fatura%') ORDER BY m.data_hora DESC");
 while ($msg = $res_msg && $res_msg->num_rows ? $res_msg->fetch_assoc() : null) {
   $mensagens[] = $msg;
 }

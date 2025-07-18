@@ -59,6 +59,7 @@ function render_content() {
   ?>
   
   <link rel="stylesheet" href="assets/chat-modern.css">
+  <script src="assets/chat-functions.js"></script>
   
   <div class="chat-container-3cols">
     <!-- Coluna 1: Chat Centralizado - Lista de conversas -->

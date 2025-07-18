@@ -377,10 +377,10 @@ function render_content() {
       <h4 style="color:#7c2ae8;"> Suporte & Relacionamento</h4>
       <div id="mensagens-relacionamento" style="display: flex; flex-direction: column; gap: 10px; overflow-y: auto; max-height: calc(80vh - 180px); min-height: 200px; padding-bottom: 8px;">
       <?php
-      // Buscar todas as mensagens do cliente
+      // Buscar apenas anotações (não mensagens de conversa)
       $historico = [];
       if ($cliente_id) {
-        $res_hist = $mysqli->query("SELECT m.*, c.nome_exibicao as canal_nome FROM mensagens_comunicacao m LEFT JOIN canais_comunicacao c ON m.canal_id = c.id WHERE m.cliente_id = $cliente_id ORDER BY m.data_hora DESC");
+        $res_hist = $mysqli->query("SELECT m.*, c.nome_exibicao as canal_nome FROM mensagens_comunicacao m LEFT JOIN canais_comunicacao c ON m.canal_id = c.id WHERE m.cliente_id = $cliente_id AND (m.tipo = 'anotacao' OR m.tipo IS NULL AND m.direcao = 'enviado' AND m.mensagem LIKE '%fatura%') ORDER BY m.data_hora DESC");
         while ($msg = $res_hist && $res_hist->num_rows ? $res_hist->fetch_assoc() : null) {
           $historico[] = $msg;
         }
