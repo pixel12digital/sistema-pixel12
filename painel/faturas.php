@@ -1,7 +1,7 @@
 <?php
 $page = 'faturas.php';
 $page_title = 'Faturas';
-$custom_header = '<button type="button" class="invoices-new-btn bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md flex items-center gap-2" id="btn-sincronizar"><span>🔄 Sincronizar com Asaas</span></button> <button type="button" class="invoices-new-btn bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md flex items-center gap-2">+ Nova Fatura</button>';
+$custom_header = '<button type="button" class="invoices-new-btn bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md flex items-center gap-2" id="btn-config-asaas"><span>🔑 Configurar API</span></button> <button type="button" class="invoices-new-btn bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md flex items-center gap-2" id="btn-sincronizar"><span>🔄 Sincronizar com Asaas</span></button> <button type="button" class="invoices-new-btn bg-purple-600 hover:bg-purple-800 transition-colors px-4 py-2 rounded-md flex items-center gap-2">+ Nova Fatura</button>';
 
 function render_content() {
 ?>
@@ -175,14 +175,117 @@ function render_content() {
     <div id="modal-cliente-detalhes-body">Carregando...</div>
   </div>
 </div>
+<!-- Modal de configuração da API do Asaas -->
+<div id="modal-config-asaas" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.8);z-index:10002;align-items:center;justify-content:center;">
+  <div style="background:#fff;padding:0;border-radius:16px;min-width:600px;max-width:90vw;max-height:85vh;overflow:hidden;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <!-- Header do Modal -->
+    <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:24px 32px;position:relative;">
+      <button id="btn-fechar-config-asaas" style="position:absolute;top:20px;right:24px;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">&times;</button>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;">🔑</div>
+        <div>
+          <h3 style="font-size:1.4em;font-weight:700;margin:0;">Configuração da API do Asaas</h3>
+          <p style="margin:4px 0 0 0;opacity:0.9;font-size:0.95em;">Teste e configure sua chave da API</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conteúdo do Modal -->
+    <div style="padding:32px;">
+      
+      <!-- Status da Chave Atual -->
+      <div id="status-chave-atual" style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:24px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div id="status-chave-icon" style="width:32px;height:32px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;">⏳</div>
+          <div>
+            <h4 id="status-chave-title" style="margin:0;font-weight:600;color:#1e293b;">Verificando chave atual...</h4>
+            <p id="status-chave-description" style="margin:4px 0 0 0;color:#64748b;font-size:0.9em;">Testando conexão com Asaas</p>
+          </div>
+        </div>
+        
+        <!-- Chave Atual (mascarada) -->
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:0.8em;color:#64748b;margin-bottom:4px;">Chave Atual</div>
+              <div id="chave-atual-display" style="font-family:monospace;font-size:0.9em;color:#1e293b;">Carregando...</div>
+            </div>
+            <button id="btn-testar-chave-atual" style="background:#7c3aed;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:0.9em;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">Testar</button>
+          </div>
+        </div>
+        
+        <!-- Resultado do Teste -->
+        <div id="resultado-teste" style="display:none;padding:12px;border-radius:8px;margin-top:12px;">
+          <div id="resultado-teste-content"></div>
+        </div>
+      </div>
+
+      <!-- Formulário para Nova Chave -->
+      <div style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:24px;">
+        <h4 style="margin:0 0 16px 0;font-weight:600;color:#1e293b;">Adicionar Nova Chave</h4>
+        
+        <form id="form-nova-chave">
+          <div style="margin-bottom:16px;">
+            <label for="nova-chave-input" style="display:block;margin-bottom:6px;font-weight:600;color:#374151;font-size:0.9em;">Nova Chave da API:</label>
+            <input type="text" id="nova-chave-input" name="nova_chave" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:8px;font-family:monospace;font-size:0.9em;" placeholder="$aact_test_... ou $aact_prod_..." required>
+            <div style="font-size:0.8em;color:#6b7280;margin-top:4px;">A chave deve começar com $aact_test_ (teste) ou $aact_prod_ (produção)</div>
+          </div>
+          
+          <div style="margin-bottom:16px;">
+            <label for="tipo-chave-select" style="display:block;margin-bottom:6px;font-weight:600;color:#374151;font-size:0.9em;">Tipo de Chave:</label>
+            <select id="tipo-chave-select" name="tipo_chave" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9em;">
+              <option value="test">Teste (Sandbox) - Recomendado para desenvolvimento</option>
+              <option value="prod">Produção - Use apenas em ambiente de produção</option>
+            </select>
+          </div>
+          
+          <div style="display:flex;gap:12px;">
+            <button type="button" id="btn-testar-nova-chave" style="background:#f59e0b;color:#fff;border:none;padding:12px 20px;border-radius:8px;font-weight:600;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'">🧪 Testar Nova Chave</button>
+            <button type="submit" id="btn-aplicar-nova-chave" style="background:#059669;color:#fff;border:none;padding:12px 20px;border-radius:8px;font-weight:600;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">✅ Aplicar Nova Chave</button>
+          </div>
+        </form>
+        
+        <!-- Resultado do Teste da Nova Chave -->
+        <div id="resultado-teste-nova" style="display:none;padding:12px;border-radius:8px;margin-top:16px;">
+          <div id="resultado-teste-nova-content"></div>
+        </div>
+      </div>
+
+      <!-- Informações e Links -->
+      <div style="background:#f0f9ff;border:1px solid #0ea5e9;border-radius:8px;padding:16px;">
+        <h4 style="margin:0 0 12px 0;color:#0c4a6e;font-size:1em;">📚 Como obter sua chave da API:</h4>
+        <ol style="margin:0;padding-left:20px;color:#0c4a6e;font-size:0.9em;">
+          <li>Acesse <a href="https://www.asaas.com/" target="_blank" style="color:#7c3aed;">www.asaas.com</a></li>
+          <li>Faça login na sua conta</li>
+          <li>Vá em <strong>Configurações</strong> → <strong>API</strong></li>
+          <li>Copie a <strong>Chave de Teste</strong> ou <strong>Chave de Produção</strong></li>
+        </ol>
+        <div style="margin-top:12px;font-size:0.8em;color:#0369a1;">
+          <strong>⚠️ Importante:</strong> Use chave de teste para desenvolvimento local para evitar cobranças reais.
+        </div>
+      </div>
+
+      <!-- Botões de Ação -->
+      <div style="display:flex;gap:12px;margin-top:24px;justify-content:flex-end;">
+        <button id="btn-fechar-config" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">Fechar</button>
+        <button id="btn-testar-sincronizacao" style="background:#7c3aed;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">🔄 Testar Sincronização</button>
+      </div>
+
+    </div>
+  </div>
+</div>
 <script src="/painel/assets/invoices.js"></script>
 <script src="assets/cobrancas.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const btnSync = document.getElementById('btn-sincronizar');
+  const btnConfigAsaas = document.getElementById('btn-config-asaas');
   const modal = document.getElementById('modal-sync-progress');
+  const modalConfigAsaas = document.getElementById('modal-config-asaas');
   const btnFechar = document.getElementById('btn-fechar-sync-modal');
-  const btnVerLogCompleto = document.getElementById('btn-ver-log-completo');
+  const btnFecharConfigAsaas = document.getElementById('btn-fechar-config-asaas');
+  const btnFecharConfig = document.getElementById('btn-fechar-config');
+  const btnTestarSincronizacao = document.getElementById('btn-testar-sincronizacao');
   const syncLogsArea = document.getElementById('sync-logs-area');
   const syncProgressBar = document.getElementById('sync-progress-bar');
   const syncProgressLabel = document.getElementById('sync-progress-label');
@@ -195,7 +298,24 @@ document.addEventListener('DOMContentLoaded', function() {
   const logCompletoArea = document.getElementById('log-completo-area');
   const modalLogCompleto = document.getElementById('modal-log-completo');
   const btnFecharLogCompleto = document.getElementById('btn-fechar-log-completo');
+  const btnVerLogCompleto = document.getElementById('btn-ver-log-completo');
   let syncInterval = null;
+
+  // Elementos do modal de configuração
+  const statusChaveIcon = document.getElementById('status-chave-icon');
+  const statusChaveTitle = document.getElementById('status-chave-title');
+  const statusChaveDescription = document.getElementById('status-chave-description');
+  const chaveAtualDisplay = document.getElementById('chave-atual-display');
+  const btnTestarChaveAtual = document.getElementById('btn-testar-chave-atual');
+  const resultadoTeste = document.getElementById('resultado-teste');
+  const resultadoTesteContent = document.getElementById('resultado-teste-content');
+  const formNovaChave = document.getElementById('form-nova-chave');
+  const novaChaveInput = document.getElementById('nova-chave-input');
+  const tipoChaveSelect = document.getElementById('tipo-chave-select');
+  const btnTestarNovaChave = document.getElementById('btn-testar-nova-chave');
+  const btnAplicarNovaChave = document.getElementById('btn-aplicar-nova-chave');
+  const resultadoTesteNova = document.getElementById('resultado-teste-nova');
+  const resultadoTesteNovaContent = document.getElementById('resultado-teste-nova-content');
 
   function abrirModalSync() {
     modal.style.display = 'flex';
@@ -250,6 +370,204 @@ document.addEventListener('DOMContentLoaded', function() {
         logCompletoArea.textContent = logs.join('\n');
       });
     modalLogCompleto.style.display = 'flex';
+  }
+
+  function abrirModalConfigAsaas() {
+    modalConfigAsaas.style.display = 'flex';
+    carregarChaveAtual();
+    testarChaveAtual();
+  }
+
+  function fecharModalConfigAsaas() {
+    modalConfigAsaas.style.display = 'none';
+    resultadoTeste.style.display = 'none';
+    resultadoTesteNova.style.display = 'none';
+  }
+
+  function carregarChaveAtual() {
+    fetch('api/get_asaas_config.php')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          const chave = data.chave;
+          const tipo = chave.includes('_test_') ? 'TESTE' : 'PRODUÇÃO';
+          const chaveMascarada = chave.substring(0, 20) + '...' + chave.substring(chave.length - 10);
+          chaveAtualDisplay.textContent = `${tipo}: ${chaveMascarada}`;
+        } else {
+          chaveAtualDisplay.textContent = 'Erro ao carregar chave';
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao carregar chave:', error);
+        chaveAtualDisplay.textContent = 'Erro ao carregar chave';
+      });
+  }
+
+  function testarChaveAtual() {
+    statusChaveIcon.textContent = '⏳';
+    statusChaveIcon.style.background = '#3b82f6';
+    statusChaveTitle.textContent = 'Testando chave atual...';
+    statusChaveDescription.textContent = 'Verificando conexão com Asaas';
+    resultadoTeste.style.display = 'none';
+
+    fetch('api/test_asaas_key.php')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          statusChaveIcon.textContent = '✅';
+          statusChaveIcon.style.background = '#059669';
+          statusChaveTitle.textContent = 'Chave válida!';
+          statusChaveDescription.textContent = 'Conexão com Asaas estabelecida';
+          
+          resultadoTeste.style.display = 'block';
+          resultadoTeste.style.background = '#f0fdf4';
+          resultadoTeste.style.border = '1px solid #bbf7d0';
+          resultadoTesteContent.innerHTML = `
+            <div style="color: #059669; font-weight: 600;">✅ Chave da API válida!</div>
+            <div style="color: #047857; font-size: 0.9em; margin-top: 4px;">Conexão estabelecida com sucesso</div>
+          `;
+        } else {
+          statusChaveIcon.textContent = '❌';
+          statusChaveIcon.style.background = '#dc2626';
+          statusChaveTitle.textContent = 'Chave inválida';
+          statusChaveDescription.textContent = data.error || 'Erro na conexão com Asaas';
+          
+          resultadoTeste.style.display = 'block';
+          resultadoTeste.style.background = '#fef2f2';
+          resultadoTeste.style.border = '1px solid #fecaca';
+          resultadoTesteContent.innerHTML = `
+            <div style="color: #dc2626; font-weight: 600;">❌ Chave da API inválida</div>
+            <div style="color: #b91c1c; font-size: 0.9em; margin-top: 4px;">${data.error || 'Erro na conexão'}</div>
+          `;
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao testar chave:', error);
+        statusChaveIcon.textContent = '❌';
+        statusChaveIcon.style.background = '#dc2626';
+        statusChaveTitle.textContent = 'Erro no teste';
+        statusChaveDescription.textContent = 'Erro ao conectar com o servidor';
+        
+        resultadoTeste.style.display = 'block';
+        resultadoTeste.style.background = '#fef2f2';
+        resultadoTeste.style.border = '1px solid #fecaca';
+        resultadoTesteContent.innerHTML = `
+          <div style="color: #dc2626; font-weight: 600;">❌ Erro no teste</div>
+          <div style="color: #b91c1c; font-size: 0.9em; margin-top: 4px;">Erro ao conectar com o servidor</div>
+        `;
+      });
+  }
+
+  function testarNovaChave() {
+    const novaChave = novaChaveInput.value.trim();
+    
+    if (!novaChave) {
+      alert('Por favor, insira uma chave da API');
+      return;
+    }
+    
+    if (!novaChave.startsWith('$aact_')) {
+      alert('A chave deve começar com $aact_test_ ou $aact_prod_');
+      return;
+    }
+    
+    btnTestarNovaChave.disabled = true;
+    btnTestarNovaChave.textContent = 'Testando...';
+    resultadoTesteNova.style.display = 'none';
+    
+    fetch('api/test_asaas_key.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chave: novaChave })
+    })
+    .then(r => r.json())
+    .then(data => {
+      btnTestarNovaChave.disabled = false;
+      btnTestarNovaChave.textContent = '🧪 Testar Nova Chave';
+      
+      resultadoTesteNova.style.display = 'block';
+      
+      if (data.success) {
+        resultadoTesteNova.style.background = '#f0fdf4';
+        resultadoTesteNova.style.border = '1px solid #bbf7d0';
+        resultadoTesteNovaContent.innerHTML = `
+          <div style="color: #059669; font-weight: 600;">✅ Nova chave válida!</div>
+          <div style="color: #047857; font-size: 0.9em; margin-top: 4px;">Conexão estabelecida com sucesso</div>
+        `;
+      } else {
+        resultadoTesteNova.style.background = '#fef2f2';
+        resultadoTesteNova.style.border = '1px solid #fecaca';
+        resultadoTesteNovaContent.innerHTML = `
+          <div style="color: #dc2626; font-weight: 600;">❌ Nova chave inválida</div>
+          <div style="color: #b91c1c; font-size: 0.9em; margin-top: 4px;">${data.error || 'Erro na conexão'}</div>
+        `;
+      }
+    })
+    .catch(error => {
+      console.error('Erro ao testar nova chave:', error);
+      btnTestarNovaChave.disabled = false;
+      btnTestarNovaChave.textContent = '🧪 Testar Nova Chave';
+      
+      resultadoTesteNova.style.display = 'block';
+      resultadoTesteNova.style.background = '#fef2f2';
+      resultadoTesteNova.style.border = '1px solid #fecaca';
+      resultadoTesteNovaContent.innerHTML = `
+        <div style="color: #dc2626; font-weight: 600;">❌ Erro no teste</div>
+        <div style="color: #b91c1c; font-size: 0.9em; margin-top: 4px;">Erro ao conectar com o servidor</div>
+      `;
+    });
+  }
+
+  function aplicarNovaChave() {
+    const novaChave = novaChaveInput.value.trim();
+    const tipoChave = tipoChaveSelect.value;
+    
+    if (!novaChave) {
+      alert('Por favor, insira uma chave da API');
+      return;
+    }
+    
+    if (!novaChave.startsWith('$aact_')) {
+      alert('A chave deve começar com $aact_test_ ou $aact_prod_');
+      return;
+    }
+    
+    if (!confirm('Tem certeza que deseja aplicar esta nova chave? Isso irá substituir a chave atual.')) {
+      return;
+    }
+    
+    btnAplicarNovaChave.disabled = true;
+    btnAplicarNovaChave.textContent = 'Aplicando...';
+    
+    fetch('api/update_asaas_key.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        chave: novaChave, 
+        tipo: tipoChave 
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      btnAplicarNovaChave.disabled = false;
+      btnAplicarNovaChave.textContent = '✅ Aplicar Nova Chave';
+      
+      if (data.success) {
+        alert('✅ Chave da API atualizada com sucesso!');
+        carregarChaveAtual();
+        testarChaveAtual();
+        novaChaveInput.value = '';
+        resultadoTesteNova.style.display = 'none';
+      } else {
+        alert('❌ Erro ao atualizar chave: ' + (data.error || 'Erro desconhecido'));
+      }
+    })
+    .catch(error => {
+      console.error('Erro ao aplicar nova chave:', error);
+      btnAplicarNovaChave.disabled = false;
+      btnAplicarNovaChave.textContent = '✅ Aplicar Nova Chave';
+      alert('❌ Erro ao conectar com o servidor');
+    });
   }
 
   if (btnSync) {
@@ -363,6 +681,43 @@ document.addEventListener('DOMContentLoaded', function() {
             adicionarLog('Erro ao conectar ao servidor de status', 'error');
           });
       }, 1500);
+    });
+  }
+
+  if (btnConfigAsaas) {
+    btnConfigAsaas.addEventListener('click', abrirModalConfigAsaas);
+  }
+  if (btnFecharConfigAsaas) {
+    btnFecharConfigAsaas.addEventListener('click', fecharModalConfigAsaas);
+  }
+  if (btnFecharConfig) {
+    btnFecharConfig.addEventListener('click', fecharModalConfigAsaas);
+  }
+  if (btnTestarSincronizacao) {
+    btnTestarSincronizacao.addEventListener('click', function() {
+      fecharModalConfigAsaas();
+      btnSync.click();
+    });
+  }
+  if (btnTestarChaveAtual) {
+    btnTestarChaveAtual.addEventListener('click', testarChaveAtual);
+  }
+  if (btnTestarNovaChave) {
+    btnTestarNovaChave.addEventListener('click', testarNovaChave);
+  }
+  if (formNovaChave) {
+    formNovaChave.addEventListener('submit', function(e) {
+      e.preventDefault();
+      aplicarNovaChave();
+    });
+  }
+
+  // Fechar modal ao clicar fora
+  if (modalConfigAsaas) {
+    modalConfigAsaas.addEventListener('click', function(e) {
+      if (e.target === modalConfigAsaas) {
+        fecharModalConfigAsaas();
+      }
     });
   }
 

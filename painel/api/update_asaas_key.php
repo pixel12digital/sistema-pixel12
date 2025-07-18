@@ -1,0 +1,167 @@
+<?php
+/**
+ * Endpoint para atualizar a chave da API do Asaas
+ */
+
+header('Content-Type: application/json');
+header('Cache-Control: no-cache, must-revalidate');
+
+require_once '../config.php';
+
+try {
+    // Verificar se é uma requisição POST
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Método não permitido'
+        ]);
+        exit;
+    }
+    
+    // Obter dados da requisição
+    $input = json_decode(file_get_contents('php://input'), true);
+    
+    if (!isset($input['chave']) || empty($input['chave'])) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Chave não fornecida'
+        ]);
+        exit;
+    }
+    
+    if (!isset($input['tipo']) || !in_array($input['tipo'], ['test', 'prod'])) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Tipo de chave inválido'
+        ]);
+        exit;
+    }
+    
+    $novaChave = trim($input['chave']);
+    $tipoChave = $input['tipo'];
+    
+    // Validar formato da chave
+    if (!preg_match('/^\$aact_(test|prod)_/', $novaChave)) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Formato de chave inválido. Deve começar com $aact_test_ ou $aact_prod_'
+        ]);
+        exit;
+    }
+    
+    // Verificar se o tipo da chave corresponde ao formato
+    $tipoFormato = strpos($novaChave, '_test_') !== false ? 'test' : 'prod';
+    if ($tipoFormato !== $tipoChave) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Tipo de chave não corresponde ao formato. Chave ' . $tipoFormato . ' selecionada como ' . $tipoChave
+        ]);
+        exit;
+    }
+    
+    // Testar a nova chave antes de aplicar
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, ASAAS_API_URL . '/customers?limit=1');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'access_token: ' . $novaChave
+    ]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    
+    $result = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Chave inválida (HTTP ' . $httpCode . '). Teste a chave antes de aplicá-la.'
+        ]);
+        exit;
+    }
+    
+    // Atualizar o arquivo de configuração
+    $configFile = __DIR__ . '/../config.php';
+    
+    if (!file_exists($configFile)) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Arquivo de configuração não encontrado'
+        ]);
+        exit;
+    }
+    
+    if (!is_writable($configFile)) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Arquivo de configuração não tem permissão de escrita'
+        ]);
+        exit;
+    }
+    
+    $configContent = file_get_contents($configFile);
+    
+    if ($tipoChave === 'test') {
+        // Atualizar chave de teste
+        $pattern = "/define\('ASAAS_API_KEY',\s*getenv\('ASAAS_API_KEY'\)\s*\?:\s*'[^']*'\);/";
+        $replacement = "define('ASAAS_API_KEY', getenv('ASAAS_API_KEY') ?: '$novaChave');";
+    } else {
+        // Atualizar chave de produção
+        $pattern = "/define\('ASAAS_API_KEY',\s*'[^']*'\);/";
+        $replacement = "define('ASAAS_API_KEY', '$novaChave');";
+    }
+    
+    $novoConteudo = preg_replace($pattern, $replacement, $configContent);
+    
+    if ($novoConteudo === $configContent) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Nenhuma alteração foi feita no arquivo de configuração'
+        ]);
+        exit;
+    }
+    
+    // Fazer backup do arquivo original
+    $backupFile = $configFile . '.backup.' . date('Y-m-d_H-i-s');
+    if (!copy($configFile, $backupFile)) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erro ao criar backup do arquivo de configuração'
+        ]);
+        exit;
+    }
+    
+    // Salvar o novo conteúdo
+    if (file_put_contents($configFile, $novoConteudo) === false) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erro ao salvar arquivo de configuração'
+        ]);
+        exit;
+    }
+    
+    // Log da alteração
+    $logFile = __DIR__ . '/../../logs/asaas_key_updates.log';
+    $logDir = dirname($logFile);
+    if (!is_dir($logDir)) {
+        mkdir($logDir, 0755, true);
+    }
+    
+    $logEntry = date('Y-m-d H:i:s') . ' - Chave ' . $tipoChave . ' atualizada: ' . substr($novaChave, 0, 20) . '...' . substr($novaChave, -10) . "\n";
+    file_put_contents($logFile, $logEntry, FILE_APPEND);
+    
+    echo json_encode([
+        'success' => true,
+        'message' => 'Chave da API atualizada com sucesso',
+        'tipo' => $tipoChave,
+        'backup' => basename($backupFile)
+    ]);
+    
+} catch (Exception $e) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'Erro interno: ' . $e->getMessage()
+    ]);
+}
+?> 
