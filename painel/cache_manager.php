@@ -248,19 +248,26 @@ function cache_cliente($cliente_id, $mysqli) {
  */
 function cache_conversas($mysqli) {
     return cache_remember('conversas_recentes', function() use ($mysqli) {
-        $sql = "SELECT DISTINCT 
+        // Query otimizada para buscar conversas com última mensagem
+        $sql = "SELECT 
                     c.id as cliente_id,
                     c.nome,
                     c.celular,
                     cc.nome_exibicao as canal_nome,
-                    (SELECT m.mensagem FROM mensagens_comunicacao m WHERE m.cliente_id = c.id ORDER BY m.data_hora DESC LIMIT 1) as ultima_mensagem,
-                    (SELECT m.data_hora FROM mensagens_comunicacao m WHERE m.cliente_id = c.id ORDER BY m.data_hora DESC LIMIT 1) as ultima_data
+                    m.mensagem as ultima_mensagem,
+                    m.data_hora as ultima_data
                 FROM clientes c
-                LEFT JOIN mensagens_comunicacao mc ON c.id = mc.cliente_id
-                LEFT JOIN canais_comunicacao cc ON mc.canal_id = cc.id
-                WHERE mc.id IS NOT NULL
-                GROUP BY c.id
-                ORDER BY ultima_data DESC
+                INNER JOIN (
+                    SELECT 
+                        cliente_id,
+                        MAX(data_hora) as max_data_hora
+                    FROM mensagens_comunicacao 
+                    WHERE cliente_id IS NOT NULL AND cliente_id > 0
+                    GROUP BY cliente_id
+                ) ultima ON c.id = ultima.cliente_id
+                INNER JOIN mensagens_comunicacao m ON m.cliente_id = ultima.cliente_id AND m.data_hora = ultima.max_data_hora
+                LEFT JOIN canais_comunicacao cc ON m.canal_id = cc.id
+                ORDER BY m.data_hora DESC
                 LIMIT 50";
         
         $result = $mysqli->query($sql);
