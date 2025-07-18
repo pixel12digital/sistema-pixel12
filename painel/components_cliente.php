@@ -634,9 +634,9 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
               conteudo += "<div style=\"font-weight:bold;margin-bottom:6px;color:#92400e;font-size:1.05em;\">" + titulo + "</div>";
             }
             conteudo += "<div class=\"mensagem-conteudo\" style=\"line-height:1.4;white-space:pre-wrap;\">" + anotacao + "</div>";
+            // Apenas botão de excluir discreto para anotações reais
             conteudo += "<div style=\"margin-top:8px;display:flex;gap:6px;justify-content:flex-end;\">
-              <button onclick=\"editarMensagem(" + resp.id + ", \'" + anotacao.replace(/\'/g, "\\\'") + "\')\" style=\"background:#3b82f6;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:0.8em;cursor:pointer;\">Editar</button>
-              <button onclick=\"excluirMensagem(" + resp.id + ")\" style=\"background:#ef4444;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:0.8em;cursor:pointer;\">Excluir</button>
+              <button class=\"btn-excluir-msg\" data-id=\"" + resp.id + "\" title=\"Excluir mensagem\" style=\"background:none;color:#ef4444;border:none;padding:2px 6px;border-radius:4px;font-size:1.1em;cursor:pointer;opacity:0.7;\">🗑️</button>
             </div>";
             anotacaoDiv.innerHTML = conteudo;
             
