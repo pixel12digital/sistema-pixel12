@@ -447,16 +447,6 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
   while ($msg = $res_hist && $res_hist->num_rows ? $res_hist->fetch_assoc() : null) $historico[] = $msg;
   if (empty($historico)) {
     echo '<div style="color:#64748b;font-style:italic;text-align:center;padding:40px 20px;">Nenhuma interação registrada para este cliente.</div>';
-    // Adicionar mensagens de teste para garantir rolagem
-    echo '<div style="margin-top:24px;margin-bottom:16px;">
-      <div style="color:#7c2ae8;font-weight:bold;font-size:1.1em;margin-bottom:12px;padding:16px 12px;border-bottom:3px solid #7c2ae8;background:#f8fafc;border-radius:6px;">15/07/2025</div>';
-    for ($i = 1; $i <= 15; $i++) {
-      echo '<div style="background:#7c2ae8;color:#fff;border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid #6d28d9;" data-mensagem-id="' . $i . '">
-        <div style="font-size:0.9em;font-weight:600;margin-bottom:6px;opacity:0.9;">Teste ' . $i . ' <span style="font-size:0.85em;font-weight:400;margin-left:8px;">Enviado às 10:' . str_pad($i, 2, '0', STR_PAD_LEFT) . '</span></div>
-        <div class="mensagem-conteudo" style="line-height:1.4;white-space:pre-wrap;cursor:pointer;" title="Clique para editar">Esta é uma mensagem de teste ' . $i . ' para verificar se a rolagem está funcionando corretamente. Esta mensagem tem um conteúdo mais longo para garantir que ocupe espaço suficiente na tela.</div>
-      </div>';
-    }
-    echo '</div>';
   } else {
     $ultimo_dia = '';
     foreach ($historico as $msg) {
