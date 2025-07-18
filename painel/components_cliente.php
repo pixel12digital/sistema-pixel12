@@ -581,86 +581,105 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
   echo '</div>';
   // JS abas
   echo '<script>document.addEventListener("DOMContentLoaded",function(){const abas=document.querySelectorAll(".painel-aba");const tabs=document.querySelectorAll(".painel-tab");abas.forEach(btn=>{btn.addEventListener("click",function(){abas.forEach(b=>b.classList.remove("active"));this.classList.add("active");tabs.forEach(tab=>tab.style.display="none");document.querySelector(".painel-tab-"+this.dataset.tab).style.display="block";});});});</script>';
-  
-  // JavaScript para anotações manuais
-  echo '<script>
-  document.addEventListener("DOMContentLoaded", function() {
-    const formAnotacao = document.getElementById("form-anotacao-manual");
-    if (formAnotacao) {
-      formAnotacao.addEventListener("submit", function(e) {
-        e.preventDefault();
-        const titulo = document.getElementById("titulo-anotacao").value.trim();
-        const anotacao = document.getElementById("anotacao-manual").value.trim();
-        if (!anotacao) return;
-        
-        const btn = formAnotacao.querySelector("button[type=submit]");
-        btn.disabled = true;
-        btn.textContent = "Salvando...";
-        
-        fetch("api/salvar_anotacao_manual.php", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: "cliente_id=' . $cliente_id . '&titulo=" + encodeURIComponent(titulo) + "&anotacao=" + encodeURIComponent(anotacao)
-        })
-        .then(r => r.json())
-        .then(resp => {
-          if (resp.success) {
-            // Limpar campos
-            document.getElementById("titulo-anotacao").value = "";
-            document.getElementById("anotacao-manual").value = "";
-            
-            // Adicionar anotação ao histórico
-            const mensagensArea = document.getElementById("mensagens-relacionamento");
-            const hoje = new Date().toLocaleDateString("pt-BR");
-            const agora = new Date().toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"});
-            
-            // Verificar se já existe um grupo para hoje
-            let grupoHoje = mensagensArea.querySelector("[data-data=\"" + hoje + "\"]");
-            if (!grupoHoje) {
-              grupoHoje = document.createElement("div");
-              grupoHoje.setAttribute("data-data", hoje);
-              grupoHoje.style = "margin-top:24px;margin-bottom:16px;";
-              grupoHoje.innerHTML = "<div style=\"color:#7c2ae8;font-weight:bold;font-size:1.1em;margin-bottom:12px;padding:16px 12px;border-bottom:3px solid #7c2ae8;background:#f8fafc;border-radius:6px;\">" + hoje + "</div>";
-              mensagensArea.insertBefore(grupoHoje, mensagensArea.firstChild);
-            }
-            
-            // Criar anotação
-            const anotacaoDiv = document.createElement("div");
-            anotacaoDiv.style = "background:#fbbf24;color:#23232b;border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid #f59e0b;";
-            anotacaoDiv.setAttribute("data-mensagem-id", resp.id);
-            
-            let conteudo = "<div style=\"font-size:0.9em;font-weight:600;margin-bottom:6px;opacity:0.9;\">Anotação <span style=\"font-size:0.85em;font-weight:400;margin-left:8px;\">Enviado às " + agora + "</span></div>";
-            if (titulo) {
-              conteudo += "<div style=\"font-weight:bold;margin-bottom:6px;color:#92400e;font-size:1.05em;\">" + titulo + "</div>";
-            }
-            conteudo += "<div class=\"mensagem-conteudo\" style=\"line-height:1.4;white-space:pre-wrap;\">" + anotacao + "</div>";
-            // Apenas botão de excluir discreto para anotações reais
-            conteudo += "<div style=\"margin-top:8px;display:flex;gap:6px;justify-content:flex-end;\">
-              <button class=\"btn-excluir-msg\" data-id=\"" + resp.id + "\" title=\"Excluir mensagem\" style=\"background:none;color:#ef4444;border:none;padding:2px 6px;border-radius:4px;font-size:1.1em;cursor:pointer;opacity:0.7;\">🗑️</button>
-            </div>";
-            anotacaoDiv.innerHTML = conteudo;
-            
-            // Inserir no início do grupo de hoje
-            grupoHoje.appendChild(anotacaoDiv);
-            
-            // Scroll para a nova anotação
-            anotacaoDiv.scrollIntoView({behavior: "smooth"});
-          } else {
-            alert("Erro ao salvar anotação: " + (resp.error || ""));
+?>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const formAnotacao = document.getElementById("form-anotacao-manual");
+  if (formAnotacao) {
+    formAnotacao.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const titulo = document.getElementById("titulo-anotacao").value.trim();
+      const anotacao = document.getElementById("anotacao-manual").value.trim();
+      if (!anotacao) return;
+      const btn = formAnotacao.querySelector("button[type=submit]");
+      btn.disabled = true;
+      btn.textContent = "Salvando...";
+      fetch("api/salvar_anotacao_manual.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "cliente_id=<?php echo $cliente_id; ?>&titulo=" + encodeURIComponent(titulo) + "&anotacao=" + encodeURIComponent(anotacao)
+      })
+      .then(r => r.json())
+      .then(resp => {
+        if (resp.success) {
+          document.getElementById("titulo-anotacao").value = "";
+          document.getElementById("anotacao-manual").value = "";
+          const mensagensArea = document.getElementById("mensagens-relacionamento");
+          const hoje = new Date().toLocaleDateString("pt-BR");
+          const agora = new Date().toLocaleTimeString("pt-BR", {hour: "2-digit", minute: "2-digit"});
+          let grupoHoje = mensagensArea.querySelector("[data-data='" + hoje + "']");
+          if (!grupoHoje) {
+            grupoHoje = document.createElement("div");
+            grupoHoje.setAttribute("data-data", hoje);
+            grupoHoje.style = "margin-top:24px;margin-bottom:16px;";
+            grupoHoje.innerHTML = '<div style="color:#7c2ae8;font-weight:bold;font-size:1.1em;margin-bottom:12px;padding:16px 12px;border-bottom:3px solid #7c2ae8;background:#f8fafc;border-radius:6px;">' + hoje + '</div>';
+            mensagensArea.appendChild(grupoHoje);
           }
-        })
-        .catch(() => {
-          alert("Erro ao conectar ao servidor.");
-        })
-        .finally(() => {
-          btn.disabled = false;
-          btn.textContent = "Salvar";
-        });
+          const anotacaoDiv = document.createElement("div");
+          anotacaoDiv.style = "background:#fbbf24;color:#23232b;border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid #f59e0b;";
+          anotacaoDiv.setAttribute("data-mensagem-id", resp.id);
+          let conteudo = "<div style='font-size:0.9em;font-weight:600;margin-bottom:6px;opacity:0.9;'>Anotação <span style='font-size:0.85em;font-weight:400;margin-left:8px;'>Enviado às " + agora + "</span></div>";
+          if (titulo) {
+            conteudo += "<div style='font-weight:bold;margin-bottom:6px;color:#92400e;font-size:1.05em;'>" + titulo + "</div>";
+          }
+          conteudo += "<div class='mensagem-conteudo' style='line-height:1.4;white-space:pre-wrap;cursor:pointer;' title='Clique para editar'>" + anotacao + "</div>";
+          conteudo += "<div style='margin-top:8px;display:flex;gap:6px;justify-content:flex-end;'><button class='btn-excluir-msg' data-id='" + resp.id + "' title='Excluir mensagem' style='background:none;color:#ef4444;border:none;padding:2px 6px;border-radius:4px;font-size:1.1em;cursor:pointer;opacity:0.7;'>🗑️</button></div>";
+          anotacaoDiv.innerHTML = conteudo;
+          grupoHoje.appendChild(anotacaoDiv);
+          mensagensArea.scrollTop = mensagensArea.scrollHeight;
+          anotacaoDiv.querySelector('.mensagem-conteudo').onclick = function(e) {
+            if (this.querySelector('input')) return;
+            var valorOriginal = this.textContent;
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.value = valorOriginal;
+            input.style.width = '98%';
+            input.style.fontSize = 'inherit';
+            input.style.fontFamily = 'inherit';
+            input.style.background = '#f3f4f6';
+            input.style.border = '1px solid #a259e6';
+            input.style.borderRadius = '6px';
+            input.style.padding = '4px 8px';
+            this.innerHTML = '';
+            this.appendChild(input);
+            input.focus();
+            input.select();
+            function salvar() {
+              var novoValor = input.value.trim();
+              if (novoValor && novoValor !== valorOriginal) {
+                var mensagemId = anotacaoDiv.getAttribute('data-mensagem-id');
+                window.editarMensagem(mensagemId, novoValor);
+                anotacaoDiv.querySelector('.mensagem-conteudo').textContent = novoValor;
+              } else {
+                anotacaoDiv.querySelector('.mensagem-conteudo').textContent = valorOriginal;
+              }
+            }
+            input.onblur = salvar;
+            input.onkeydown = function(e) {
+              if (e.key === 'Enter') { e.preventDefault(); salvar(); }
+              if (e.key === 'Escape') { anotacaoDiv.querySelector('.mensagem-conteudo').textContent = valorOriginal; }
+            };
+          };
+          anotacaoDiv.querySelector('.btn-excluir-msg').onclick = function() {
+            var mensagemId = this.getAttribute('data-id');
+            window.excluirMensagem(mensagemId);
+          };
+        } else {
+          alert("Erro ao salvar anotação: " + (resp.error || ""));
+        }
+      })
+      .catch(() => {
+        alert("Erro ao conectar ao servidor.");
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = "Salvar";
       });
-    }
-  });
-  </script>';
-  
+    });
+  }
+});
+</script>
+<?php
   // Adicionar CSS e JavaScript para edição inline
   echo '<style>
   /* Estilos para campos editáveis inline */
