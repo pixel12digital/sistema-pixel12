@@ -495,8 +495,8 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
       $acoes = '';
       // Mostrar botões para todas as mensagens (não apenas anotações)
       $acoes = '<div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end;">
-        <button onclick="editarMensagem(' . $id_msg . ', \'' . addslashes($mensagem_original) . '\')" style="background:#3b82f6;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:0.8em;cursor:pointer;">Editar</button>
-        <button onclick="excluirMensagem(' . $id_msg . ')" style="background:#ef4444;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:0.8em;cursor:pointer;">Excluir</button>
+        <button class="btn-editar-msg" data-id="' . $id_msg . '" style="background:#3b82f6;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:0.8em;cursor:pointer;">Editar</button>
+        <button class="btn-excluir-msg" data-id="' . $id_msg . '" style="background:#ef4444;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:0.8em;cursor:pointer;">Excluir</button>
       </div>';
       
       echo '<div style="' . $bubble . 'border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid ' . ($is_anotacao ? '#f59e0b' : ($is_received ? '#374151' : '#6d28d9')) . ';" data-mensagem-id="' . $id_msg . '">
@@ -866,6 +866,26 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     
     // Reinicializar após um delay
     setTimeout(initEdicaoInline, 1000);
+  });
+  </script>';
+  // Incluir o arquivo JavaScript com as funções de edição e exclusão (garantir que seja incluído antes do HTML)
+  echo '<script src="../assets/chat-functions.js"></script>';
+  // Adicionar delegação de eventos para os botões de edição e exclusão
+  echo '<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll(".btn-editar-msg").forEach(function(btn) {
+      btn.onclick = function() {
+        var mensagemId = this.getAttribute("data-id");
+        var conteudo = this.closest("[data-mensagem-id]").querySelector(".mensagem-conteudo").textContent;
+        window.editarMensagem(mensagemId, conteudo);
+      };
+    });
+    document.querySelectorAll(".btn-excluir-msg").forEach(function(btn) {
+      btn.onclick = function() {
+        var mensagemId = this.getAttribute("data-id");
+        window.excluirMensagem(mensagemId);
+      };
+    });
   });
   </script>';
 } 
