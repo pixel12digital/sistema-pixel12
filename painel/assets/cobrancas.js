@@ -132,7 +132,7 @@ function renderizarTabelaCobrancas() {
                 const clienteId = this.getAttribute('data-cliente');
                 if (!nome) return;
                 this.disabled = true;
-                fetch('/loja-virtual-revenda/api/atualizar_contato_cliente.php', {
+                fetch('/api/atualizar_contato_cliente.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ cliente_id: clienteId, contact_name: nome })
@@ -218,7 +218,7 @@ function renderizarTabelaCobrancas() {
             function salvarStatusManual() {
                 const novoStatus = select.value;
                 cell.innerHTML = '<span style="color:#a259e6;">Salvando...</span>';
-                fetch('/loja-virtual-revenda/painel/api/corrigir_status_manual.php', {
+                fetch('/painel/api/corrigir_status_manual.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: 'cliente_id='+encodeURIComponent(clienteId)+'&cobranca_id='+encodeURIComponent(cobrancaId)+'&status='+encodeURIComponent(novoStatus)
@@ -243,7 +243,7 @@ function renderizarTabelaCobrancas() {
                         const row = cell.closest('tr');
                         const ultimaInteracaoCell = row ? row.querySelector('.ultima-interacao-cell') : null;
                         if (ultimaInteracaoCell) {
-                            fetch('/loja-virtual-revenda/api/cobrancas.php?id=' + encodeURIComponent(cobrancaId))
+                            fetch('/api/cobrancas.php?id=' + encodeURIComponent(cobrancaId))
                               .then(r => r.json())
                               .then(data => {
                                   const cob = Array.isArray(data) ? data.find(c => String(c.id) === String(cobrancaId)) : null;
@@ -400,7 +400,7 @@ function carregarCobrancas(resetPagina = true) {
     if (filtros.status) params.append('status', filtros.status);
     if (filtros.data_vencimento_inicio) params.append('data_vencimento_inicio', filtros.data_vencimento_inicio);
     if (filtros.data_vencimento_fim) params.append('data_vencimento_fim', filtros.data_vencimento_fim);
-    fetch('/loja-virtual-revenda/api/cobrancas.php?' + params.toString())
+    fetch('/api/cobrancas.php?' + params.toString())
         .then(response => response.json())
         .then(data => {
             cobrancasFiltradas = aplicarFiltroClienteNome(data, filtros.cliente_nome);
@@ -481,12 +481,12 @@ function abrirModalWhatsapp(cliente_id, canal_id, mensagemPadrao, cobranca_id) {
       btnEnviar.disabled = false; // Garante reabilitação ao fechar manualmente
   };
   // Buscar canal padrão para Financeiro
-  fetch('/loja-virtual-revenda/api/canal_padrao_financeiro.php')
+  fetch('/api/canal_padrao_financeiro.php')
     .then(r => r.json())
     .then(jsonPadrao => {
       const canalPadraoId = jsonPadrao.canal_id;
       // Carregar canais
-      fetch('/loja-virtual-revenda/painel/api/listar_canais_whatsapp.php')
+      fetch('/painel/api/listar_canais_whatsapp.php')
         .then(r => {
           return r.text().then(txt => {
             try {
@@ -589,7 +589,7 @@ function salvarInteracaoManual(clienteId, dataHora, cell) {
     const dt = new Date(dataHora);
     const dataHoraFormatada = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0') + ' ' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0') + ':00';
     cell.innerHTML = '<span style="color:#a259e6;">Salvando...</span>';
-    fetch('/loja-virtual-revenda/painel/api/registrar_interacao_manual.php', {
+    fetch('/painel/api/registrar_interacao_manual.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'cliente_id='+encodeURIComponent(clienteId)+'&cobranca_id='+encodeURIComponent(cobrancaId)+'&data_hora='+encodeURIComponent(dataHoraFormatada)
@@ -659,7 +659,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const msgId = e.target.getAttribute('data-msg-id');
         if (!msgId) return;
         e.target.disabled = true;
-        fetch('/loja-virtual-revenda/painel/api/corrigir_status_mensagem.php', {
+        fetch('/painel/api/corrigir_status_mensagem.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: `id=${encodeURIComponent(msgId)}&status=pendente`
@@ -684,7 +684,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const msgId = e.target.getAttribute('data-msg-id');
         if (msgId) {
           e.target.style.pointerEvents = 'none';
-          fetch('/loja-virtual-revenda/painel/api/corrigir_status_mensagem.php', {
+          fetch('/painel/api/corrigir_status_mensagem.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `id=${encodeURIComponent(msgId)}&status=pendente`
@@ -713,7 +713,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (msgId) {
           if (!confirm('Deseja marcar esta mensagem como ENVIADA?')) return;
           e.target.style.pointerEvents = 'none';
-          fetch('/loja-virtual-revenda/painel/api/corrigir_status_mensagem.php', {
+          fetch('/painel/api/corrigir_status_mensagem.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `id=${encodeURIComponent(msgId)}&status=enviado`
@@ -833,7 +833,7 @@ function exibirModalConfirmacaoLiberarEnvio(clienteId, vencimento) {
   const btn = document.getElementById('btn-confirmar-liberar-envio');
   btn.onclick = function() {
     btn.disabled = true;
-    fetch('/loja-virtual-revenda/painel/api/liberar_envio_sem_id.php', {
+    fetch('/painel/api/liberar_envio_sem_id.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `cliente_id=${encodeURIComponent(clienteId)}&vencimento=${encodeURIComponent(vencimento)}`

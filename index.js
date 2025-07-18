@@ -133,7 +133,7 @@ client.on('message', msg => {
   
   console.log('📤 Enviando dados para o painel:', JSON.stringify(dados));
   
-  fetch('http://localhost:8080/loja-virtual-revenda/painel/receber_mensagem.php', {
+  fetch('painel/receber_mensagem.php', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dados)

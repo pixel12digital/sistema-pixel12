@@ -19,7 +19,7 @@ const whatsappClients = {};
 const clientStatus = {};
 
 // Configuração do webhook
-let webhookUrl = 'http://localhost:8080/loja-virtual-revenda/api/webhook.php';
+let webhookUrl = 'api/webhook.php';
 
 // Configurar upload de arquivos
 const upload = multer({ 
