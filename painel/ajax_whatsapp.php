@@ -294,9 +294,11 @@ switch ($action) {
             break;
         }
         
-        $endpoint = '/send';
+        // CORREÇÃO: Usar o endpoint correto /send/text
+        $endpoint = '/send/text';
         $data = [
-            'to' => $to,
+            'sessionName' => 'default', // Usar sessão padrão
+            'number' => $to,
             'message' => $message
         ];
         
@@ -312,7 +314,12 @@ switch ($action) {
             echo json_encode([
                 'success' => false,
                 'error' => $result['error'] ?: 'Erro ao enviar mensagem',
-                'http_code' => $result['http_code']
+                'http_code' => $result['http_code'],
+                'debug' => [
+                    'endpoint_used' => $endpoint,
+                    'data_sent' => $data,
+                    'raw_response' => $result['raw_response']
+                ]
             ]);
         }
         break;
