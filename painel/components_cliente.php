@@ -594,7 +594,9 @@ document.addEventListener("DOMContentLoaded", function() {
       const btn = formAnotacao.querySelector("button[type=submit]");
       btn.disabled = true;
       btn.textContent = "Salvando...";
-      fetch("api/salvar_anotacao_manual.php", {
+      // Determinar o caminho correto da API
+      var apiPath = (typeof getApiPath === 'function') ? getApiPath('salvar_anotacao_manual.php') : 'api/salvar_anotacao_manual.php';
+      fetch(apiPath, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "cliente_id=<?php echo $cliente_id; ?>&titulo=" + encodeURIComponent(titulo) + "&anotacao=" + encodeURIComponent(anotacao)
