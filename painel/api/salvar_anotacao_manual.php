@@ -9,7 +9,7 @@ header('Content-Type: application/json');
 $cliente_id = isset($_POST['cliente_id']) ? intval($_POST['cliente_id']) : 0;
 $titulo = isset($_POST['titulo']) ? trim($_POST['titulo']) : '';
 $anotacao = isset($_POST['anotacao']) ? trim($_POST['anotacao']) : '';
-$canal_id = 1; // Canal padrão para anotações manuais (ajuste se necessário)
+$canal_id = 36; // Canal válido para anotações manuais
 
 if (!$cliente_id || !$anotacao) {
     echo json_encode(['success' => false, 'error' => 'Dados obrigatórios ausentes.']);
