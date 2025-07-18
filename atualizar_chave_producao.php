@@ -2,12 +2,13 @@
 /**
  * Atualizar Chave da API em Produção
  * Script para resolver problemas de sincronização
+ * AJUSTADO PARA SUBDOMÍNIO: public_html/app
  */
 
 // Nova chave válida fornecida pelo usuário
 $nova_chave = '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjVmY2Y3MzlhLTVkNzQtNDNmOS05MWQ5LTJiOGRkNmJhODZkNzo6JGFhY2hfZTdkNDQ0MGMtYTg5Ni00NDhkLTk2N2EtODk5OTk2Yzk5MWU5';
 
-echo "=== ATUALIZANDO CHAVE DA API EM PRODUÇÃO ===\n\n";
+echo "=== ATUALIZANDO CHAVE DA API EM PRODUÇÃO (SUBDOMÍNIO) ===\n\n";
 
 // 1. Verificar se a nova chave é válida
 echo "1. TESTANDO NOVA CHAVE:\n";
@@ -40,12 +41,14 @@ if ($httpCode != 200) {
 
 echo "✅ Nova chave válida!\n\n";
 
-// 2. Atualizar arquivo config.php
+// 2. Atualizar arquivo config.php (caminho do subdomínio)
 echo "2. ATUALIZANDO ARQUIVO CONFIG.PHP:\n";
 $config_file = 'painel/config.php';
 
 if (!file_exists($config_file)) {
     echo "❌ Arquivo config.php não encontrado!\n";
+    echo "Caminho tentado: $config_file\n";
+    echo "Diretório atual: " . getcwd() . "\n";
     exit(1);
 }
 
@@ -62,10 +65,15 @@ if (preg_match($pattern, $config_content)) {
         echo "✅ Arquivo config.php atualizado!\n";
     } else {
         echo "❌ Erro ao salvar config.php!\n";
+        echo "Verifique permissões do arquivo.\n";
         exit(1);
     }
 } else {
     echo "❌ Padrão da chave não encontrado no config.php!\n";
+    echo "Conteúdo atual da linha ASAAS_API_KEY:\n";
+    if (preg_match("/define\('ASAAS_API_KEY'[^;]*;/", $config_content, $matches)) {
+        echo $matches[0] . "\n";
+    }
     exit(1);
 }
 
@@ -91,8 +99,20 @@ if (file_exists($config_raiz)) {
     echo "⚠️ Arquivo config.php da raiz não encontrado\n";
 }
 
-// 4. Limpar cache e logs antigos
-echo "4. LIMPANDO CACHE E LOGS:\n";
+// 4. Criar diretório logs se não existir
+echo "4. VERIFICANDO/CRIANDO DIRETÓRIO LOGS:\n";
+if (!is_dir('logs')) {
+    if (mkdir('logs', 0755, true)) {
+        echo "✅ Diretório logs criado!\n";
+    } else {
+        echo "⚠️ Não foi possível criar diretório logs\n";
+    }
+} else {
+    echo "✅ Diretório logs já existe\n";
+}
+
+// 5. Limpar cache e logs antigos
+echo "5. LIMPANDO CACHE E LOGS:\n";
 $arquivos_cache = [
     'logs/verificador_chave_otimizado.log',
     'logs/status_chave_atual.json',
@@ -107,11 +127,13 @@ foreach ($arquivos_cache as $arquivo) {
         } else {
             echo "⚠️ Não foi possível remover: $arquivo\n";
         }
+    } else {
+        echo "ℹ️ Não existe: $arquivo\n";
     }
 }
 
-// 5. Testar a nova configuração
-echo "5. TESTANDO NOVA CONFIGURAÇÃO:\n";
+// 6. Testar a nova configuração
+echo "6. TESTANDO NOVA CONFIGURAÇÃO:\n";
 require_once 'painel/config.php';
 
 if (defined('ASAAS_API_KEY') && ASAAS_API_KEY === $nova_chave) {
@@ -143,4 +165,5 @@ if (defined('ASAAS_API_KEY') && ASAAS_API_KEY === $nova_chave) {
 
 echo "\n=== ATUALIZAÇÃO CONCLUÍDA ===\n";
 echo "Agora você pode testar a sincronização novamente.\n";
+echo "URL: https://app.pixel12digital.com.br/painel/faturas.php\n";
 ?> 
