@@ -40,9 +40,9 @@ if (!$is_local && php_sapi_name() === 'cli') {
                  strpos($current_dir, 'localhost') !== false);
 }
 
-// Verificação 5: Arquivo marcador (criar .local_env se quiser forçar local)
-if (!$is_local && file_exists('.local_env')) {
-    $is_local = true;
+// Verificação 5: Arquivo marcador (criar .local_env se quiser forçar PRODUÇÃO)
+if ($is_local && file_exists('.local_env')) {
+    $is_local = false; // Forçar produção
 }
 
 /* ===== Credenciais do administrador padrão ===== */
@@ -68,8 +68,8 @@ if ($is_local) {
     define('DB_USER', 'u342734079_revendaweb');
     define('DB_PASS', 'Los@ngo#081081');
     
-    // API de produção Asaas
-    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6Ojc2MDY0NjY2LTA0YmYtNDdjYi04NTJiLThlYjk3ZGEwNTc3Yjo6JGFhY2hfMDU3ZGNiNGMtNjYzNC00ODQxLWE3ZmEtNTUxMGFiZmZkNzNh');
+    // API de produção Asaas - CHAVE CORRETA
+    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjVmY2Y3MzlhLTVkNzQtNDNmOS05MWQ5LTJiOGRkNmJhODZkNzo6JGFhY2hfZTdkNDQ0MGMtYTg5Ni00NDhkLTk2N2EtODk5OTk2Yzk5MWU5');
     define('DEBUG_MODE', false);
     define('ENABLE_CACHE', true);
 }

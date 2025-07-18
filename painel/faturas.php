@@ -5,6 +5,42 @@ $custom_header = '<button type="button" class="invoices-new-btn bg-purple-600 ho
 
 function render_content() {
 ?>
+<!-- Status da API do Asaas (Otimizado) -->
+<section class="api-status-section bg-white shadow-sm p-4 mb-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <h3 class="text-lg font-semibold text-gray-800 mb-2">🔍 Status da API do Asaas</h3>
+      <div id="status-chave-asaas-container">
+        <div class="status-chave-asaas status-valido">
+          <div class="status-header">
+            <span class="status-icone">⏳</span>
+            <span class="status-texto">Carregando status...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button id="btn-verificar-chave" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm">
+        🔍 Verificar Agora
+      </button>
+      <button id="btn-estatisticas" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md text-sm">
+        📊 Estatísticas
+      </button>
+    </div>
+  </div>
+  
+  <!-- Container para alertas -->
+  <div id="alertas-chave-asaas-container"></div>
+  
+  <!-- Estatísticas detalhadas (inicialmente oculto) -->
+  <div id="estatisticas-detalhadas" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+    <h4 class="font-semibold text-gray-800 mb-3">📊 Estatísticas do Monitoramento</h4>
+    <div id="estatisticas-content" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <!-- Estatísticas serão preenchidas via JavaScript -->
+    </div>
+  </div>
+</section>
+
 <!-- Header -->
 <section class="invoices-filters bg-white shadow-sm p-4">
   <div class="grid gap-4 md:grid-cols-4">
@@ -176,8 +212,8 @@ function render_content() {
   </div>
 </div>
 <!-- Modal de configuração da API do Asaas -->
-<div id="modal-config-asaas" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.8);z-index:10002;align-items:center;justify-content:center;">
-  <div style="background:#fff;padding:0;border-radius:16px;min-width:600px;max-width:90vw;max-height:85vh;overflow:hidden;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+<div id="modal-config-asaas" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.8);z-index:10002;align-items:center;justify-content:center;overflow-y:auto;padding:20px;">
+  <div style="background:#fff;padding:0;border-radius:16px;min-width:600px;max-width:90vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3);margin:auto;">
     <!-- Header do Modal -->
     <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:24px 32px;position:relative;">
       <button id="btn-fechar-config-asaas" style="position:absolute;top:20px;right:24px;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">&times;</button>
@@ -816,6 +852,95 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('Erro na requisição:', error);
       showToast("Erro ao conectar ao servidor: " + error.message, "error");
     });
+  };
+
+  // ===== SISTEMA DE MONITORAMENTO OTIMIZADO =====
+  
+  // Carregar o sistema de monitoramento otimizado
+  const scriptMonitoramento = document.createElement('script');
+  scriptMonitoramento.src = 'monitoramento_otimizado.js';
+  document.head.appendChild(scriptMonitoramento);
+  
+  // Configurar botões do monitoramento
+  const btnVerificarChave = document.getElementById('btn-verificar-chave');
+  const btnEstatisticas = document.getElementById('btn-estatisticas');
+  const estatisticasDetalhadas = document.getElementById('estatisticas-detalhadas');
+  
+  if (btnVerificarChave) {
+    btnVerificarChave.addEventListener('click', async () => {
+      btnVerificarChave.disabled = true;
+      btnVerificarChave.textContent = '🔍 Verificando...';
+      
+      try {
+        if (window.monitoramentoAsaas) {
+          const resultado = await window.monitoramentoAsaas.forcarVerificacao();
+          if (resultado) {
+            showToast(resultado.valida ? '✅ Chave válida!' : '❌ Chave inválida', resultado.valida ? 'success' : 'error');
+          }
+        } else {
+          // Fallback para verificação direta
+          const response = await fetch('verificador_automatico_chave_otimizado.php?action=verificar');
+          const data = await response.json();
+          showToast(data.valida ? '✅ Chave válida!' : '❌ Chave inválida', data.valida ? 'success' : 'error');
+        }
+      } catch (error) {
+        showToast('Erro ao verificar chave', 'error');
+      } finally {
+        btnVerificarChave.disabled = false;
+        btnVerificarChave.textContent = '🔍 Verificar Agora';
+      }
+    });
+  }
+  
+  if (btnEstatisticas) {
+    btnEstatisticas.addEventListener('click', async () => {
+      try {
+        const response = await fetch('verificador_automatico_chave_otimizado.php?action=estatisticas');
+        const data = await response.json();
+        
+        const estatisticasContent = document.getElementById('estatisticas-content');
+        if (estatisticasContent) {
+          estatisticasContent.innerHTML = `
+            <div class="bg-white p-3 rounded-lg border">
+              <p class="text-xs text-gray-500">Última Verificação</p>
+              <p class="font-semibold">${data.ultima_verificacao}</p>
+            </div>
+            <div class="bg-white p-3 rounded-lg border">
+              <p class="text-xs text-gray-500">Próxima Verificação</p>
+              <p class="font-semibold">${data.proxima_verificacao}</p>
+            </div>
+            <div class="bg-white p-3 rounded-lg border">
+              <p class="text-xs text-gray-500">Tem Alertas</p>
+              <p class="font-semibold">${data.tem_alertas ? 'Sim' : 'Não'}</p>
+            </div>
+            <div class="bg-white p-3 rounded-lg border">
+              <p class="text-xs text-gray-500">Chave Mudou</p>
+              <p class="font-semibold">${data.chave_mudou ? 'Sim' : 'Não'}</p>
+            </div>
+          `;
+        }
+        
+        estatisticasDetalhadas.style.display = estatisticasDetalhadas.style.display === 'none' ? 'block' : 'none';
+        
+      } catch (error) {
+        showToast('Erro ao carregar estatísticas', 'error');
+      }
+    });
+  }
+  
+  // Configurar monitoramento quando estiver disponível
+  scriptMonitoramento.onload = () => {
+    if (window.monitoramentoAsaas) {
+      // Registrar callback para mudanças de status
+      window.monitoramentoAsaas.onStatusChange((status) => {
+        console.log('Status da API mudou:', status);
+        
+        // Atualizar interface se necessário
+        if (status && !status.valida) {
+          showToast('⚠️ Chave da API inválida detectada', 'error');
+        }
+      });
+    }
   };
 });
 </script>

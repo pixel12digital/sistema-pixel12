@@ -44,13 +44,13 @@ define('DB_PASS', 'Los@ngo#081081');
 if ($is_local) {
     // Configurações para desenvolvimento local (XAMPP)
     // Usar a chave de produção válida que foi testada
-    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjZjZWNkODQ1LWIxZTUtNDE0MS1iZTNmLTFmYTdlM2U0YzcxMDo6JGFhY2hfZmFjNDFlYmMtYzAyNi00Y2FjLWEzOWEtZmI2YWZkNGU5ZjBl');
+    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjVmY2Y3MzlhLTVkNzQtNDNmOS05MWQ5LTJiOGRkNmJhODZkNzo6JGFhY2hfZTdkNDQ0MGMtYTg5Ni00NDhkLTk2N2EtODk5OTk2Yzk5MWU5');
     define('DEBUG_MODE', true);
     define('ENABLE_CACHE', false); // Desabilitar cache em desenvolvimento
 } else {
     // Configurações para produção (Hostinger)
     // API de produção Asaas
-    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjZjZWNkODQ1LWIxZTUtNDE0MS1iZTNmLTFmYTdlM2U0YzcxMDo6JGFhY2hfZmFjNDFlYmMtYzAyNi00Y2FjLWEzOWEtZmI2YWZkNGU5ZjBl');
+    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjVmY2Y3MzlhLTVkNzQtNDNmOS05MWQ5LTJiOGRkNmJhODZkNzo6JGFhY2hfZTdkNDQ0MGMtYTg5Ni00NDhkLTk2N2EtODk5OTk2Yzk5MWU5');
     define('DEBUG_MODE', false);
     define('ENABLE_CACHE', true);
 }
