@@ -9,6 +9,7 @@ header('Content-Type: application/json');
 $cliente_id = isset($_POST['cliente_id']) ? intval($_POST['cliente_id']) : 0;
 $titulo = isset($_POST['titulo']) ? trim($_POST['titulo']) : '';
 $anotacao = isset($_POST['anotacao']) ? trim($_POST['anotacao']) : '';
+$canal_id = 1; // Canal padrão para anotações manuais (ajuste se necessário)
 
 if (!$cliente_id || !$anotacao) {
     echo json_encode(['success' => false, 'error' => 'Dados obrigatórios ausentes.']);
@@ -18,12 +19,12 @@ if (!$cliente_id || !$anotacao) {
 // Montar mensagem final
 $mensagem = $titulo ? ($titulo . "\n" . $anotacao) : $anotacao;
 
-$stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (cliente_id, mensagem, tipo, data_hora, direcao) VALUES (?, ?, 'anotacao', NOW(), 'enviado')");
+$stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (cliente_id, canal_id, mensagem, tipo, data_hora, direcao) VALUES (?, ?, ?, 'anotacao', NOW(), 'enviado')");
 if (!$stmt) {
     echo json_encode(['success' => false, 'error' => 'Erro prepare: ' . $mysqli->error]);
     exit;
 }
-$stmt->bind_param('is', $cliente_id, $mensagem);
+$stmt->bind_param('iis', $cliente_id, $canal_id, $mensagem);
 if ($stmt->execute()) {
     $id = $stmt->insert_id;
     echo json_encode(['success' => true, 'id' => $id]);
