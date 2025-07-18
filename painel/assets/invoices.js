@@ -3,6 +3,15 @@
  * Carrega e gerencia as cobranças do sistema
  */
 
+// Função para detectar o caminho base dinamicamente
+function getBasePath() {
+    const currentPath = window.location.pathname;
+    if (currentPath.includes('loja-virtual-revenda')) {
+        return '/loja-virtual-revenda';
+    }
+    return ''; // Para produção (raiz do domínio)
+}
+
 class InvoicesManager {
     constructor() {
         this.cobrancas = [];
@@ -98,7 +107,7 @@ class InvoicesManager {
             params.append('pagina', this.paginaAtual);
             params.append('por_pagina', this.porPagina);
             
-            const response = await fetch(`/loja-virtual-revenda/api/cobrancas.php?${params}`);
+            const response = await fetch(`${getBasePath()}/api/cobrancas.php?${params}`);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
