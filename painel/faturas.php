@@ -311,7 +311,7 @@ function render_content() {
     </div>
   </div>
 </div>
-<script src="/painel/assets/invoices.js"></script>
+<script src="assets/invoices.js"></script>
 <script src="assets/cobrancas.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -855,11 +855,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   };
 
-  // ===== SISTEMA DE MONITORAMENTO OTIMIZADO =====
+  // ===== SISTEMA DE MONITORAMENTO SIMPLES =====
   
-  // Carregar o sistema de monitoramento otimizado
+  // Carregar o sistema de monitoramento simples
   const scriptMonitoramento = document.createElement('script');
-  scriptMonitoramento.src = 'monitoramento_otimizado.js';
+  scriptMonitoramento.src = 'monitoramento_simples.js';
   document.head.appendChild(scriptMonitoramento);
   
   // Carregar o sistema de monitoramento de clientes

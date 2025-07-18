@@ -45,12 +45,6 @@ if ($is_local && file_exists('.local_env')) {
     $is_local = false; // Forçar produção
 }
 
-// Verificação 6: Forçar banco remoto para este projeto específico
-// Como estamos desenvolvendo mas queremos usar o banco remoto
-if (strpos(__DIR__, 'loja-virtual-revenda') !== false) {
-    $is_local = false; // Forçar produção para usar banco remoto
-}
-
 /* ===== Credenciais do administrador padrão ===== */
 define('ADMIN_USER', 'admin');
 define('ADMIN_PASS', 'admin123');
@@ -75,7 +69,7 @@ if ($is_local) {
     define('DB_PASS', 'Los@ngo#081081');
     
     // API de produção Asaas - CHAVE CORRETA
-    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjNmMzY0Y2M4LTU5NzktNDM1Ny1hNmM5LTA1ZDJmZGVhYWQwZDo6JGFhY2hfNmE3Y2IwNzQtYjY3Yy00ZDFkLTg4OGMtOWU0YjE4NGUyYTA0');
+    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjVmY2Y3MzlhLTVkNzQtNDNmOS05MWQ5LTJiOGRkNmJhODZkNzo6JGFhY2hfZTdkNDQ0MGMtYTg5Ni00NDhkLTk2N2EtODk5OTk2Yzk5MWU5');
     define('DEBUG_MODE', false);
     define('ENABLE_CACHE', true);
 }

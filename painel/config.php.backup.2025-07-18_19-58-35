@@ -19,21 +19,14 @@ if (php_sapi_name() === 'cli') {
         strpos(__DIR__, 'xampp') !== false
     );
 } else {
-    // Se estiver via web, usar detecção melhorada
+    // Se estiver via web, usar detecção normal
     $is_local = (
-        ($_SERVER['SERVER_NAME'] ?? '') === 'localhost' || 
-        strpos($_SERVER['SERVER_NAME'] ?? '', '127.0.0.1') !== false ||
-        strpos($_SERVER['SERVER_NAME'] ?? '', '.local') !== false ||
-        strpos($_SERVER['HTTP_HOST'] ?? '', 'localhost') !== false ||
-        strpos($_SERVER['HTTP_HOST'] ?? '', '127.0.0.1') !== false ||
+        $_SERVER['SERVER_NAME'] === 'localhost' || 
+        strpos($_SERVER['SERVER_NAME'], '127.0.0.1') !== false ||
+        strpos($_SERVER['SERVER_NAME'], '.local') !== false ||
         !empty($_SERVER['XAMPP_ROOT']) ||
         !empty($_SERVER['DOCUMENT_ROOT']) && strpos($_SERVER['DOCUMENT_ROOT'], 'xampp') !== false
     );
-}
-
-// Forçar ambiente local se estiver no XAMPP (desenvolvimento)
-if (strpos(__DIR__, 'xampp') !== false || strpos($_SERVER['DOCUMENT_ROOT'] ?? '', 'xampp') !== false) {
-    $is_local = true;
 }
 
 /* ===== Credenciais do administrador padrão ===== */
@@ -51,13 +44,13 @@ define('DB_PASS', 'Los@ngo#081081');
 if ($is_local) {
     // Configurações para desenvolvimento local (XAMPP)
     // Usar a chave de produção válida que foi testada
-    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjNmMzY0Y2M4LTU5NzktNDM1Ny1hNmM5LTA1ZDJmZGVhYWQwZDo6JGFhY2hfNmE3Y2IwNzQtYjY3Yy00ZDFkLTg4OGMtOWU0YjE4NGUyYTA0');
+    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjVmY2Y3MzlhLTVkNzQtNDNmOS05MWQ5LTJiOGRkNmJhODZkNzo6JGFhY2hfZTdkNDQ0MGMtYTg5Ni00NDhkLTk2N2EtODk5OTk2Yzk5MWU5');
     define('DEBUG_MODE', true);
     define('ENABLE_CACHE', false); // Desabilitar cache em desenvolvimento
 } else {
     // Configurações para produção (Hostinger)
     // API de produção Asaas
-    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjNmMzY0Y2M4LTU5NzktNDM1Ny1hNmM5LTA1ZDJmZGVhYWQwZDo6JGFhY2hfNmE3Y2IwNzQtYjY3Yy00ZDFkLTg4OGMtOWU0YjE4NGUyYTA0');
+    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjVmY2Y3MzlhLTVkNzQtNDNmOS05MWQ5LTJiOGRkNmJhODZkNzo6JGFhY2hfZTdkNDQ0MGMtYTg5Ni00NDhkLTk2N2EtODk5OTk2Yzk5MWU5');
     define('DEBUG_MODE', false);
     define('ENABLE_CACHE', true);
 }
@@ -88,6 +81,6 @@ if (DEBUG_MODE) {
     $env_info = $is_local ? 'DESENVOLVIMENTO' : 'PRODUÇÃO';
     $port_info = $is_local ? ' (Porta 8080)' : '';
     $db_info = ' (Banco Remoto)';
-    error_log("[CONFIG] Ambiente detectado: {$env_info}{$port_info}{$db_info} | Host: " . ($_SERVER['SERVER_NAME'] ?? 'CLI'));
+    error_log("[CONFIG] Ambiente detectado: {$env_info}{$port_info}{$db_info} | Host: " . $_SERVER['SERVER_NAME']);
 }
 ?> 

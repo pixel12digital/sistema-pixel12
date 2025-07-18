@@ -149,7 +149,7 @@ function renderizarTabelaCobrancas() {
                 const clienteId = this.getAttribute('data-cliente');
                 if (!nome) return;
                 this.disabled = true;
-                fetch('/api/atualizar_contato_cliente.php', {
+                fetch('/loja-virtual-revenda/api/atualizar_contato_cliente.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ cliente_id: clienteId, contact_name: nome })
@@ -260,7 +260,7 @@ function renderizarTabelaCobrancas() {
                         const row = cell.closest('tr');
                         const ultimaInteracaoCell = row ? row.querySelector('.ultima-interacao-cell') : null;
                         if (ultimaInteracaoCell) {
-                            fetch('/api/cobrancas.php?id=' + encodeURIComponent(cobrancaId))
+                            fetch('/loja-virtual-revenda/api/cobrancas.php?id=' + encodeURIComponent(cobrancaId))
                               .then(r => r.json())
                               .then(data => {
                                   const cob = Array.isArray(data) ? data.find(c => String(c.id) === String(cobrancaId)) : null;
@@ -417,7 +417,7 @@ function carregarCobrancas(resetPagina = true) {
     if (filtros.status) params.append('status', filtros.status);
     if (filtros.data_vencimento_inicio) params.append('data_vencimento_inicio', filtros.data_vencimento_inicio);
     if (filtros.data_vencimento_fim) params.append('data_vencimento_fim', filtros.data_vencimento_fim);
-    fetch('/api/cobrancas.php?' + params.toString())
+    fetch('/loja-virtual-revenda/api/cobrancas.php?' + params.toString())
         .then(response => response.json())
         .then(data => {
             cobrancasFiltradas = aplicarFiltroClienteNome(data, filtros.cliente_nome);
@@ -498,7 +498,7 @@ function abrirModalWhatsapp(cliente_id, canal_id, mensagemPadrao, cobranca_id) {
       btnEnviar.disabled = false; // Garante reabilitação ao fechar manualmente
   };
   // Buscar canal padrão para Financeiro
-  fetch('/api/canal_padrao_financeiro.php')
+  fetch('/loja-virtual-revenda/api/canal_padrao_financeiro.php')
     .then(r => r.json())
     .then(jsonPadrao => {
       const canalPadraoId = jsonPadrao.canal_id;
