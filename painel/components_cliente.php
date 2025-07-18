@@ -453,11 +453,7 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     for ($i = 1; $i <= 15; $i++) {
       echo '<div style="background:#7c2ae8;color:#fff;border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid #6d28d9;" data-mensagem-id="' . $i . '">
         <div style="font-size:0.9em;font-weight:600;margin-bottom:6px;opacity:0.9;">Teste ' . $i . ' <span style="font-size:0.85em;font-weight:400;margin-left:8px;">Enviado às 10:' . str_pad($i, 2, '0', STR_PAD_LEFT) . '</span></div>
-        <div class="mensagem-conteudo" style="line-height:1.4;white-space:pre-wrap;">Esta é uma mensagem de teste ' . $i . ' para verificar se a rolagem está funcionando corretamente. Esta mensagem tem um conteúdo mais longo para garantir que ocupe espaço suficiente na tela.</div>
-        <div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end;">
-          <button onclick="editarMensagem(' . $i . ', \'Mensagem de teste ' . $i . '\')" style="background:#3b82f6;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:0.8em;cursor:pointer;">Editar</button>
-          <button onclick="excluirMensagem(' . $i . ')" style="background:#ef4444;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:0.8em;cursor:pointer;">Excluir</button>
-        </div>
+        <div class="mensagem-conteudo" style="line-height:1.4;white-space:pre-wrap;cursor:pointer;" title="Clique para editar">Esta é uma mensagem de teste ' . $i . ' para verificar se a rolagem está funcionando corretamente. Esta mensagem tem um conteúdo mais longo para garantir que ocupe espaço suficiente na tela.</div>
       </div>';
     }
     echo '</div>';
