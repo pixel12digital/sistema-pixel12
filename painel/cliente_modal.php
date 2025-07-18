@@ -82,23 +82,12 @@ while ($cob = $res_cob && $res_cob->num_rows ? $res_cob->fetch_assoc() : null) {
   $cobrancas[] = $cob;
 }
 
-// Buscar apenas anotações (não mensagens de conversa)
+// Buscar apenas anotações manuais (não mensagens de conversa)
 $mensagens = [];
-$res_msg = $mysqli->query("SELECT m.*, c.nome_exibicao as canal_nome FROM mensagens_comunicacao m LEFT JOIN canais_comunicacao c ON m.canal_id = c.id WHERE m.cliente_id = $cliente_id AND (m.tipo = 'anotacao' OR m.tipo IS NULL AND m.direcao = 'enviado' AND m.mensagem LIKE '%fatura%') ORDER BY m.data_hora DESC");
-while ($msg = $res_msg && $res_msg->num_rows ? $res_msg->fetch_assoc() : null) {
-  $mensagens[] = $msg;
-}
-
-// Calcular totais financeiros
-$total_pago = $total_aberto = $total_vencido = 0.0;
-foreach ($cobrancas as $cob) {
-  $valor = floatval($cob['valor']);
-  if ($cob['status'] === 'RECEIVED' || $cob['status'] === 'PAID') {
-    $total_pago += $valor;
-  } elseif ($cob['status'] === 'PENDING' && strtotime($cob['vencimento']) < time()) {
-    $total_vencido += $valor;
-  } elseif ($cob['status'] === 'PENDING') {
-    $total_aberto += $valor;
+if ($cliente_id) {
+  $res_hist = $mysqli->query("SELECT m.*, c.nome_exibicao as canal_nome FROM mensagens_comunicacao m LEFT JOIN canais_comunicacao c ON m.canal_id = c.id WHERE m.cliente_id = $cliente_id AND m.tipo = 'anotacao' ORDER BY m.data_hora DESC");
+  while ($msg = $res_hist && $res_hist->num_rows ? $res_hist->fetch_assoc() : null) {
+    $mensagens[] = $msg;
   }
 }
 ?>

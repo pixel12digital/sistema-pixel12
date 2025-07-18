@@ -486,9 +486,9 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     <div class="painel-card" style="background:#fff;color:#23232b; min-height:500px; max-height:calc(80vh - 32px); position:relative; padding-bottom:100px; padding-right:12px;">
       <h4 style="color:#7c2ae8;"> Suporte & Relacionamento</h4>
       <div id="mensagens-relacionamento" style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: calc(80vh - 220px); min-height: 200px; padding: 16px 8px 32px 16px; height: calc(80vh - 220px); margin-right: 4px;">';
-  // Buscar qualquer mensagem real do cliente
+  // Buscar apenas anotações manuais (não mensagens de conversa)
   $historico = [];
-  $res_hist = $mysqli->query("SELECT m.*, c.nome_exibicao as canal_nome FROM mensagens_comunicacao m LEFT JOIN canais_comunicacao c ON m.canal_id = c.id WHERE m.cliente_id = $cliente_id ORDER BY m.data_hora DESC");
+  $res_hist = $mysqli->query("SELECT m.*, c.nome_exibicao as canal_nome FROM mensagens_comunicacao m LEFT JOIN canais_comunicacao c ON m.canal_id = c.id WHERE m.cliente_id = $cliente_id AND m.tipo = 'anotacao' ORDER BY m.data_hora DESC");
   while ($msg = $res_hist && $res_hist->num_rows ? $res_hist->fetch_assoc() : null) $historico[] = $msg;
   if (empty($historico)) {
     echo '<div style="color:#64748b;font-style:italic;text-align:center;padding:40px 20px;">Nenhuma interação registrada para este cliente.</div>';

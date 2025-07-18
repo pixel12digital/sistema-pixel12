@@ -5,9 +5,9 @@ header('Content-Type: text/html; charset=utf-8');
 $cliente_id = isset($_GET['cliente_id']) ? intval($_GET['cliente_id']) : 0;
 global $mysqli;
 if (!$cliente_id) { echo '<div class="text-gray-500">Cliente não informado.</div>'; exit; }
-// Buscar apenas anotações (não mensagens de conversa)
+// Buscar apenas anotações manuais (não mensagens de conversa)
 $historico = [];
-$res_hist = $mysqli->query("SELECT m.*, c.nome_exibicao as canal_nome FROM mensagens_comunicacao m LEFT JOIN canais_comunicacao c ON m.canal_id = c.id WHERE m.cliente_id = $cliente_id AND (m.tipo = 'anotacao' OR m.tipo IS NULL AND m.direcao = 'enviado' AND m.mensagem LIKE '%fatura%') ORDER BY m.data_hora DESC");
+$res_hist = $mysqli->query("SELECT m.*, c.nome_exibicao as canal_nome FROM mensagens_comunicacao m LEFT JOIN canais_comunicacao c ON m.canal_id = c.id WHERE m.cliente_id = $cliente_id AND m.tipo = 'anotacao' ORDER BY m.data_hora DESC");
 while ($msg = $res_hist && $res_hist->num_rows ? $res_hist->fetch_assoc() : null) {
   $historico[] = $msg;
 }
