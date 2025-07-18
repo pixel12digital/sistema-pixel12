@@ -49,9 +49,59 @@ if (file_exists($logFile)) {
     }
 }
 
+// Análise inteligente do status da sincronização
+$status = 'unknown';
+$progress = 0;
+$processed = 0;
+$updated = 0;
+$errors = 0;
+$lastMessage = '';
+
+if (!empty($result)) {
+    $lastMessage = end($result);
+    $allLogs = implode(' ', array_map('strtolower', $result));
+    
+    // Detectar status baseado no conteúdo dos logs
+    if (strpos($allLogs, 'sincronização concluída com sucesso') !== false || 
+        strpos($allLogs, 'concluída com sucesso') !== false) {
+        $status = 'success';
+        $progress = 100;
+    } elseif (strpos($allLogs, 'erro') !== false || 
+              strpos($allLogs, 'fatal error') !== false ||
+              strpos($allLogs, 'failed') !== false) {
+        $status = 'error';
+        $progress = 0;
+    } elseif (strpos($allLogs, 'buscando') !== false || 
+              strpos($allLogs, 'processando') !== false) {
+        $status = 'processing';
+        $progress = 50;
+    } elseif (strpos($allLogs, 'iniciando') !== false) {
+        $status = 'starting';
+        $progress = 10;
+    }
+    
+    // Contar itens processados
+    foreach ($result as $log) {
+        $logLower = strtolower($log);
+        if (strpos($logLower, 'processada e atualizada') !== false) {
+            $processed++;
+            $updated++;
+        } elseif (strpos($logLower, 'erro') !== false && 
+                  strpos($logLower, '0 erros') === false) {
+            $errors++;
+        }
+    }
+}
+
 // Adicionar informações extras sobre o status
 $statusInfo = [
     'lines' => $result,
+    'status' => $status,
+    'progress' => $progress,
+    'processed' => $processed,
+    'updated' => $updated,
+    'errors' => $errors,
+    'last_message' => $lastMessage,
     'timestamp' => date('Y-m-d H:i:s'),
     'file_exists' => file_exists($logFile),
     'file_size' => file_exists($logFile) ? filesize($logFile) : 0,

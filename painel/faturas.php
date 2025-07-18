@@ -139,7 +139,29 @@ function render_content() {
           <div id="sync-progress-label" style="font-size:0.98em;color:#7c3aed;margin-top:4px;font-weight:500;">0%</div>
         </div>
         <!-- Estatísticas -->
-        <div id="sync-stats" style="display:flex;gap:24px;margin-bottom:10px;"></div>
+        <div id="sync-stats" style="display:flex;gap:24px;margin-bottom:10px;">
+          <div class="summary-card" style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;padding:10px 15px;display:flex;align-items:center;gap:8px;">
+            <div style="width:24px;height:24px;background:#3b82f6;display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-size:14px;">💾</div>
+            <div>
+              <p class="text-xs uppercase text-gray-500">Processados</p>
+              <p class="text-xl font-semibold mt-1" id="stats-processed">0</p>
+            </div>
+          </div>
+          <div class="summary-card" style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;padding:10px 15px;display:flex;align-items:center;gap:8px;">
+            <div style="width:24px;height:24px;background:#059669;display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-size:14px;">✅</div>
+            <div>
+              <p class="text-xs uppercase text-gray-500">Atualizados</p>
+              <p class="text-xl font-semibold mt-1" id="stats-updated">0</p>
+            </div>
+          </div>
+          <div class="summary-card" style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;padding:10px 15px;display:flex;align-items:center;gap:8px;">
+            <div style="width:24px;height:24px;background:#dc2626;display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-size:14px;">❌</div>
+            <div>
+              <p class="text-xs uppercase text-gray-500">Erros</p>
+              <p class="text-xl font-semibold mt-1" id="stats-errors">0</p>
+            </div>
+          </div>
+        </div>
       </div>
       <!-- Logs -->
       <div id="sync-logs-area" style="background:#f3f4f6;border-radius:8px;padding:16px;max-height:180px;overflow:auto;font-size:0.97em;color:#222;white-space:pre-wrap;"></div>
@@ -258,19 +280,62 @@ document.addEventListener('DOMContentLoaded', function() {
       syncInterval = setInterval(() => {
         fetch('api/sync_status.php')
           .then(r => r.json())
-          .then(logs => {
+          .then(data => {
+            // Limpar área de logs
             syncLogsArea.innerHTML = '';
-            let linhas = Array.isArray(logs) ? logs : (logs && Array.isArray(logs.lines) ? logs.lines : []);
-            if (Array.isArray(logs)) {
-              logs.forEach(l => adicionarLog(l, l.toLowerCase().includes('erro') ? 'error' : (l.toLowerCase().includes('sucesso') ? 'success' : '')));
-            } else if (logs && Array.isArray(logs.lines)) {
-              logs.lines.forEach(l => adicionarLog(l, l.toLowerCase().includes('erro') ? 'error' : (l.toLowerCase().includes('sucesso') ? 'success' : '')));
-            } else if (typeof logs === 'string') {
-              adicionarLog(logs, '');
+            
+            // Processar logs
+            if (data.lines && Array.isArray(data.lines)) {
+              data.lines.forEach(line => {
+                const tipo = line.toLowerCase().includes('erro') && !line.toLowerCase().includes('0 erros') ? 'error' : 
+                           (line.toLowerCase().includes('sucesso') || line.toLowerCase().includes('concluída')) ? 'success' : '';
+                adicionarLog(line, tipo);
+              });
             }
-            // Atualizar status principal conforme o log
-            if (linhas.length > 0) {
-              const ultima = linhas[linhas.length - 1].toLowerCase();
+            
+            // Atualizar estatísticas se disponíveis
+            if (data.processed !== undefined) {
+              const statsProcessed = document.getElementById('stats-processed');
+              const statsUpdated = document.getElementById('stats-updated');
+              const statsErrors = document.getElementById('stats-errors');
+              
+              if (statsProcessed) statsProcessed.textContent = data.processed;
+              if (statsUpdated) statsUpdated.textContent = data.updated;
+              if (statsErrors) statsErrors.textContent = data.errors;
+            }
+            
+            // Atualizar progresso baseado no status real
+            if (data.progress !== undefined) {
+              atualizarProgresso(data.progress);
+            }
+            
+            // Atualizar status baseado na análise inteligente
+            if (data.status) {
+              switch (data.status) {
+                case 'success':
+                  atualizarStatus('✅', 'Sincronização concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
+                  syncErrorSummary.style.display = 'none'; // Esconder erro se houver sucesso
+                  if (syncInterval) clearInterval(syncInterval);
+                  break;
+                case 'error':
+                  mostrarErroSync(data.last_message || 'Erro durante a sincronização');
+                  if (syncInterval) clearInterval(syncInterval);
+                  break;
+                case 'processing':
+                  atualizarStatus('🔄', 'Sincronizando...', 'Processando dados do Asaas', '#3b82f6');
+                  break;
+                case 'starting':
+                  atualizarStatus('⏳', 'Iniciando sincronização...', 'Preparando conexão com Asaas', '#3b82f6');
+                  break;
+                default:
+                  // Manter status atual se não houver mudança
+                  break;
+              }
+            }
+            
+            // Fallback para detecção manual se não houver status
+            if (!data.status && data.lines && data.lines.length > 0) {
+              const ultima = data.lines[data.lines.length - 1].toLowerCase();
               if (ultima.includes('buscando clientes')) {
                 atualizarStatus('👥', 'Sincronizando clientes...', 'Buscando clientes no Asaas', '#3b82f6');
               } else if (ultima.includes('clientes sincronizados')) {
@@ -279,19 +344,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 atualizarStatus('💸', 'Sincronizando cobranças...', 'Buscando cobranças no Asaas', '#3b82f6');
               } else if (ultima.includes('cobranças sincronizadas')) {
                 atualizarStatus('💾', 'Cobranças sincronizadas!', 'Finalizando...', '#3b82f6');
-              } 
-              // Corrigir: detectar qualquer linha de sucesso/conclusão
-              if (ultima.includes('sincronização concluída') || ultima.includes('concluída com sucesso')) {
+              } else if (ultima.includes('sincronização concluída') || ultima.includes('concluída com sucesso')) {
                 atualizarStatus('✅', 'Sincronização concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
                 atualizarProgresso(100);
+                syncErrorSummary.style.display = 'none';
                 if (syncInterval) clearInterval(syncInterval);
               }
             }
-            // Progresso estimado
-            if (!linhas.some(l => l.toLowerCase().includes('sincronização concluída') || l.toLowerCase().includes('concluída com sucesso'))) {
+            
+            // Progresso estimado apenas se não houver progresso real
+            if (data.progress === undefined && !data.lines?.some(l => l.toLowerCase().includes('sincronização concluída') || l.toLowerCase().includes('concluída com sucesso'))) {
               progresso = Math.min(95, progresso + 5);
               atualizarProgresso(progresso);
             }
+          })
+          .catch(error => {
+            console.error('Erro ao buscar status:', error);
+            adicionarLog('Erro ao conectar ao servidor de status', 'error');
           });
       }, 1500);
     });
