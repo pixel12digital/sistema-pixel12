@@ -493,10 +493,12 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
       
       // Botões de ação
       $acoes = '';
-      // Apenas botão de excluir, discreto
-      $acoes = '<div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end;">
-        <button class="btn-excluir-msg" data-id="' . $id_msg . '" title="Excluir mensagem" style="background:none;color:#ef4444;border:none;padding:2px 6px;border-radius:4px;font-size:1.1em;cursor:pointer;opacity:0.7;">🗑️</button>
-      </div>';
+      // Apenas botão de excluir, discreto, e só para mensagens reais
+      if ($id_msg > 0) {
+        $acoes = '<div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end;">
+          <button class="btn-excluir-msg" data-id="' . $id_msg . '" title="Excluir mensagem" style="background:none;color:#ef4444;border:none;padding:2px 6px;border-radius:4px;font-size:1.1em;cursor:pointer;opacity:0.7;">🗑️</button>
+        </div>';
+      }
       
       echo '<div style="' . $bubble . 'border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid ' . ($is_anotacao ? '#f59e0b' : ($is_received ? '#374151' : '#6d28d9')) . ';" data-mensagem-id="' . $id_msg . '">
         <div style="font-size:0.9em;font-weight:600;margin-bottom:6px;opacity:0.9;">' . $canal . ' <span style="font-size:0.85em;font-weight:400;margin-left:8px;">' . ($is_received ? 'Recebido' : 'Enviado') . ' às ' . $hora . '</span></div>
