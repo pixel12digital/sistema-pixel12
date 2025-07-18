@@ -262,9 +262,6 @@ function render_content() {
       <div class="text-gray-500 text-sm">ID: <?= htmlspecialchars($cliente['id'] ?? '-') ?> | Asaas: <?= htmlspecialchars($cliente['asaas_id'] ?? '-') ?></div>
     </div>
     <a href="clientes.php" class="bg-purple-600 hover:bg-purple-800 text-white px-4 py-2 rounded transition-colors font-semibold text-sm self-start md:self-auto" style="margin-left:auto;" title="Voltar para clientes">← Voltar para Clientes</a>
-    <?php if (!$modo_edicao): ?>
-      <a href="?id=<?= $cliente_id ?>&editar=1" class="ml-2 bg-yellow-400 hover:bg-yellow-500 text-white px-4 py-2 rounded font-semibold text-sm transition-colors" title="Editar Cliente">✏️ Editar</a>
-    <?php endif; ?>
   </div>
   <!-- Abas modernas -->
   <div class="painel-abas">
@@ -274,113 +271,6 @@ function render_content() {
     <button class="painel-aba" data-tab="financeiro">Financeiro</button>
   </div>
   <div class="painel-tabs-content">
-    <?php if ($modo_edicao): ?>
-    <form method="post" action="">
-      <input type="hidden" name="id" value="<?= $cliente_id ?>">
-      <div class="painel-tab painel-tab-dados" style="display:block;">
-        <div class="painel-grid">
-          <!-- Dados Pessoais -->
-          <div class="painel-card">
-            <h4>👤 Dados Pessoais</h4>
-            <table>
-              <tbody>
-                <!-- Nome -->
-                <tr>
-                  <td class="font-semibold text-gray-600">Nome:</td>
-                  <td><input type="text" name="nome" value="<?= htmlspecialchars($cliente['nome'] ?? '') ?>" class="painel-input"></td>
-                </tr>
-                <!-- Contato Principal -->
-                <tr>
-                  <td class="font-semibold text-gray-600">Contato Principal:</td>
-                  <td><input type="text" name="contact_name" value="<?= htmlspecialchars($cliente['contact_name'] ?? '') ?>" class="painel-input" placeholder="Ex: João" autocomplete="off"></td>
-                </tr>
-                <?php foreach ($dados_pessoais as $campo): if (!isset($cliente[$campo]) || in_array($campo, ['nome','contact_name'])) continue; ?>
-                  <tr>
-                    <td class="font-semibold text-gray-600"> <?= formatar_campo($campo, $cliente[$campo]) ?> </td>
-                    <?php if ($campo === 'asaas_id'): ?>
-                      <td><span style="font-family:monospace; background:#f3f4f6; padding:4px 8px; border-radius:6px; color:#7c2ae8;"><?= htmlspecialchars($cliente[$campo]) ?></span></td>
-                    <?php else: ?>
-                      <td><input type="text" name="<?= $campo ?>" value="<?= htmlspecialchars($cliente[$campo]) ?>" class="painel-input"></td>
-                    <?php endif; ?>
-                  </tr>
-                <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-          <!-- Contato -->
-          <div class="painel-card">
-            <h4>✉️ Contato</h4>
-            <table>
-              <tbody>
-                <?php foreach ($contato as $campo): if (!isset($cliente[$campo])) continue; ?>
-                  <tr>
-                    <td class="font-semibold text-gray-600"> <?= formatar_campo($campo, $cliente[$campo]) ?> </td>
-                    <td>
-                      <?php if ($campo === 'emails_adicionais') {
-                        // Extrair e-mails para exibir no input
-                        $valor = $cliente[$campo];
-                        $emails = [];
-                        $json = json_decode($valor, true);
-                        if (is_array($json)) {
-                          foreach ($json as $email) {
-                            if (is_string($email)) $emails[] = $email;
-                            elseif (is_array($email)) $emails = array_merge($emails, $email);
-                          }
-                        } elseif (preg_match_all('/[\w\.-]+@[\w\.-]+/', $valor, $matches)) {
-                          $emails = $matches[0];
-                        }
-                        // Remover o e-mail principal dos adicionais
-                        $email_principal = $cliente['email'] ?? '';
-                        $emails = array_filter($emails, function($e) use ($email_principal) {
-                          return strtolower($e) !== strtolower($email_principal);
-                        });
-                        $input_value = $emails ? implode(', ', $emails) : '';
-                        echo '<input type="text" name="emails_adicionais" value="'.htmlspecialchars($input_value).'" class="painel-input">';
-                      } else {
-                        echo '<input type="text" name="'.$campo.'" value="'.htmlspecialchars($cliente[$campo]).'" class="painel-input">';
-                      } ?>
-                    </td>
-                  </tr>
-                <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-          <!-- Endereço -->
-          <div class="painel-card">
-            <h4>📍 Endereço</h4>
-            <table>
-              <tbody>
-                <?php foreach ($endereco as $campo): if (!isset($cliente[$campo])) continue; ?>
-                  <tr>
-                    <td class="font-semibold text-gray-600"> <?= formatar_campo($campo, $cliente[$campo]) ?> </td>
-                    <td><input type="text" name="<?= $campo ?>" value="<?= htmlspecialchars($cliente[$campo]) ?>" class="painel-input"></td>
-                  </tr>
-                <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-          <!-- Outros -->
-          <div class="painel-card">
-            <h4>🗂️ Outros</h4>
-            <table>
-              <tbody>
-                <?php foreach ($outros as $campo): ?>
-                  <tr>
-                    <td class="font-semibold text-gray-600"> <?= formatar_campo($campo, $cliente[$campo]) ?> </td>
-                    <td><input type="text" name="<?= $campo ?>" value="<?= htmlspecialchars($cliente[$campo]) ?>" class="painel-input"></td>
-                  </tr>
-                <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      <div class="mt-6 text-right">
-        <button type="submit" class="bg-purple-600 hover:bg-purple-800 text-white px-6 py-2 rounded font-semibold text-base transition-colors">Salvar</button>
-        <a href="?id=<?= $cliente_id ?>" class="ml-2 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded font-semibold text-base transition-colors">Cancelar</a>
-      </div>
-    </form>
-    <?php else: ?>
     <div class="painel-tab painel-tab-dados" style="display:block;">
       <div class="painel-grid">
         <!-- Dados Pessoais -->
@@ -390,15 +280,34 @@ function render_content() {
             <tbody>
               <!-- Nome -->
               <tr>
-                <td class="font-semibold text-gray-600">Nome: <?= htmlspecialchars($cliente['nome'] ?? '') ?></td>
+                <td class="font-semibold text-gray-600">Nome:</td>
+                <td>
+                  <span class="campo-editavel" data-campo="nome" data-valor="<?= htmlspecialchars($cliente['nome'] ?? '') ?>">
+                    <?= htmlspecialchars($cliente['nome'] ?? '') ?>
+                  </span>
+                </td>
               </tr>
               <!-- Contato Principal -->
               <tr>
-                <td class="font-semibold text-gray-600">Contato Principal: <?= htmlspecialchars($cliente['contact_name'] ?? '—') ?></td>
+                <td class="font-semibold text-gray-600">Contato Principal:</td>
+                <td>
+                  <span class="campo-editavel" data-campo="contact_name" data-valor="<?= htmlspecialchars($cliente['contact_name'] ?? '') ?>" data-placeholder="Ex: João">
+                    <?= htmlspecialchars($cliente['contact_name'] ?? '—') ?>
+                  </span>
+                </td>
               </tr>
               <?php foreach ($dados_pessoais as $campo): if (!isset($cliente[$campo]) || in_array($campo, ['nome','contact_name'])) continue; ?>
                 <tr>
-                  <td class="font-semibold text-gray-600"> <?= formatar_campo($campo, $cliente[$campo]) ?> </td>
+                  <td class="font-semibold text-gray-600"><?= ucfirst(str_replace('_', ' ', $campo)) ?>:</td>
+                  <td>
+                    <?php if ($campo === 'asaas_id'): ?>
+                      <span style="font-family:monospace; background:#f3f4f6; padding:4px 8px; border-radius:6px; color:#7c2ae8;"><?= htmlspecialchars($cliente[$campo]) ?></span>
+                    <?php else: ?>
+                      <span class="campo-editavel" data-campo="<?= $campo ?>" data-valor="<?= htmlspecialchars($cliente[$campo]) ?>">
+                        <?= htmlspecialchars($cliente[$campo]) ?>
+                      </span>
+                    <?php endif; ?>
+                  </td>
                 </tr>
               <?php endforeach; ?>
             </tbody>
@@ -411,7 +320,12 @@ function render_content() {
             <tbody>
               <?php foreach ($contato as $campo): if (!isset($cliente[$campo])) continue; ?>
                 <tr>
-                  <td class="font-semibold text-gray-600"> <?= formatar_campo($campo, $cliente[$campo]) ?> </td>
+                  <td class="font-semibold text-gray-600"><?= ucfirst(str_replace('_', ' ', $campo)) ?>:</td>
+                  <td>
+                    <span class="campo-editavel" data-campo="<?= $campo ?>" data-valor="<?= htmlspecialchars($cliente[$campo]) ?>">
+                      <?= htmlspecialchars($cliente[$campo]) ?>
+                    </span>
+                  </td>
                 </tr>
               <?php endforeach; ?>
             </tbody>
@@ -424,7 +338,12 @@ function render_content() {
             <tbody>
               <?php foreach ($endereco as $campo): if (!isset($cliente[$campo])) continue; ?>
                 <tr>
-                  <td class="font-semibold text-gray-600"> <?= formatar_campo($campo, $cliente[$campo]) ?> </td>
+                  <td class="font-semibold text-gray-600"><?= ucfirst(str_replace('_', ' ', $campo)) ?>:</td>
+                  <td>
+                    <span class="campo-editavel" data-campo="<?= $campo ?>" data-valor="<?= htmlspecialchars($cliente[$campo]) ?>">
+                      <?= htmlspecialchars($cliente[$campo]) ?>
+                    </span>
+                  </td>
                 </tr>
               <?php endforeach; ?>
             </tbody>
@@ -437,7 +356,12 @@ function render_content() {
             <tbody>
               <?php foreach ($outros as $campo): ?>
                 <tr>
-                  <td class="font-semibold text-gray-600"> <?= formatar_campo($campo, $cliente[$campo]) ?> </td>
+                  <td class="font-semibold text-gray-600"><?= ucfirst(str_replace('_', ' ', $campo)) ?>:</td>
+                  <td>
+                    <span class="campo-editavel" data-campo="<?= $campo ?>" data-valor="<?= htmlspecialchars($cliente[$campo]) ?>">
+                      <?= htmlspecialchars($cliente[$campo]) ?>
+                    </span>
+                  </td>
                 </tr>
               <?php endforeach; ?>
             </tbody>
@@ -445,7 +369,6 @@ function render_content() {
         </div>
       </div>
     </div>
-    <?php endif; ?>
     <div class="painel-tab painel-tab-projetos" style="display:none;">
       <div class="painel-card"><h4>📁 Projetos</h4><p>Lista de projetos relacionados ao cliente.</p></div>
     </div>
@@ -808,6 +731,205 @@ document.addEventListener("DOMContentLoaded", function() {
       .catch(() => alert('Erro ao excluir mensagem.'));
     });
   });
+});
+</script>
+<style>
+/* Estilos para campos editáveis inline - Versão simplificada */
+.campo-editavel {
+  cursor: pointer !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+  display: inline-block !important;
+  min-width: 100px !important;
+  border: 1px solid transparent !important;
+  background-color: transparent !important;
+}
+
+.campo-editavel:hover {
+  background-color: #f3f4f6 !important;
+  border-color: #d1d5db !important;
+}
+
+.campo-editavel.editando {
+  background-color: #fff !important;
+  border-color: #7c2ae8 !important;
+  box-shadow: 0 0 0 2px #ede9fe !important;
+  padding: 6px 10px !important;
+}
+
+.campo-editavel input {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  font-size: inherit !important;
+  font-family: inherit !important;
+  color: inherit !important;
+  width: 100% !important;
+  min-width: 200px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.campo-editavel input:focus {
+  outline: none !important;
+}
+
+.campo-editavel.salvando {
+  opacity: 0.6 !important;
+  pointer-events: none !important;
+}
+
+.campo-editavel.erro {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+}
+
+.campo-editavel.sucesso {
+  border-color: #22c55e !important;
+  background-color: #f0fdf4 !important;
+}
+</style>
+<script>
+// Funcionalidade de edição inline - Versão simplificada
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Iniciando edição inline...');
+  
+  function initEdicaoInline() {
+    const campos = document.querySelectorAll('.campo-editavel');
+    console.log('Campos encontrados:', campos.length);
+    
+    campos.forEach(function(campo) {
+      campo.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (this.classList.contains('editando')) return;
+        
+        const valorOriginal = this.getAttribute('data-valor') || '';
+        const nomeCampo = this.getAttribute('data-campo');
+        
+        console.log('Editando:', nomeCampo, valorOriginal);
+        
+        // Criar input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = valorOriginal;
+        input.style.cssText = 'border:none;outline:none;background:transparent;font-size:inherit;font-family:inherit;color:inherit;width:100%;min-width:200px;padding:0;margin:0;';
+        
+        // Substituir conteúdo
+        this.innerHTML = '';
+        this.appendChild(input);
+        this.classList.add('editando');
+        
+        // Focar no input
+        setTimeout(function() {
+          input.focus();
+          input.select();
+        }, 10);
+        
+        // Função para salvar
+        function salvar() {
+          const novoValor = input.value.trim();
+          
+          if (novoValor === valorOriginal) {
+            cancelar();
+            return;
+          }
+          
+          // Mostrar salvando
+          campo.innerHTML = '<span style="color: #7c2ae8;">Salvando...</span>';
+          campo.classList.add('salvando');
+          
+          // Enviar para servidor
+          const formData = new FormData();
+          formData.append('id', <?= json_encode($cliente_id) ?>);
+          formData.append(nomeCampo, novoValor);
+          
+          fetch('api/editar_cliente.php', {
+            method: 'POST',
+            body: formData
+          })
+          .then(function(response) {
+            return response.json();
+          })
+          .then(function(data) {
+            if (data.success) {
+              // Sucesso
+              campo.classList.remove('salvando', 'editando');
+              campo.classList.add('sucesso');
+              campo.innerHTML = novoValor || '—';
+              campo.setAttribute('data-valor', novoValor);
+              
+              // Atualizar nome no cabeçalho se for o campo nome
+              if (nomeCampo === 'nome') {
+                const nomeHeader = document.querySelector('.painel-nome');
+                if (nomeHeader) nomeHeader.textContent = novoValor;
+                const avatar = document.querySelector('.painel-avatar');
+                if (avatar) avatar.textContent = novoValor.charAt(0).toUpperCase();
+              }
+              
+              setTimeout(function() {
+                campo.classList.remove('sucesso');
+              }, 2000);
+            } else {
+              // Erro
+              campo.classList.remove('salvando');
+              campo.classList.add('erro');
+              campo.innerHTML = '<span style="color: #ef4444;">Erro ao salvar</span>';
+              
+              setTimeout(function() {
+                campo.classList.remove('erro');
+                campo.innerHTML = valorOriginal || '—';
+              }, 3000);
+            }
+          })
+          .catch(function(error) {
+            // Erro de rede
+            campo.classList.remove('salvando');
+            campo.classList.add('erro');
+            campo.innerHTML = '<span style="color: #ef4444;">Erro de conexão</span>';
+            
+            setTimeout(function() {
+              campo.classList.remove('erro');
+              campo.innerHTML = valorOriginal || '—';
+            }, 3000);
+          });
+        }
+        
+        // Função para cancelar
+        function cancelar() {
+          campo.classList.remove('editando');
+          campo.innerHTML = valorOriginal || '—';
+        }
+        
+        // Event listeners
+        input.onkeydown = function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            salvar();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelar();
+          }
+        };
+        
+        input.onblur = function() {
+          setTimeout(function() {
+            if (campo.classList.contains('editando')) {
+              salvar();
+            }
+          }, 100);
+        };
+      };
+    });
+  }
+  
+  // Inicializar
+  initEdicaoInline();
+  
+  // Reinicializar após um delay
+  setTimeout(initEdicaoInline, 1000);
 });
 </script>
 <?php

@@ -18,6 +18,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const whatsappClients = {};
 const clientStatus = {};
 
+// Configuração do webhook
+let webhookUrl = 'http://localhost:8080/loja-virtual-revenda/api/webhook.php';
+
 // Configurar upload de arquivos
 const upload = multer({ 
     dest: '/tmp/uploads/',
@@ -48,10 +51,17 @@ async function initializeWhatsApp(sessionName = 'default') {
                     '--disable-dev-shm-usage',
                     '--disable-accelerated-2d-canvas',
                     '--no-first-run',
-                    '--no-zygote',
-                    '--single-process',
-                    '--disable-gpu'
-                ]
+                    '--disable-gpu',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding',
+                    '--disable-features=TranslateUI',
+                    '--disable-ipc-flooding-protection'
+                ],
+                timeout: 60000,
+                protocolTimeout: 60000
             }
         });
 
@@ -102,7 +112,42 @@ async function initializeWhatsApp(sessionName = 'default') {
         // Mensagem recebida (webhook futuro)
         client.on('message', async (message) => {
             console.log(`📥 [${sessionName}] Mensagem recebida de ${message.from}: ${message.body}`);
-            // Aqui futuramente enviaremos webhook para o sistema PHP
+            
+            // ENVIAR WEBHOOK PARA O SISTEMA PHP
+            try {
+                const webhookData = {
+                    event: 'onmessage',
+                    data: {
+                        from: message.from.replace('@c.us', ''),
+                        text: message.body,
+                        type: message.type || 'text',
+                        timestamp: message.timestamp,
+                        session: sessionName
+                    }
+                };
+                
+                // URL do webhook do sistema PHP
+                console.log(`📤 Enviando webhook para: ${webhookUrl}`);
+                console.log(`📤 Dados:`, JSON.stringify(webhookData, null, 2));
+                
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(webhookData)
+                });
+                
+                if (response.ok) {
+                    console.log(`✅ Webhook enviado com sucesso - Status: ${response.status}`);
+                } else {
+                    console.log(`❌ Erro ao enviar webhook - Status: ${response.status}`);
+                    const errorText = await response.text();
+                    console.log(`❌ Erro: ${errorText}`);
+                }
+            } catch (webhookError) {
+                console.error(`❌ Erro ao enviar webhook:`, webhookError);
+            }
         });
 
         await client.initialize();
@@ -389,6 +434,85 @@ app.get('/sessions', (req, res) => {
     });
 });
 
+// Configurar webhook URL
+app.post('/webhook/config', (req, res) => {
+    try {
+        const { url } = req.body;
+        
+        if (!url) {
+            return res.status(400).json({
+                success: false,
+                message: 'URL do webhook é obrigatória'
+            });
+        }
+        
+        webhookUrl = url;
+        
+        res.json({
+            success: true,
+            message: 'Webhook configurado com sucesso',
+            webhook_url: webhookUrl
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: `Erro ao configurar webhook: ${error.message}`
+        });
+    }
+});
+
+// Verificar configuração do webhook
+app.get('/webhook/config', (req, res) => {
+    res.json({
+        success: true,
+        webhook_url: webhookUrl,
+        message: 'Configuração do webhook'
+    });
+});
+
+// Testar webhook
+app.post('/webhook/test', async (req, res) => {
+    try {
+        const testData = {
+            event: 'test',
+            data: {
+                from: '5547999999999',
+                text: 'Mensagem de teste do webhook',
+                type: 'text',
+                timestamp: Date.now(),
+                session: 'default'
+            }
+        };
+        
+        console.log(`🧪 Testando webhook para: ${webhookUrl}`);
+        console.log(`🧪 Dados de teste:`, JSON.stringify(testData, null, 2));
+        
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(testData)
+        });
+        
+        const responseText = await response.text();
+        
+        res.json({
+            success: response.ok,
+            message: response.ok ? 'Webhook testado com sucesso' : 'Erro ao testar webhook',
+            webhook_url: webhookUrl,
+            response_status: response.status,
+            response_text: responseText
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: `Erro ao testar webhook: ${error.message}`,
+            webhook_url: webhookUrl
+        });
+    }
+});
+
 // Desconectar sessão
 app.post('/session/:sessionName/disconnect', async (req, res) => {
     try {
@@ -432,6 +556,9 @@ app.listen(PORT, () => {
     console.log(`   POST /check/number                    - Verificar número`);
     console.log(`   GET  /sessions                        - Listar sessões`);
     console.log(`   POST /session/:sessionName/disconnect - Desconectar`);
+    console.log(`   POST /webhook/config                  - Configurar webhook`);
+    console.log(`   GET  /webhook/config                  - Verificar webhook`);
+    console.log(`   POST /webhook/test                    - Testar webhook`);
     console.log(`\n✨ Sistema pronto para uso!`);
     
     // Inicializar sessão padrão

@@ -2036,3 +2036,24 @@ function render_content() {
 
 include 'template.php';
 ?> 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var iframe = document.querySelector('.client-details-full iframe');
+  if (!iframe) return;
+  iframe.addEventListener('load', function() {
+    try {
+      var btn = iframe.contentWindow.document.getElementById('btn-editar-cliente');
+      if (btn) {
+        btn.onclick = function(e) {
+          e.preventDefault();
+          var src = iframe.getAttribute('src');
+          if (src.indexOf('editar=1') === -1) {
+            src += (src.indexOf('?') === -1 ? '?' : '&') + 'editar=1';
+            iframe.setAttribute('src', src);
+          }
+        };
+      }
+    } catch (err) {}
+  });
+});
+</script>

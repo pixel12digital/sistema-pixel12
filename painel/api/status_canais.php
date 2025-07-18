@@ -9,7 +9,7 @@ header('Pragma: no-cache');
 header('Expires: 0');
 
 // CORREÇÃO: Remover cache conflitante e usar lógica unificada
-$status = [];
+    $status = [];
 
 // Buscar canais do banco
 $canais = [];
@@ -19,29 +19,29 @@ if ($resCanais) {
         $canais[] = $canal;
     }
 }
-
-foreach ($canais as $canal) {
-    $porta = intval($canal['porta']);
-    $canal_id = intval($canal['id']);
     
-    $conectado = false;
-    $lastSession = null;
-    
+    foreach ($canais as $canal) {
+        $porta = intval($canal['porta']);
+        $canal_id = intval($canal['id']);
+        
+            $conectado = false;
+            $lastSession = null;
+            
     // CORREÇÃO: Usar proxy PHP ao invés de chamada direta ao localhost
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, 'http://localhost/loja-virtual-revenda/painel/ajax_whatsapp.php');
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, 'action=status');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/x-www-form-urlencoded',
         'User-Agent: Status-Canais-API/1.0'
     ]);
-    
-    $result = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            
+            $result = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
     if ($result && $httpCode === 200) {
@@ -78,38 +78,38 @@ foreach ($canais as $canal) {
             }
             
             $conectado = $isConnected;
-            $lastSession = $json['lastSession'] ?? null;
-        }
-    }
-    
-    // Atualizar status no banco apenas se mudou
-    $novo_status = $conectado ? 'conectado' : 'pendente';
-    $status_atual = $canal['status'] ?? 'pendente';
-    
-    if ($novo_status !== $status_atual) {
-        $mysqli->query("UPDATE canais_comunicacao SET status = '" . $mysqli->real_escape_string($novo_status) . "' WHERE id = $canal_id");
-    }
-    
-    // Ajuste de fuso horário para lastSession
-    if ($lastSession) {
-        try {
-            $dt = new DateTime($lastSession, new DateTimeZone('UTC'));
-            $dt->setTimezone(new DateTimeZone('America/Sao_Paulo'));
-            $lastSession = $dt->format('Y-m-d H:i:s');
-        } catch (Exception $e) {
-            // Se der erro, mantém original
-        }
-    }
-    
+                    $lastSession = $json['lastSession'] ?? null;
+                }
+            }
+            
+            // Atualizar status no banco apenas se mudou
+            $novo_status = $conectado ? 'conectado' : 'pendente';
+            $status_atual = $canal['status'] ?? 'pendente';
+            
+            if ($novo_status !== $status_atual) {
+                $mysqli->query("UPDATE canais_comunicacao SET status = '" . $mysqli->real_escape_string($novo_status) . "' WHERE id = $canal_id");
+            }
+            
+            // Ajuste de fuso horário para lastSession
+            if ($lastSession) {
+                try {
+                    $dt = new DateTime($lastSession, new DateTimeZone('UTC'));
+                    $dt->setTimezone(new DateTimeZone('America/Sao_Paulo'));
+                    $lastSession = $dt->format('Y-m-d H:i:s');
+                } catch (Exception $e) {
+                    // Se der erro, mantém original
+                }
+            }
+            
     $status[] = [
-        'id' => $canal['id'],
-        'nome' => $canal['nome_exibicao'],
-        'porta' => $porta,
-        'conectado' => $conectado,
-        'lastSession' => $lastSession,
-        'tipo' => $canal['tipo'] ?? null
-    ];
-}
-
+                'id' => $canal['id'],
+                'nome' => $canal['nome_exibicao'],
+                'porta' => $porta,
+                'conectado' => $conectado,
+                'lastSession' => $lastSession,
+                'tipo' => $canal['tipo'] ?? null
+            ];
+    }
+    
 echo json_encode($status);
 ?> 

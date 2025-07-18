@@ -13,8 +13,11 @@ require_once 'config.php';
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $vps_url = WHATSAPP_ROBOT_URL;
 
+// CORREÇÃO: Usar URL base local se disponível
+$base_url = defined('LOCAL_BASE_URL') && LOCAL_BASE_URL ? LOCAL_BASE_URL : 'http://localhost';
+
 // Log debug para depuração
-error_log("[WhatsApp Ajax Debug] Action: $action, Method: {$_SERVER['REQUEST_METHOD']}, VPS URL: $vps_url");
+error_log("[WhatsApp Ajax Debug] Action: $action, Method: {$_SERVER['REQUEST_METHOD']}, VPS URL: $vps_url, Base URL: $base_url");
 
 // Se for apenas um teste de conectividade
 if (isset($_GET['test'])) {
@@ -23,6 +26,8 @@ if (isset($_GET['test'])) {
         'timestamp' => date('Y-m-d H:i:s'),
         'ajax_working' => true,
         'vps_url' => $vps_url,
+        'base_url' => $base_url,
+        'environment' => defined('LOCAL_BASE_URL') && LOCAL_BASE_URL ? 'local' : 'production',
         'method' => $_SERVER['REQUEST_METHOD']
     ]);
     exit;
@@ -102,23 +107,48 @@ switch ($action) {
         $result = makeVPSRequest($endpoint);
         
         if ($result['success'] && $result['data']) {
-            // Formatar resposta para compatibilidade com JavaScript original
-            $status = $result['data']['clients_status']['default']['status'] ?? 'disconnected';
+            // CORREÇÃO: Interpretar corretamente o formato da resposta da VPS
+            $vps_status = 'disconnected';
+            $clients_status = $result['data']['clients_status'] ?? [];
+            
+            // Verificar se há clientes conectados
+            if (!empty($clients_status['default']['status'])) {
+                $vps_status = $clients_status['default']['status'];
+            }
+            
+            // Mapear status da VPS para o formato esperado pelo frontend
+            $is_ready = ($vps_status === 'connected' || $result['data']['ready'] === true);
+            
+            // Tentar obter número do cliente se disponível
+            $number = null;
+            if (!empty($clients_status['default']['number'])) {
+                $number = $clients_status['default']['number'];
+            } elseif (!empty($result['data']['status']['number'])) {
+                $number = $result['data']['status']['number'];
+            }
+            
             echo json_encode([
-                'ready' => $status === 'ready',
-                'number' => $result['data']['clients_status']['default']['number'] ?? null,
+                'ready' => $is_ready,
+                'number' => $number,
                 'lastSession' => $result['data']['timestamp'] ?? null,
                 'sessions' => $result['data']['sessions'] ?? 0,
                 'message' => $result['data']['message'] ?? '',
-                'clients_status' => $result['data']['clients_status'] ?? [],
+                'clients_status' => $clients_status,
                 'performance' => [
                     'latency_ms' => $result['latency_ms'] ?? 0,
                     'optimized' => true
                 ],
                 'debug' => [
-                    'vps_status' => $status,
+                    'vps_status' => $vps_status,
+                    'vps_status_parsed' => $is_ready ? 'ready' : 'disconnected',
                     'http_code' => $result['http_code'],
-                    'raw_response_preview' => substr($result['raw_response'], 0, 100)
+                    'raw_response_preview' => $result['raw_response'],
+                    'status_mapping' => [
+                        'vps_connected' => $vps_status === 'connected',
+                        'vps_ready' => $vps_status === 'ready',
+                        'vps_authenticated' => $vps_status === 'authenticated',
+                        'frontend_ready' => $is_ready
+                    ]
                 ]
             ]);
         } else {

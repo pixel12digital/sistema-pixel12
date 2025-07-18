@@ -45,39 +45,28 @@ if (!$numero_direto) {
         exit;
     }
 }
-// Função para ajustar número conforme regras de DDD e WhatsApp
+// Função simplificada para formatar número (apenas código do país + DDD + número)
 function ajustarNumeroWhatsapp($numero) {
+    // Remover todos os caracteres não numéricos
     $numero = preg_replace('/\D/', '', $numero);
-    if (strlen($numero) < 10) return null; // Precisa de pelo menos DDD + 8 dígitos
+    
+    // Se já tem código do país (55), remover para processar
+    if (strpos($numero, '55') === 0) {
+        $numero = substr($numero, 2);
+    }
+    
+    // Verificar se tem pelo menos DDD (2 dígitos) + número (8 dígitos)
+    if (strlen($numero) < 10) {
+        return null; // Número muito curto
+    }
+    
+    // Extrair DDD e número
     $ddd = substr($numero, 0, 2);
     $telefone = substr($numero, 2);
-    // Exceção: DDD 61 (Brasília) e DDD 11 (São Paulo) devem SEMPRE manter o nono dígito
-    if ($ddd === '61' || $ddd === '11') {
-        // Se já tem 9 dígitos, mantém; se tem 8, adiciona o 9
-        if (strlen($telefone) == 8) {
-            $telefone = '9' . $telefone;
-        }
-        // Não remove o nono dígito nunca
-    } else if (intval($ddd) <= 30) {
-        // Sempre garantir o nono dígito para DDDs <= 30
-        if (strlen($telefone) == 8) {
-            $telefone = '9' . $telefone;
-        }
-        // Se já tem 9 dígitos, mantém
-    } else {
-        // DDD > 30: remova o nono dígito se houver
-        if (strlen($telefone) == 9 && $telefone[0] == '9') {
-            $telefone = substr($telefone, 1);
-        }
-        // Se já tem 8 dígitos, mantém
-    }
-    // Só envia se for 10 ou 11 dígitos após ajuste
-    if (strlen($telefone) == 9 || strlen($telefone) == 8) {
-        $numero = '55' . $ddd . $telefone;
-        return $numero;
-    }
-    // Se não for válido, retorna null
-    return null;
+    
+    // Retornar no formato: 55 + DDD + número
+    // Deixar o número como está (você gerencia as regras no cadastro)
+    return '55' . $ddd . $telefone;
 }
 // Buscar número do cliente ou usar número direto
 $numero = null;

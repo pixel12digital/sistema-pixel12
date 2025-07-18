@@ -205,7 +205,10 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
   if (!empty($cliente['plano'])) echo '<span class="painel-badge">Plano: ' . htmlspecialchars($cliente['plano']) . '</span>';
   echo '<div class="text-gray-500 text-sm">ID: ' . htmlspecialchars($cliente['id'] ?? '-') . ' | Asaas: ' . htmlspecialchars($cliente['asaas_id'] ?? '-') . '</div>';
   echo '</div>';
-  // Botão editar removido - agora usa apenas edição inline
+  // Botão editar só no modo visualização
+  if (!$modo_edicao) {
+    echo '<button id="btn-editar-cliente" class="ml-2 bg-yellow-400 hover:bg-yellow-500 text-white px-4 py-2 rounded font-semibold text-sm transition-colors" style="margin-left:auto;" title="Editar Cliente">✏️ Editar</button>';
+  }
   echo '</div>';
   // Abas
   echo '<div class="painel-abas">';
@@ -282,53 +285,36 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     echo '</div>';
     echo '</form>';
     // JS para AJAX
-    echo "<script>
-    document.getElementById('form-editar-cliente').onsubmit = function(e) {
+    echo '<script>
+    document.getElementById("form-editar-cliente").onsubmit = function(e) {
       e.preventDefault();
       var form = this;
-      var btn = form.querySelector('button[type=submit]');
+      var btn = form.querySelector("button[type=submit]");
       btn.disabled = true;
-      btn.textContent = 'Salvando...';
+      btn.textContent = "Salvando...";
       var formData = new FormData(form);
-      
-      // Debug: mostrar dados do formulário
-      console.log('Dados do formulário:');
-      for (var pair of formData.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
-      }
-      
-      fetch('api/editar_cliente.php', {
-        method: 'POST',
+      fetch("api/editar_cliente.php", {
+        method: "POST",
         body: formData
       })
-      .then(r => {
-        console.log('Status da resposta:', r.status);
-        return r.json();
-      })
+      .then(r => r.json())
       .then(resp => {
-        console.log('Resposta do servidor:', resp);
         if (resp.success) {
           // Recarregar ficha em modo visualização
-          var url = window.location.href.replace(/([&?])editar=1(&|$)/, '$1');
+          var url = window.location.href.replace(/([&?])editar=1(&|$)/, "$1");
           if (url.indexOf('?') === -1) url += '?';
           url = url.replace(/([&?])$/, '');
           window.location.href = url;
         } else {
-          alert('Erro ao salvar: ' + (resp.error || 'Erro desconhecido'));
+          alert(resp.error || "Erro ao salvar.");
         }
       })
-      .catch(err => {
-        console.error('Erro na requisição:', err);
-        alert('Erro ao conectar com o servidor: ' + err.message);
-      })
-      .finally(() => { 
-        btn.disabled = false; 
-        btn.textContent = 'Salvar'; 
-      });
+      .catch(() => alert("Erro ao salvar."))
+      .finally(() => { btn.disabled = false; btn.textContent = "Salvar"; });
       return false;
     };  
-    document.getElementById('btn-cancelar-edicao').onclick = function() {
-      var url = window.location.href.replace(/([&?])editar=1(&|$)/, '$1');
+    document.getElementById("btn-cancelar-edicao").onclick = function() {
+      var url = window.location.href.replace(/([&?])editar=1(&|$)/, "$1");
       if (url.indexOf('?') === -1) url += '?';
       url = url.replace(/([&?])$/, '');
       window.location.href = url;
@@ -341,29 +327,13 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     // Dados Pessoais
     echo '<div class="painel-card"><h4>👤 Dados Pessoais</h4><table><tbody>';
     // Nome
-    echo '<tr><td class="font-semibold text-gray-600">Nome:</td><td>
-      <span class="campo-editavel" data-campo="nome" data-valor="' . htmlspecialchars($cliente['nome'] ?? '') . '">
-        ' . htmlspecialchars($cliente['nome'] ?? '') . '
-      </span>
-    </td></tr>';
+    echo '<tr><td class="font-semibold text-gray-600">Nome: ' . htmlspecialchars($cliente['nome'] ?? '') . '</td></tr>';
     // Contato Principal
-    echo '<tr><td class="font-semibold text-gray-600">Contato Principal:</td><td>
-      <span class="campo-editavel" data-campo="contact_name" data-valor="' . htmlspecialchars($cliente['contact_name'] ?? '') . '" data-placeholder="Ex: João">
-        ' . htmlspecialchars($cliente['contact_name'] ?? '—') . '
-      </span>
-    </td></tr>';
+    echo '<tr><td class="font-semibold text-gray-600">Contato Principal: ' . htmlspecialchars($cliente['contact_name'] ?? '—') . '</td></tr>';
     // Outros campos de dados pessoais (excluindo nome e contact_name que já foram exibidos)
     foreach ($dados_pessoais as $campo) {
       if (!isset($cliente[$campo]) || in_array($campo, ['nome','contact_name'])) continue;
-      echo '<tr><td class="font-semibold text-gray-600">' . ucfirst(str_replace('_', ' ', $campo)) . ':</td><td>';
-      if ($campo === 'asaas_id') {
-        echo '<span style="font-family:monospace; background:#f3f4f6; padding:4px 8px; border-radius:6px; color:#7c2ae8;">' . htmlspecialchars($cliente[$campo]) . '</span>';
-      } else {
-        echo '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-          ' . htmlspecialchars($cliente[$campo]) . '
-        </span>';
-      }
-      echo '</td></tr>';
+      echo '<tr><td class="font-semibold text-gray-600">' . formatar_campo($campo, $cliente[$campo]) . '</td></tr>';
     }
     echo '</tbody></table></div>';
     
@@ -371,7 +341,6 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     echo '<div class="painel-card"><h4>✉️ Contato</h4><table><tbody>';
     foreach ($contato as $campo) {
       if (!isset($cliente[$campo])) continue;
-      echo '<tr><td class="font-semibold text-gray-600">' . ucfirst(str_replace('_', ' ', $campo)) . ':</td><td>';
       if ($campo === 'celular' && !empty($cliente[$campo])) {
         // Deixar o número clicável para abrir o chat
         $celularLimpo = preg_replace('/\D/', '', $cliente[$campo]);
@@ -380,21 +349,14 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
         }
         // Garante que o link só é gerado se o número for válido
         if (preg_match('/^55\d{11}$/', $celularLimpo)) {
-          echo '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-            <a href="#" class="abrir-whats-url" style="color:#25D366;text-decoration:underline;" title="Abrir chat interno" data-numero="' . $celularLimpo . '" data-cliente-id="' . intval($cliente['id']) . '">' . htmlspecialchars($cliente[$campo]) . '</a>
-          </span>';
+          echo '<tr><td class="font-semibold text-gray-600">Celular: <a href="#" class="abrir-whats-url" style="color:#25D366;text-decoration:underline;" title="Abrir chat interno" data-numero="' . $celularLimpo . '" data-cliente-id="' . intval($cliente['id']) . '">' . htmlspecialchars($cliente[$campo]) . '</a></td></tr>';
         } else {
           // Se não for válido, apenas exibe o número sem link
-          echo '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-            ' . htmlspecialchars($cliente[$campo]) . '
-          </span>';
+          echo '<tr><td class="font-semibold text-gray-600">Celular: ' . htmlspecialchars($cliente[$campo]) . '</td></tr>';
         }
       } else {
-        echo '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-          ' . htmlspecialchars($cliente[$campo]) . '
-        </span>';
+        echo '<tr><td class="font-semibold text-gray-600">' . formatar_campo($campo, $cliente[$campo]) . '</td></tr>';
       }
-      echo '</td></tr>';
     }
     echo '</tbody></table></div>';
     
@@ -402,22 +364,14 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     echo '<div class="painel-card"><h4>📍 Endereço</h4><table><tbody>';
     foreach ($endereco as $campo) {
       if (!isset($cliente[$campo])) continue;
-      echo '<tr><td class="font-semibold text-gray-600">' . ucfirst(str_replace('_', ' ', $campo)) . ':</td><td>
-        <span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-          ' . htmlspecialchars($cliente[$campo]) . '
-        </span>
-      </td></tr>';
+      echo '<tr><td class="font-semibold text-gray-600">' . formatar_campo($campo, $cliente[$campo]) . '</td></tr>';
     }
     echo '</tbody></table></div>';
     
     // Outros
     echo '<div class="painel-card"><h4>🗂️ Outros</h4><table><tbody>';
     foreach ($outros as $campo) {
-      echo '<tr><td class="font-semibold text-gray-600">' . ucfirst(str_replace('_', ' ', $campo)) . ':</td><td>
-        <span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($cliente[$campo]) . '">
-          ' . htmlspecialchars($cliente[$campo]) . '
-        </span>
-      </td></tr>';
+      echo '<tr><td class="font-semibold text-gray-600">' . formatar_campo($campo, $cliente[$campo]) . '</td></tr>';
     }
     echo '</tbody></table></div>';
     echo '</div></div>';
@@ -664,208 +618,5 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
   });
   </script>';
   
-  // Adicionar CSS e JavaScript para edição inline
-  echo '<style>
-  /* Estilos para campos editáveis inline */
-  .campo-editavel {
-    cursor: pointer !important;
-    padding: 4px 8px !important;
-    border-radius: 6px !important;
-    transition: all 0.2s ease !important;
-    display: inline-block !important;
-    min-width: 100px !important;
-    border: 1px solid transparent !important;
-    background-color: transparent !important;
-  }
-  
-  .campo-editavel:hover {
-    background-color: #f3f4f6 !important;
-    border-color: #d1d5db !important;
-  }
-  
-  .campo-editavel.editando {
-    background-color: #fff !important;
-    border-color: #7c2ae8 !important;
-    box-shadow: 0 0 0 2px #ede9fe !important;
-    padding: 6px 10px !important;
-  }
-  
-  .campo-editavel input {
-    border: none !important;
-    outline: none !important;
-    background: transparent !important;
-    font-size: inherit !important;
-    font-family: inherit !important;
-    color: inherit !important;
-    width: 100% !important;
-    min-width: 200px !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  
-  .campo-editavel input:focus {
-    outline: none !important;
-  }
-  
-  .campo-editavel.salvando {
-    opacity: 0.6 !important;
-    pointer-events: none !important;
-  }
-  
-  .campo-editavel.erro {
-    border-color: #ef4444 !important;
-    background-color: #fef2f2 !important;
-  }
-  
-  .campo-editavel.sucesso {
-    border-color: #22c55e !important;
-    background-color: #f0fdf4 !important;
-  }
-  </style>';
-  
-  echo '<script>
-  // Funcionalidade de edição inline
-  document.addEventListener("DOMContentLoaded", function() {
-    console.log("Iniciando edição inline no components_cliente.php...");
-    
-    function initEdicaoInline() {
-      const campos = document.querySelectorAll(".campo-editavel");
-      console.log("Campos encontrados:", campos.length);
-      
-      campos.forEach(function(campo) {
-        campo.onclick = function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          if (this.classList.contains("editando")) return;
-          
-          const valorOriginal = this.getAttribute("data-valor") || "";
-          const nomeCampo = this.getAttribute("data-campo");
-          
-          console.log("Editando:", nomeCampo, valorOriginal);
-          
-          // Criar input
-          const input = document.createElement("input");
-          input.type = "text";
-          input.value = valorOriginal;
-          input.style.cssText = "border:none;outline:none;background:transparent;font-size:inherit;font-family:inherit;color:inherit;width:100%;min-width:200px;padding:0;margin:0;";
-          
-          // Substituir conteúdo
-          this.innerHTML = "";
-          this.appendChild(input);
-          this.classList.add("editando");
-          
-          // Focar no input
-          setTimeout(function() {
-            input.focus();
-            input.select();
-          }, 10);
-          
-          // Função para salvar
-          function salvar() {
-            const novoValor = input.value.trim();
-            
-            if (novoValor === valorOriginal) {
-              cancelar();
-              return;
-            }
-            
-            // Mostrar salvando
-            campo.innerHTML = "<span style=\"color: #7c2ae8;\">Salvando...</span>";
-            campo.classList.add("salvando");
-            
-            // Enviar para servidor
-            const formData = new FormData();
-            formData.append("id", ' . json_encode($cliente_id) . ');
-            formData.append(nomeCampo, novoValor);
-            
-            // Determinar o caminho correto da API baseado no contexto
-            const apiPath = window.location.pathname.includes("/chat.php") ? "api/editar_cliente.php" : "../api/editar_cliente.php";
-            
-            fetch(apiPath, {
-              method: "POST",
-              body: formData
-            })
-            .then(function(response) {
-              return response.json();
-            })
-            .then(function(data) {
-              if (data.success) {
-                // Sucesso
-                campo.classList.remove("salvando", "editando");
-                campo.classList.add("sucesso");
-                campo.innerHTML = novoValor || "—";
-                campo.setAttribute("data-valor", novoValor);
-                
-                // Atualizar nome no cabeçalho se for o campo nome
-                if (nomeCampo === "nome") {
-                  const nomeHeader = document.querySelector(".painel-nome");
-                  if (nomeHeader) nomeHeader.textContent = novoValor;
-                  const avatar = document.querySelector(".painel-avatar");
-                  if (avatar) avatar.textContent = novoValor.charAt(0).toUpperCase();
-                }
-                
-                setTimeout(function() {
-                  campo.classList.remove("sucesso");
-                }, 2000);
-              } else {
-                // Erro
-                campo.classList.remove("salvando");
-                campo.classList.add("erro");
-                campo.innerHTML = "<span style=\"color: #ef4444;\">Erro ao salvar</span>";
-                
-                setTimeout(function() {
-                  campo.classList.remove("erro");
-                  campo.innerHTML = valorOriginal || "—";
-                }, 3000);
-              }
-            })
-            .catch(function(error) {
-              // Erro de rede
-              campo.classList.remove("salvando");
-              campo.classList.add("erro");
-              campo.innerHTML = "<span style=\"color: #ef4444;\">Erro de conexão</span>";
-              
-              setTimeout(function() {
-                campo.classList.remove("erro");
-                campo.innerHTML = valorOriginal || "—";
-              }, 3000);
-            });
-          }
-          
-          // Função para cancelar
-          function cancelar() {
-            campo.classList.remove("editando");
-            campo.innerHTML = valorOriginal || "—";
-          }
-          
-          // Event listeners
-          input.onkeydown = function(e) {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              salvar();
-            } else if (e.key === "Escape") {
-              e.preventDefault();
-              cancelar();
-            }
-          };
-          
-          input.onblur = function() {
-            setTimeout(function() {
-              if (campo.classList.contains("editando")) {
-                salvar();
-              }
-            }, 100);
-          };
-        };
-      });
-    }
-    
-    // Inicializar
-    initEdicaoInline();
-    
-    // Reinicializar após um delay
-    setTimeout(initEdicaoInline, 1000);
-  });
-  </script>';
+  echo '</div>';
 } 

@@ -171,44 +171,28 @@ app.get('/status', (req, res) => {
   res.json({ ready: isReady, lastSession, number });
 });
 
-// Função para validar e ajustar número para formato WhatsApp (criteriosa por DDD)
+// Função simplificada para formatar número (apenas código do país + DDD + número)
 function formatarNumeroWhatsapp(numero) {
+  // Remover todos os caracteres não numéricos
   numero = String(numero).replace(/\D/g, '');
-  if (numero.startsWith('55')) numero = numero.slice(2);
   
-  if (numero.length < 10) return null; // Precisa de pelo menos DDD + 8 dígitos
+  // Se já tem código do país (55), remover para processar
+  if (numero.startsWith('55')) {
+    numero = numero.slice(2);
+  }
   
+  // Verificar se tem pelo menos DDD (2 dígitos) + número (8 dígitos)
+  if (numero.length < 10) {
+    return null; // Número muito curto
+  }
+  
+  // Extrair DDD e número
   const ddd = numero.slice(0, 2);
   const telefone = numero.slice(2);
   
-  // Exceção: DDD 61 (Brasília) e DDD 11 (São Paulo) devem SEMPRE manter o nono dígito
-  if (ddd === '61' || ddd === '11') {
-    // Se já tem 9 dígitos, mantém; se tem 8, adiciona o 9
-    if (telefone.length === 8) {
-      numero = ddd + '9' + telefone;
-    }
-    // Se já tem 9 dígitos, mantém como está
-  } else if (parseInt(ddd) <= 30) {
-    // Sempre garantir o nono dígito para DDDs <= 30
-    if (telefone.length === 8) {
-      numero = ddd + '9' + telefone;
-    }
-    // Se já tem 9 dígitos, mantém
-  } else {
-    // DDD > 30: remova o nono dígito se houver
-    if (telefone.length === 9 && telefone[0] === '9') {
-      numero = ddd + telefone.slice(1);
-    }
-    // Se já tem 8 dígitos, mantém
-  }
-  
-  // Só envia se for 10 ou 11 dígitos após ajuste
-  if (numero.length === 10 || numero.length === 11) {
-    return '55' + numero;
-  }
-  
-  // Se não for válido, retorna null
-  return null;
+  // Retornar no formato: 55 + DDD + número + @c.us
+  // Deixar o número como está (você gerencia as regras no cadastro)
+  return '55' + ddd + telefone + '@c.us';
 }
 
 // Funções para simulação humana aprimorada
@@ -314,7 +298,7 @@ app.post('/send', async (req, res) => {
   
   try {
     // Adicionar mensagem à fila
-    const msg = await addToMessageQueue(numeroAjustado + '@c.us', message);
+    const msg = await addToMessageQueue(numeroAjustado, message);
     
     // Log do envio
     console.log(`Mensagem enviada para ${numeroAjustado}:`, msg.id._serialized);
@@ -409,7 +393,7 @@ app.post('/retry', async (req, res) => {
     await new Promise(resolve => setTimeout(resolve, 5000));
     
     // Enviar nova mensagem
-    const msg = await client.sendMessage(numeroAjustado + '@c.us', message);
+    const msg = await client.sendMessage(numeroAjustado, message);
     
     console.log(`Retry: Mensagem reenviada para ${numeroAjustado}:`, msg.id._serialized);
     

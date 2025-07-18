@@ -1,29 +1,23 @@
 <?php
 /**
- * Webhook para receber mensagens do WPPConnect
- * Detecta automaticamente ambiente (local/produção)
+ * WEBHOOK ESPECÍFICO PARA WHATSAPP
+ * 
+ * Este endpoint recebe mensagens do servidor WhatsApp
+ * e as processa no sistema
  */
 
+header('Content-Type: application/json');
 require_once '../painel/config.php';
 require_once '../painel/db.php';
 
-// Detectar ambiente
-$ambiente = $is_local ? 'LOCAL' : 'PRODUÇÃO';
-$webhook_url = $is_local ? 'http://localhost:8080/loja-virtual-revenda/api/webhook.php' : 'https://seudominio.com/api/webhook.php';
-
-// Log da requisição com informações do ambiente
+// Log da requisição
 $input = file_get_contents('php://input');
 $data = json_decode($input, true);
 
-// Salvar log com identificação do ambiente
-$log_file = '../logs/webhook_' . date('Y-m-d') . '.log';
-$log_data = date('Y-m-d H:i:s') . " [{$ambiente}] - " . $input . "\n";
+// Salvar log
+$log_file = '../logs/webhook_whatsapp_' . date('Y-m-d') . '.log';
+$log_data = date('Y-m-d H:i:s') . ' - ' . $input . "\n";
 file_put_contents($log_file, $log_data, FILE_APPEND);
-
-// Log de debug se estiver em desenvolvimento
-if (DEBUG_MODE) {
-    error_log("[WEBHOOK {$ambiente}] Requisição recebida - Host: " . $_SERVER['SERVER_NAME']);
-}
 
 // Verificar se é uma mensagem recebida
 if (isset($data['event']) && $data['event'] === 'onmessage') {
@@ -35,10 +29,6 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     $tipo = $message['type'] ?? 'text';
     $data_hora = date('Y-m-d H:i:s');
     
-    if (DEBUG_MODE) {
-        error_log("[WEBHOOK {$ambiente}] Processando mensagem de: $numero");
-    }
-    
     // Buscar cliente pelo número
     $numero_limpo = preg_replace('/\D/', '', $numero);
     $sql = "SELECT id, nome FROM clientes WHERE celular LIKE '%$numero_limpo%' LIMIT 1";
@@ -48,17 +38,10 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     if ($result && $result->num_rows > 0) {
         $cliente = $result->fetch_assoc();
         $cliente_id = $cliente['id'];
-        if (DEBUG_MODE) {
-            error_log("[WEBHOOK {$ambiente}] Cliente encontrado: {$cliente['nome']} (ID: $cliente_id)");
-        }
     }
     
     // Cadastro automático de clientes não cadastrados
     if (!$cliente_id) {
-        if (DEBUG_MODE) {
-            error_log("[WEBHOOK {$ambiente}] Cliente não encontrado, criando cadastro automático...");
-        }
-        
         // Formatar número para salvar
         $numero_para_salvar = $numero;
         if (strpos($numero, "55") === 0) {
@@ -76,11 +59,9 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         
         if ($mysqli->query($sql_criar)) {
             $cliente_id = $mysqli->insert_id;
-            if (DEBUG_MODE) {
-                error_log("[WEBHOOK {$ambiente}] ✅ Cliente criado automaticamente - ID: $cliente_id, Número: $numero_para_salvar");
-            }
+            error_log("[WEBHOOK WHATSAPP] Cliente criado automaticamente - ID: $cliente_id, Número: $numero_para_salvar");
         } else {
-            error_log("[WEBHOOK {$ambiente}] ❌ Erro ao criar cliente: " . $mysqli->error);
+            error_log("[WEBHOOK WHATSAPP] Erro ao criar cliente: " . $mysqli->error);
         }
     }
 
@@ -106,14 +87,12 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     
     if ($mysqli->query($sql)) {
         $mensagem_id = $mysqli->insert_id;
-        if (DEBUG_MODE) {
-            error_log("[WEBHOOK {$ambiente}] ✅ Mensagem salva - ID: $mensagem_id, Cliente: $cliente_id");
-        }
+        error_log("[WEBHOOK WHATSAPP] Mensagem salva - ID: $mensagem_id, Cliente: $cliente_id, Número: $numero");
     } else {
-        error_log("[WEBHOOK {$ambiente}] ❌ Erro ao salvar mensagem: " . $mysqli->error);
+        error_log("[WEBHOOK WHATSAPP] Erro ao salvar mensagem: " . $mysqli->error);
     }
     
-    // Resposta automática melhorada
+    // Resposta automática
     if ($texto) {
         if ($cliente_id) {
             $resposta = "Olá! Sua mensagem foi recebida. Em breve entraremos em contato.";
@@ -121,23 +100,19 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
             $resposta = "Olá! Bem-vindo! Sua mensagem foi recebida. Em breve entraremos em contato.";
         }
         
-        // Usar URL do WhatsApp configurada no config.php
-        $api_url = WHATSAPP_ROBOT_URL . "/send/text";
+        // Enviar resposta via API WhatsApp
+        $api_url = "http://212.85.11.238:3000/send/text";
         $data_envio = [
             "number" => $numero,
             "message" => $resposta
         ];
-        
-        if (DEBUG_MODE) {
-            error_log("[WEBHOOK {$ambiente}] Enviando resposta via: $api_url");
-        }
         
         $ch = curl_init($api_url);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data_envio));
         curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, WHATSAPP_TIMEOUT);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         
         $api_response = curl_exec($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -146,9 +121,7 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         if ($http_code === 200) {
             $api_result = json_decode($api_response, true);
             if ($api_result && isset($api_result["success"]) && $api_result["success"]) {
-                if (DEBUG_MODE) {
-                    error_log("[WEBHOOK {$ambiente}] ✅ Resposta automática enviada com sucesso");
-                }
+                error_log("[WEBHOOK WHATSAPP] Resposta automática enviada com sucesso para $numero");
                 
                 // Salvar resposta enviada
                 $resposta_escaped = $mysqli->real_escape_string($resposta);
@@ -156,22 +129,26 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
                                 VALUES ($canal_id, " . ($cliente_id ? $cliente_id : "NULL") . ", \"$resposta_escaped\", \"texto\", \"$data_hora\", \"enviado\", \"enviado\")";
                 $mysqli->query($sql_resposta);
             } else {
-                error_log("[WEBHOOK {$ambiente}] ❌ Erro ao enviar resposta automática: " . $api_response);
+                error_log("[WEBHOOK WHATSAPP] Erro ao enviar resposta automática: " . $api_response);
             }
         } else {
-            error_log("[WEBHOOK {$ambiente}] ❌ Erro HTTP ao enviar resposta: $http_code");
+            error_log("[WEBHOOK WHATSAPP] Erro HTTP ao enviar resposta: $http_code");
         }
     }
+    
+    // Responder sucesso
+    echo json_encode([
+        'success' => true,
+        'message' => 'Mensagem processada com sucesso',
+        'cliente_id' => $cliente_id,
+        'mensagem_id' => $mensagem_id ?? null
+    ]);
+} else {
+    // Responder erro
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Evento inválido ou dados incompletos'
+    ]);
 }
-
-// Responder OK com informações do ambiente
-$response = [
-    'status' => 'ok',
-    'ambiente' => $ambiente,
-    'timestamp' => date('Y-m-d H:i:s'),
-    'webhook_url' => $webhook_url
-];
-
-http_response_code(200);
-echo json_encode($response);
 ?> 
