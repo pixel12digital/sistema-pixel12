@@ -1,7 +1,15 @@
 <?php
 date_default_timezone_set('America/Sao_Paulo');
-require_once '../config.php';
-require_once 'db.php';
+
+// Corrigir caminhos dos includes
+if (file_exists('../config.php')) {
+    require_once '../config.php';
+    require_once 'db.php';
+} else {
+    require_once 'config.php';
+    require_once 'db.php';
+}
+
 header('Content-Type: application/json');
 
 $cliente_id = isset($_POST['cliente_id']) ? intval($_POST['cliente_id']) : 0;
@@ -45,7 +53,8 @@ if (!$numero_direto) {
         exit;
     }
 }
-// Função simplificada para formatar número (apenas código do país + DDD + número)
+
+// Função melhorada para formatar número WhatsApp
 function ajustarNumeroWhatsapp($numero) {
     // Remover todos os caracteres não numéricos
     $numero = preg_replace('/\D/', '', $numero);
@@ -64,10 +73,22 @@ function ajustarNumeroWhatsapp($numero) {
     $ddd = substr($numero, 0, 2);
     $telefone = substr($numero, 2);
     
+    // DDD 47 (Santa Catarina) - deve ter 8 dígitos
+    if ($ddd === '47') {
+        // Se tem 9 dígitos e começa com 9, remover o 9
+        if (strlen($telefone) === 9 && substr($telefone, 0, 1) === '9') {
+            $telefone = substr($telefone, 1);
+        }
+        // Se tem 7 dígitos, adicionar 9 no início
+        elseif (strlen($telefone) === 7) {
+            $telefone = '9' . $telefone;
+        }
+    }
+    
     // Retornar no formato: 55 + DDD + número
-    // Deixar o número como está (você gerencia as regras no cadastro)
     return '55' . $ddd . $telefone;
 }
+
 // Buscar número do cliente ou usar número direto
 $numero = null;
 if ($numero_direto) {
@@ -86,6 +107,7 @@ if (!$numero) {
     echo json_encode(['success' => false, 'error' => $error_msg]);
     exit;
 }
+
 // Buscar porta do canal
 $res = $mysqli->query("SELECT porta FROM canais_comunicacao WHERE id = $canal_id LIMIT 1");
 $porta = null;
@@ -96,15 +118,10 @@ if (!$porta) {
     echo json_encode(['success' => false, 'error' => 'Porta do canal não encontrada.']);
     exit;
 }
-// Montar payload correto para o robô
-$payload = [
-    'to' => $numero,
-    'message' => $mensagem
-];
 
 // Usar cURL em vez de file_get_contents para melhor controle
 $ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, WHATSAPP_ROBOT_URL . "/send/text");
+curl_setopt($ch, CURLOPT_URL, WHATSAPP_ROBOT_URL . "/send/text"); // CORRIGIDO: usar /send/text
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
     'sessionName' => 'default',
@@ -141,10 +158,10 @@ if ($curl_error) {
 }
 
 // Verificar se a resposta HTTP é válida
-if (!$resposta || $http_code !== 200) {
-    $erro = 'Robô não respondeu corretamente. HTTP: ' . $http_code . ' - Resposta: ' . $resposta;
+if ($http_code !== 200) {
+    $erro = 'Erro HTTP ' . $http_code . ' do robô WhatsApp';
     // Registrar tentativa frustrada no banco
-    $notificacao = 'Tentativa de envio de cobrança via WhatsApp em ' . date('d/m/Y H:i') . ' - ERRO: ' . $erro;
+    $notificacao = 'Tentativa de envio via WhatsApp em ' . date('d/m/Y H:i') . ' - ERRO: ' . $erro;
     $data_hora = date('Y-m-d H:i:s');
     if ($cobranca_id) {
         $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, cliente_id, cobranca_id, mensagem, tipo, data_hora, direcao, status) VALUES (?, ?, ?, ?, 'texto', ?, 'enviado', 'erro')");
@@ -155,17 +172,16 @@ if (!$resposta || $http_code !== 200) {
     }
     $stmt->execute();
     $stmt->close();
-    echo json_encode(['success' => false, 'error' => $erro]);
+    echo json_encode(['success' => false, 'error' => $erro . ' - Resposta: ' . $resposta]);
     exit;
 }
 
-$resposta_json = json_decode($resposta, true);
-
-// Verificar se a resposta JSON é válida e se o envio foi bem-sucedido
-if (!$resposta_json) {
-    $erro = 'Resposta inválida do robô: ' . $resposta;
+// Decodificar resposta JSON
+$dados_resposta = json_decode($resposta, true);
+if (!$dados_resposta) {
+    $erro = 'Resposta inválida do robô WhatsApp';
     // Registrar tentativa frustrada no banco
-    $notificacao = 'Tentativa de envio de cobrança via WhatsApp em ' . date('d/m/Y H:i') . ' - ERRO: ' . $erro;
+    $notificacao = 'Tentativa de envio via WhatsApp em ' . date('d/m/Y H:i') . ' - ERRO: ' . $erro;
     $data_hora = date('Y-m-d H:i:s');
     if ($cobranca_id) {
         $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, cliente_id, cobranca_id, mensagem, tipo, data_hora, direcao, status) VALUES (?, ?, ?, ?, 'texto', ?, 'enviado', 'erro')");
@@ -176,17 +192,15 @@ if (!$resposta_json) {
     }
     $stmt->execute();
     $stmt->close();
-    echo json_encode(['success' => false, 'error' => $erro]);
+    echo json_encode(['success' => false, 'error' => $erro . ' - Resposta: ' . $resposta]);
     exit;
 }
 
 // Verificar se o envio foi bem-sucedido
-$success_check = isset($resposta_json['success']) && $resposta_json['success'] === true;
-
-if (!$success_check) {
-    $erro = isset($resposta_json['error']) ? $resposta_json['error'] : 'Falha ao enviar mensagem pelo robô.';
+if (!isset($dados_resposta['success']) || !$dados_resposta['success']) {
+    $erro = 'Falha no envio via WhatsApp: ' . ($dados_resposta['message'] ?? 'Erro desconhecido');
     // Registrar tentativa frustrada no banco
-    $notificacao = 'Tentativa de envio de cobrança via WhatsApp em ' . date('d/m/Y H:i') . ' - ERRO: ' . $erro;
+    $notificacao = 'Tentativa de envio via WhatsApp em ' . date('d/m/Y H:i') . ' - ERRO: ' . $erro;
     $data_hora = date('Y-m-d H:i:s');
     if ($cobranca_id) {
         $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, cliente_id, cobranca_id, mensagem, tipo, data_hora, direcao, status) VALUES (?, ?, ?, ?, 'texto', ?, 'enviado', 'erro')");
@@ -201,27 +215,38 @@ if (!$success_check) {
     exit;
 }
 
-// Extrair ID da mensagem se disponível
-$message_id = isset($resposta_json['messageId']) ? $resposta_json['messageId'] : null;
-$status_envio = isset($resposta_json['status']) ? $resposta_json['status'] : 'enviado';
-
-// Registra mensagem curta APENAS se o envio foi sucesso
-$notificacao = 'Cobrança enviada via WhatsApp em ' . date('d/m/Y H:i');
+// Envio bem-sucedido - registrar no banco
 $data_hora = date('Y-m-d H:i:s');
+$status = 'enviado';
+$message_id = $dados_resposta['messageId'] ?? null;
 
 if ($cobranca_id) {
-    $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, cliente_id, cobranca_id, mensagem, tipo, data_hora, direcao, status, anexo) VALUES (?, ?, ?, ?, 'texto', ?, 'enviado', ?, ?)");
-    $stmt->bind_param('iiissss', $canal_id, $cliente_id, $cobranca_id, $notificacao, $data_hora, $status_envio, $message_id);
+    $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, cliente_id, cobranca_id, mensagem, tipo, data_hora, direcao, status, whatsapp_message_id) VALUES (?, ?, ?, ?, 'texto', ?, 'enviado', ?, ?)");
+    $stmt->bind_param('iiissss', $canal_id, $cliente_id, $cobranca_id, $mensagem, $data_hora, $status, $message_id);
 } else {
-    $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status, anexo) VALUES (?, ?, ?, 'texto', ?, 'enviado', ?, ?)");
-    $stmt->bind_param('iissss', $canal_id, $cliente_id, $notificacao, $data_hora, $status_envio, $message_id);
+    $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status, whatsapp_message_id) VALUES (?, ?, ?, 'texto', ?, 'enviado', ?, ?)");
+    $stmt->bind_param('iissss', $canal_id, $cliente_id, $mensagem, $data_hora, $status, $message_id);
 }
-$stmt->execute();
+
+if (!$stmt->execute()) {
+    echo json_encode(['success' => false, 'error' => 'Erro ao salvar mensagem no banco: ' . $stmt->error]);
+    exit;
+}
+
+$mensagem_id = $stmt->insert_id;
 $stmt->close();
 
+// Invalidar cache de conversas para atualizar a lista
+if (function_exists('cache_forget')) {
+    cache_forget('conversas_recentes');
+    cache_forget("mensagens_{$cliente_id}");
+}
+
 echo json_encode([
-    'success' => true, 
-    'msg' => 'Mensagem registrada e enviada ao robô.',
-    'messageId' => $message_id,
-    'status' => $status_envio
-]); 
+    'success' => true,
+    'message' => 'Mensagem enviada com sucesso',
+    'mensagem_id' => $mensagem_id,
+    'whatsapp_message_id' => $message_id,
+    'numero_enviado' => $numero
+]);
+?> 
