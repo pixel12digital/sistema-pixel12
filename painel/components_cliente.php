@@ -493,10 +493,9 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
       
       // Botões de ação
       $acoes = '';
-      // Mostrar botões para todas as mensagens (não apenas anotações)
+      // Apenas botão de excluir, discreto
       $acoes = '<div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end;">
-        <button class="btn-editar-msg" data-id="' . $id_msg . '" style="background:#3b82f6;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:0.8em;cursor:pointer;">Editar</button>
-        <button class="btn-excluir-msg" data-id="' . $id_msg . '" style="background:#ef4444;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:0.8em;cursor:pointer;">Excluir</button>
+        <button class="btn-excluir-msg" data-id="' . $id_msg . '" title="Excluir mensagem" style="background:none;color:#ef4444;border:none;padding:2px 6px;border-radius:4px;font-size:1.1em;cursor:pointer;opacity:0.7;">🗑️</button>
       </div>';
       
       echo '<div style="' . $bubble . 'border-radius:12px;padding:12px 16px;margin-bottom:12px;width:100%;max-width:100%;box-shadow:0 3px 12px rgba(0,0,0,0.15);display:block;word-wrap:break-word;border:1px solid ' . ($is_anotacao ? '#f59e0b' : ($is_received ? '#374151' : '#6d28d9')) . ';" data-mensagem-id="' . $id_msg . '">
@@ -870,16 +869,48 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
   </script>';
   // Incluir o arquivo JavaScript com as funções de edição e exclusão (garantir que seja incluído antes do HTML)
   echo '<script src="../assets/chat-functions.js"></script>';
-  // Adicionar delegação de eventos para os botões de edição e exclusão
   echo '<script>
   document.addEventListener("DOMContentLoaded", function() {
-    document.querySelectorAll(".btn-editar-msg").forEach(function(btn) {
-      btn.onclick = function() {
-        var mensagemId = this.getAttribute("data-id");
-        var conteudo = this.closest("[data-mensagem-id]").querySelector(".mensagem-conteudo").textContent;
-        window.editarMensagem(mensagemId, conteudo);
+    // Edição inline ao clicar no texto da mensagem
+    document.querySelectorAll(".mensagem-conteudo").forEach(function(span) {
+      span.style.cursor = "pointer";
+      span.title = "Clique para editar";
+      span.onclick = function(e) {
+        if (span.querySelector("input")) return; // já está editando
+        var valorOriginal = span.textContent;
+        var input = document.createElement("input");
+        input.type = "text";
+        input.value = valorOriginal;
+        input.style.width = "98%";
+        input.style.fontSize = "inherit";
+        input.style.fontFamily = "inherit";
+        input.style.background = "#f3f4f6";
+        input.style.border = "1px solid #a259e6";
+        input.style.borderRadius = "6px";
+        input.style.padding = "4px 8px";
+        span.innerHTML = "";
+        span.appendChild(input);
+        input.focus();
+        input.select();
+        // Salvar ao sair do campo ou pressionar Enter
+        function salvar() {
+          var novoValor = input.value.trim();
+          if (novoValor && novoValor !== valorOriginal) {
+            var mensagemId = span.closest("[data-mensagem-id]").getAttribute("data-mensagem-id");
+            window.editarMensagem(mensagemId, novoValor);
+            span.textContent = novoValor;
+          } else {
+            span.textContent = valorOriginal;
+          }
+        }
+        input.onblur = salvar;
+        input.onkeydown = function(e) {
+          if (e.key === "Enter") { e.preventDefault(); salvar(); }
+          if (e.key === "Escape") { span.textContent = valorOriginal; }
+        };
       };
     });
+    // Exclusão
     document.querySelectorAll(".btn-excluir-msg").forEach(function(btn) {
       btn.onclick = function() {
         var mensagemId = this.getAttribute("data-id");
