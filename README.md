@@ -1,326 +1,420 @@
-# 🚀 Sistema de Loja Virtual com WhatsApp API
+# 💬 Sistema de Chat Centralizado com WhatsApp
 
-Sistema completo de loja virtual integrado com WhatsApp API para comunicação automatizada com clientes.
+Sistema completo de gestão de conversas WhatsApp com aprovação manual de clientes, similar ao Kommo CRM.
+
+## 🎯 **Principais Funcionalidades**
+
+### 📱 **Chat Centralizado**
+- Interface moderna similar ao WhatsApp
+- Atualização em tempo real (2-30s adaptativos)
+- Três colunas: Conversas | Detalhes Cliente | Chat
+- Sistema de cache inteligente para performance
+- Polling adaptativo baseado em atividade do usuário
+
+### 🔐 **Sistema de Aprovação Manual**
+- **Números desconhecidos** ficam pendentes para aprovação
+- **Controle total** sobre quais clientes podem usar o sistema
+- **Migração automática** de mensagens ao aprovar
+- **Histórico completo** de decisões (aprovado/rejeitado)
+
+### 🤖 **Integração WhatsApp**
+- Webhook para recebimento automático de mensagens
+- Envio de mensagens via robô WhatsApp
+- QR Code para conexão
+- Status de conexão em tempo real
 
 ---
 
-## 📋 Índice
+## 🏗️ **Arquitetura do Sistema**
 
-- [🎯 Visão Geral](#-visão-geral)
-- [🔧 Configuração](#-configuração)
-- [📱 WhatsApp API](#-whatsapp-api)
-- [🛠️ Funcionalidades](#️-funcionalidades)
-- [📊 Monitoramento](#-monitoramento)
-- [🔍 Troubleshooting](#-troubleshooting)
-- [📚 Documentação](#-documentação)
+### **📊 Estrutura de Banco de Dados**
+
+#### **Tabelas Principais:**
+- `clientes` - Clientes aprovados e ativos
+- `mensagens_comunicacao` - Mensagens dos clientes ativos
+- `canais_comunicacao` - Configurações dos canais (WhatsApp, etc.)
+
+#### **Sistema de Aprovação:**
+- `clientes_pendentes` - Números aguardando aprovação
+- `mensagens_pendentes` - Mensagens de clientes pendentes
+
+### **🔄 Fluxo de Mensagens**
+
+```
+Mensagem WhatsApp → Webhook → Verificação Cliente
+                                     ↓
+              Cliente Existente? ─── Sim ──→ Chat Normal
+                     ↓
+                    Não
+                     ↓
+              Tabela Pendentes ──→ Aguarda Aprovação
+                     ↓                      ↓
+               [Aprovado] ─────────→ Chat Normal
+                     ↓
+               [Rejeitado] ────────→ Mensagem Ignorada
+```
 
 ---
 
-## 🎯 Visão Geral
+## 🚀 **Instalação e Configuração**
 
-Sistema desenvolvido em PHP com integração completa ao WhatsApp via API Node.js, permitindo:
-- Gestão de clientes e produtos
-- Comunicação automatizada via WhatsApp
-- Sistema de cobranças integrado
-- Painel administrativo completo
-
----
-
-## 🔧 Configuração
-
-### **Requisitos:**
+### **1. Requisitos**
 - PHP 7.4+
-- MySQL/MariaDB
-- Node.js 16+
-- XAMPP (desenvolvimento local)
+- MySQL 5.7+
+- Apache/Nginx
+- Extensões PHP: mysqli, json, curl
 
-### **Instalação:**
-1. Clone o repositório
-2. Configure o banco de dados
-3. Ajuste as configurações em `config.php`
-4. Instale as dependências Node.js
+### **2. Configuração Inicial**
 
----
-
-## 📱 WhatsApp API
-
-### **🆕 Formatação Simplificada de Números (NOVA)**
-
-A formatação de números foi simplificada para máxima flexibilidade:
-
-#### **Como Funciona:**
-- **Sistema**: Apenas adiciona código do país (55) + sufixo (@c.us)
-- **Você**: Gerencia as regras específicas no cadastro do cliente
-- **Flexibilidade**: Cada número pode ter sua própria regra
-
-#### **Exemplos Práticos:**
-
-**DDD 47 (Santa Catarina) - 8 dígitos:**
-```
-Cadastro: 4799616469
-Enviado: 554799616469@c.us
-```
-
-**DDD 11 (São Paulo) - 9 dígitos:**
-```
-Cadastro: 11987654321
-Enviado: 5511987654321@c.us
-```
-
-**DDD 61 (Brasília) - 9 dígitos:**
-```
-Cadastro: 61987654321
-Enviado: 5561987654321@c.us
-```
-
-#### **Vantagens:**
-- ✅ **Flexibilidade total**: Você controla cada número individualmente
-- ✅ **Sem regras complexas**: Não precisa de lógica condicional no código
-- ✅ **Fácil manutenção**: Cada cliente tem seu número formatado corretamente
-- ✅ **Compatibilidade**: Funciona com qualquer regra específica do WhatsApp
-
-### **📋 Como Gerenciar no Cadastro:**
-
-1. **Salve o número exatamente como deve ser enviado para o WhatsApp**
-2. **Se o DDD 47 precisa de 8 dígitos**: salve `4799616469`
-3. **Se o DDD 11 precisa de 9 dígitos**: salve `11987654321`
-
-### **🔄 Migração de Dados:**
-
-Para números existentes que não funcionam:
-```sql
--- Exemplo: Atualizar número do cliente 156 (DDD 47 - 8 dígitos)
-UPDATE clientes 
-SET celular = '4799616469' 
-WHERE id = 156 AND celular = '47996164699';
-```
-
-### **🧪 Testes:**
-
+#### **a) Clone o Repositório:**
 ```bash
-# DDD 47 (8 dígitos)
-curl -X POST http://localhost:3000/send \
-  -H "Content-Type: application/json" \
-  -d '{"to": "4799616469", "message": "Teste DDD 47"}'
-
-# DDD 11 (9 dígitos)
-curl -X POST http://localhost:3000/send \
-  -H "Content-Type: application/json" \
-  -d '{"to": "11987654321", "message": "Teste DDD 11"}'
+git clone https://github.com/pixel12digital/revenda-sites.git
+cd revenda-sites
 ```
 
----
-
-## 🛠️ Funcionalidades
-
-### **Gestão de Clientes:**
-- Cadastro completo com dados pessoais e de contato
-- Histórico de comunicações
-- Integração com sistema de cobranças
-- **🆕 Edição de clientes diretamente no chat** - Modifique dados dos clientes sem sair da conversa
-
-### **Comunicação WhatsApp:**
-- Envio automático de mensagens
-- Recebimento e armazenamento de respostas
-- Sistema de filas para evitar spam
-- Simulação de comportamento humano
-
-### **Sistema de Cobranças:**
-- Integração com Asaas
-- Notificações automáticas
-- Histórico de pagamentos
-
-### **🆕 Interface de Chat Avançada:**
-- **Edição inline de clientes**: Botão "Editar" em cada cliente
-- **Formulário modal**: Interface intuitiva para modificação de dados
-- **Validação em tempo real**: Feedback imediato de erros
-- **Atualização automática**: Lista de clientes atualizada após edição
-- **Integração AJAX**: Comunicação assíncrona com o servidor
-- **Tratamento robusto de erros**: Respostas JSON consistentes
-
----
-
-## 📊 Monitoramento
-
-### **Status da API:**
-```bash
-# Verificar status
-curl http://localhost:3000/status
-
-# Verificar fila de mensagens
-curl http://localhost:3000/queue
-
-# Verificar simulação humana
-curl http://localhost:3000/simulation
-```
-
-### **Logs do Sistema:**
-```bash
-# Logs do PM2
-pm2 logs whatsapp-api
-
-# Status do processo
-pm2 status
-```
-
----
-
-## 🔍 Troubleshooting
-
-### **Problemas Comuns:**
-
-#### **1. WhatsApp não conecta:**
-- Verificar QR Code em `/qr`
-- Reautenticar se necessário
-- Verificar logs do PM2
-
-#### **2. Mensagens não chegam:**
-- Verificar formatação do número no cadastro
-- Confirmar se o WhatsApp aceita o formato
-- Verificar logs de erro
-
-#### **3. Erro de sintaxe:**
-- Verificar arquivo `whatsapp-api-server.js`
-- Testar com `node -c whatsapp-api-server.js`
-- Restaurar backup se necessário
-
-### **Comandos Úteis:**
-```bash
-# Reiniciar servidor
-pm2 restart whatsapp-api
-
-# Ver logs em tempo real
-pm2 logs whatsapp-api --lines 50
-
-# Limpar fila de mensagens
-curl -X POST http://localhost:3000/queue/clear
-
-# Desconectar WhatsApp
-curl -X POST http://localhost:3000/logout
-```
-
-### **🆕 Troubleshooting - Edição de Clientes:**
-
-#### **1. Erro de sintaxe PHP:**
-```bash
-# Verificar sintaxe dos arquivos
-php -l components_cliente.php
-php -l api/editar_cliente.php
-```
-
-#### **2. "Erro ao salvar" no formulário:**
-- Verificar logs do servidor para erros de banco
-- Confirmar se o arquivo `api/db.php` está acessível
-- Verificar permissões de escrita no banco de dados
-
-#### **3. Formulário não abre:**
-- Verificar console do navegador para erros JavaScript
-- Confirmar se o arquivo `components_cliente.php` está sendo carregado
-- Verificar se não há conflitos de CSS/JavaScript
-
-#### **4. Dados não são salvos:**
-```sql
--- Testar conexão direta com banco
-SELECT * FROM clientes WHERE id = 1;
-UPDATE clientes SET nome = 'Teste' WHERE id = 1;
-```
-
-#### **5. URL incorreta na requisição AJAX:**
-- Verificar se o caminho `/loja-virtual-revenda/api/editar_cliente.php` está correto
-- Confirmar se o arquivo existe no local especificado
-- Testar acesso direto ao endpoint via navegador
-
----
-
-## 📚 Documentação
-
-### **Arquivos de Documentação:**
-- `FORMATACAO_NUMEROS_SIMPLIFICADA.md` - Guia completo da nova formatação
-- `DOCUMENTACAO_COMPLETA_CHAT.md` - Histórico de correções e melhorias
-- `COMANDOS_VPS_FORMATACAO.md` - Comandos para atualizar VPS
-- `FUNCIONALIDADE_EDICAO_CLIENTES.md` - Documentação completa da funcionalidade de edição
-
-### **Integração:**
-
-#### **JavaScript (Frontend):**
-```javascript
-async function enviarWhatsApp(numero, mensagem) {
-    try {
-        const response = await fetch('http://212.85.11.238:3000/send', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                to: numero,
-                message: mensagem
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            console.log('Mensagem enviada:', data.messageId);
-            return true;
-        } else {
-            console.error('Erro:', data.error);
-            return false;
-        }
-    } catch (error) {
-        console.error('Erro na requisição:', error);
-        return false;
-    }
-}
-```
-
-#### **PHP (Backend):**
+#### **b) Configure o Banco de Dados:**
 ```php
-function enviarWhatsApp($numero, $mensagem) {
-    $url = 'http://212.85.11.238:3000/send';
-    $data = json_encode([
-        'to' => $numero,
-        'message' => $mensagem
-    ]);
-    
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    
-    $response = curl_exec($ch);
-    curl_close($ch);
-    
-    return json_decode($response, true);
-}
+// painel/config.php
+$host = 'localhost';
+$username = 'seu_usuario';
+$password = 'sua_senha';
+$database = 'seu_banco';
+```
+
+#### **c) Crie as Tabelas do Sistema de Aprovação:**
+```bash
+php painel/api/criar_tabela_pendentes.php
+```
+
+### **3. Configuração WhatsApp**
+
+#### **a) Configure o VPS WhatsApp:**
+- URL do VPS: `http://212.85.11.238:3000`
+- Configure o webhook para: `https://seu-dominio.com/api/webhook_whatsapp.php`
+
+#### **b) Configure Automaticamente:**
+```bash
+# Local (XAMPP):
+php painel/configurar_webhook_ambiente.php
+
+# Produção (Hostinger):
+php painel/diagnosticar_producao.php
 ```
 
 ---
 
-## 🎯 Sistema Atual
+## 📋 **Como Usar o Sistema**
 
-### **✅ Status:**
-- 🟢 **VPS**: Online e estável (212.85.11.238:3000)
-- 🟢 **API**: Respondendo corretamente
-- 🟢 **WhatsApp**: Conectado e enviando mensagens
-- 🟢 **Formatação**: Simplificada e flexível
-- 🟢 **🆕 Edição de Clientes**: Funcionalidade operacional no chat
+### **🎛️ Painel de Controle**
 
-### **📊 Estatísticas:**
-- **Servidor**: PM2 online (PID: 138310)
-- **Restarts**: 76 (normal)
-- **Memória**: 54.9mb
-- **Status**: Funcionando perfeitamente
+#### **1. Chat Centralizado**
+```
+Acesse: painel/chat.php
+```
+- **Coluna 1**: Lista de conversas ativas
+- **Coluna 2**: Detalhes do cliente selecionado  
+- **Coluna 3**: Chat com mensagens
+
+#### **2. Conexão WhatsApp**
+```
+Acesse: painel/comunicacao.php
+```
+- Conectar via QR Code
+- Monitorar status da conexão
+- Gerenciar sessões
+
+### **🔐 Gerenciamento de Clientes Pendentes**
+
+#### **1. Listar Pendentes:**
+```bash
+GET /painel/api/clientes_pendentes.php?action=list
+```
+
+#### **2. Ver Mensagens de um Pendente:**
+```bash
+GET /painel/api/clientes_pendentes.php?action=messages&pendente_id=123
+```
+
+#### **3. Aprovar Cliente:**
+```bash
+POST /painel/api/clientes_pendentes.php
+{
+    "action": "approve",
+    "pendente_id": 123,
+    "nome_cliente": "João Silva",
+    "email_cliente": "joao@email.com"
+}
+```
+
+#### **4. Rejeitar Cliente:**
+```bash
+POST /painel/api/clientes_pendentes.php
+{
+    "action": "reject", 
+    "pendente_id": 123,
+    "motivo": "Número suspeito"
+}
+```
+
+#### **5. Estatísticas:**
+```bash
+GET /painel/api/clientes_pendentes.php?action=stats
+```
 
 ---
 
-## 📞 Suporte
+## ⚡ **Sistema de Cache Inteligente**
 
-Para problemas ou dúvidas:
-1. Verificar logs do sistema
-2. Consultar documentação específica
-3. Testar com números conhecidos
-4. Verificar formatação no cadastro
+### **🧠 Cache Adaptativo:**
 
-**Lembre-se**: O WhatsApp tem regras específicas que podem variar por número, mesmo dentro do mesmo DDD! 
+| **Situação** | **Cache** | **Polling** | **Performance** |
+|--------------|-----------|-------------|-----------------|
+| 🟢 **Usuário ativo** | 5s | 2s | Máxima responsividade |
+| 🟡 **Moderadamente ativo** | 15s | 5s | Balanceado |
+| 🔴 **Usuário inativo** | 30s | 30s | 80% menos consultas DB |
+
+### **🔄 Invalidação Automática:**
+- Cache limpo quando mensagem chega
+- Detecção de atividade do usuário
+- Transição automática entre modos
+
+---
+
+## 🛠️ **Manutenção e Monitoramento**
+
+### **📊 Monitoramento**
+
+#### **1. Status do Sistema:**
+```bash
+# Verificar WhatsApp
+php painel/monitorar_mensagens.php
+
+# Testar webhook
+php painel/testar_webhook.php
+
+# Diagnosticar produção  
+php painel/diagnosticar_producao.php
+```
+
+#### **2. Logs Importantes:**
+- `logs/webhook_whatsapp_*.log` - Mensagens recebidas
+- `painel/debug_*.log` - Debug do sistema
+- `api/debug_webhook.log` - Debug do webhook
+
+### **🔧 Correções Comuns**
+
+#### **1. Mensagens não aparecem:**
+```bash
+# Verificar webhook
+curl -X POST https://seu-dominio.com/api/webhook_whatsapp.php
+
+# Testar database
+php painel/verificar_tabela_clientes.php
+
+# Limpar cache
+rm -rf /tmp/loja_virtual_cache/*
+```
+
+#### **2. WhatsApp desconectado:**
+```bash
+# Reconectar
+php painel/corrigir_canal.php
+
+# Reconfigurar webhook
+php painel/configurar_webhook_ambiente.php
+```
+
+#### **3. Performance lenta:**
+```bash
+# Verificar cache
+php painel/api/record_activity.php
+
+# Otimizar banco
+OPTIMIZE TABLE mensagens_comunicacao, clientes, clientes_pendentes;
+```
+
+---
+
+## 🌐 **Ambientes de Deploy**
+
+### **🏠 Local (XAMPP)**
+```bash
+# URL: http://localhost/loja-virtual-revenda/
+# Webhook: http://localhost:8080/loja-virtual-revenda/api/webhook_whatsapp.php
+# Requer ngrok para receber mensagens externas
+```
+
+### **☁️ Produção (Hostinger)**
+```bash
+# URL: https://pixel12digital.com.br/app/
+# Webhook: https://pixel12digital.com.br/app/api/webhook_whatsapp.php
+# Deploy via git pull
+```
+
+### **🔄 Deploy Automático:**
+```bash
+# Local → Produção
+git add .
+git commit -m "Suas mudanças"
+git push
+
+# Na Hostinger:
+cd app
+git pull
+```
+
+---
+
+## 🔧 **API Reference**
+
+### **📱 Chat APIs**
+
+#### **Conversas:**
+- `GET /painel/api/conversas_recentes.php` - Lista conversas
+- `GET /painel/api/conversas_nao_lidas.php` - Conversas não lidas
+- `GET /painel/api/mensagens_cliente.php?cliente_id=X` - Mensagens
+
+#### **Mensagens:**
+- `POST /chat_enviar.php` - Enviar mensagem
+- `GET /painel/api/check_new_messages.php` - Verificar novas
+- `POST /painel/api/record_activity.php` - Registrar atividade
+
+### **🔐 Aprovação APIs**
+
+#### **Clientes Pendentes:**
+- `GET /painel/api/clientes_pendentes.php?action=list`
+- `GET /painel/api/clientes_pendentes.php?action=messages&pendente_id=X`
+- `POST /painel/api/clientes_pendentes.php` (approve/reject)
+- `GET /painel/api/clientes_pendentes.php?action=stats`
+
+### **🤖 WhatsApp APIs**
+
+#### **Webhook:**
+- `POST /api/webhook_whatsapp.php` - Receber mensagens
+- `POST /ajax_whatsapp.php` - Controlar robô
+- `GET /painel/api/whatsapp_webhook.php` - Status
+
+---
+
+## 📈 **Estatísticas e Métricas**
+
+### **📊 Métricas Disponíveis:**
+- Total de conversas ativas
+- Mensagens não lidas
+- Clientes pendentes de aprovação
+- Taxa de aprovação/rejeição
+- Performance do cache
+- Status da conexão WhatsApp
+
+### **🎯 KPIs Importantes:**
+- **Tempo de resposta**: < 5 segundos
+- **Taxa de entrega**: > 95%
+- **Uptime WhatsApp**: > 99%
+- **Cache hit rate**: > 80%
+
+---
+
+## 🛡️ **Segurança**
+
+### **🔒 Medidas de Segurança:**
+- Validação de entrada em todos os endpoints
+- Escape de SQL para prevenir injection
+- Rate limiting nos webhooks
+- Logs de auditoria completos
+- Sistema de aprovação manual para novos clientes
+
+### **🚨 Monitoramento:**
+- Logs de acesso suspeito
+- Verificação de integridade do webhook
+- Backup automático de mensagens importantes
+- Alertas de falhas na conexão
+
+---
+
+## 📞 **Suporte e Troubleshooting**
+
+### **🆘 Problemas Comuns:**
+
+#### **1. "Mensagens não chegam"**
+```bash
+# Verificar webhook
+php painel/testar_webhook.php
+
+# Verificar VPS
+curl http://212.85.11.238:3000/status
+
+# Reconfigurar
+php painel/diagnosticar_producao.php
+```
+
+#### **2. "Sistema lento"**
+```bash
+# Limpar cache
+rm -rf /tmp/loja_virtual_cache/*
+
+# Verificar atividade
+php painel/api/record_activity.php?cliente_id=1
+
+# Otimizar DB
+OPTIMIZE TABLE mensagens_comunicacao;
+```
+
+#### **3. "QR Code não aparece"**
+```bash
+# Verificar modal
+php painel/iniciar_sessao.php
+
+# Testar endpoints QR
+php painel/descobrir_endpoints_qr.php
+```
+
+### **📧 Contato:**
+- **Email**: suporte@pixel12digital.com.br
+- **GitHub**: https://github.com/pixel12digital/revenda-sites
+- **Documentação**: Este README.md
+
+---
+
+## 📝 **Changelog**
+
+### **v2.0.0 - Sistema de Aprovação Manual**
+- ✅ Sistema de aprovação similar ao Kommo CRM
+- ✅ Tabelas de clientes pendentes
+- ✅ API completa para gerenciamento
+- ✅ Migração automática de mensagens
+- ✅ Cache inteligente adaptativo
+
+### **v1.5.0 - Otimizações de Performance**  
+- ✅ Cache adaptativo baseado em atividade
+- ✅ Polling inteligente (2s-30s)
+- ✅ Redução de 80% nas consultas quando inativo
+- ✅ Sistema de invalidação agressiva
+
+### **v1.0.0 - Chat Centralizado**
+- ✅ Interface WhatsApp-like  
+- ✅ Três colunas responsivas
+- ✅ Integração com VPS WhatsApp
+- ✅ Sistema de cache básico
+- ✅ Webhook para recebimento
+
+---
+
+## 🎯 **Roadmap Futuro**
+
+### **v2.1.0 - Planejado**
+- [ ] Interface web para aprovação de clientes
+- [ ] Notificações push para novos pendentes  
+- [ ] Integração com outros CRMs
+- [ ] Relatórios avançados de conversas
+
+### **v2.2.0 - Planejado**
+- [ ] WebSockets para tempo real
+- [ ] Suporte a múltiplos agentes
+- [ ] Tags e categorias para clientes
+- [ ] Automações baseadas em palavras-chave
+
+---
+
+**🎉 Sistema totalmente funcional e documentado! Pronto para produção.** 
+
+Para suporte, consulte este README ou entre em contato com a equipe de desenvolvimento. 
