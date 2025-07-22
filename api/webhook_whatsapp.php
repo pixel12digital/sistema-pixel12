@@ -29,40 +29,130 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     $tipo = $message['type'] ?? 'text';
     $data_hora = date('Y-m-d H:i:s');
     
-    // Buscar cliente pelo número
+    // Buscar cliente pelo número com múltiplos formatos
     $numero_limpo = preg_replace('/\D/', '', $numero);
-    $sql = "SELECT id, nome FROM clientes WHERE celular LIKE '%$numero_limpo%' LIMIT 1";
-    $result = $mysqli->query($sql);
+    
+    // Tentar diferentes formatos de busca
+    $formatos_busca = [
+        $numero_limpo,
+        ltrim($numero_limpo, '55'), // Remove código do país
+        substr($numero_limpo, -11), // Últimos 11 dígitos
+        substr($numero_limpo, -10)  // Últimos 10 dígitos
+    ];
     
     $cliente_id = null;
-    if ($result && $result->num_rows > 0) {
-        $cliente = $result->fetch_assoc();
-        $cliente_id = $cliente['id'];
+    $cliente = null;
+    
+    foreach ($formatos_busca as $formato) {
+        if (strlen($formato) >= 10) { // Mínimo 10 dígitos
+            $sql = "SELECT id, nome, celular FROM clientes 
+                    WHERE REPLACE(REPLACE(REPLACE(REPLACE(celular, '(', ''), ')', ''), '-', ''), ' ', '') LIKE '%$formato%' 
+                    OR REPLACE(REPLACE(REPLACE(REPLACE(telefone, '(', ''), ')', ''), '-', ''), ' ', '') LIKE '%$formato%'
+                    LIMIT 1";
+            $result = $mysqli->query($sql);
+            
+            if ($result && $result->num_rows > 0) {
+                $cliente = $result->fetch_assoc();
+                $cliente_id = $cliente['id'];
+                error_log("[WEBHOOK WHATSAPP] Cliente encontrado com formato $formato - ID: $cliente_id, Nome: {$cliente['nome']}");
+                break;
+            }
+        }
     }
     
-    // Cadastro automático de clientes não cadastrados
+    // Cadastro em sistema de APROVAÇÃO MANUAL (similar ao Kommo CRM)
     if (!$cliente_id) {
-        // Formatar número para salvar
-        $numero_para_salvar = $numero;
-        if (strpos($numero, "55") === 0) {
-            $numero_para_salvar = substr($numero, 2);
+        // Formatar número para salvar (remover código do país se presente)
+        $numero_para_salvar = $numero_limpo;
+        if (strpos($numero_limpo, "55") === 0 && strlen($numero_limpo) > 11) {
+            $numero_para_salvar = substr($numero_limpo, 2);
         }
         
-        // Criar cliente automaticamente
-        $nome_cliente = "Cliente WhatsApp (" . $numero_para_salvar . ")";
-        $data_criacao = date("Y-m-d H:i:s");
+        // Formatar número para exibição
+        $numero_formatado = $numero_para_salvar;
+        if (strlen($numero_formatado) == 11) {
+            $numero_formatado = '(' . substr($numero_formatado, 0, 2) . ') ' . 
+                              substr($numero_formatado, 2, 5) . '-' . 
+                              substr($numero_formatado, 7);
+        } elseif (strlen($numero_formatado) == 10) {
+            $numero_formatado = '(' . substr($numero_formatado, 0, 2) . ') ' . 
+                              substr($numero_formatado, 2, 4) . '-' . 
+                              substr($numero_formatado, 6);
+        }
         
-        $sql_criar = "INSERT INTO clientes (nome, celular, data_criacao, data_atualizacao) 
-                      VALUES (\"" . $mysqli->real_escape_string($nome_cliente) . "\", 
-                              \"" . $mysqli->real_escape_string($numero_para_salvar) . "\", 
-                              \"$data_criacao\", \"$data_criacao\")";
+        // Verificar se já existe na tabela de pendentes
+        $sql_check_pendente = "SELECT id, total_mensagens FROM clientes_pendentes 
+                              WHERE numero_whatsapp = '" . $mysqli->real_escape_string($numero_para_salvar) . "' 
+                              AND status = 'pendente' LIMIT 1";
+        $result_pendente = $mysqli->query($sql_check_pendente);
         
-        if ($mysqli->query($sql_criar)) {
-            $cliente_id = $mysqli->insert_id;
-            error_log("[WEBHOOK WHATSAPP] Cliente criado automaticamente - ID: $cliente_id, Número: $numero_para_salvar");
+        if ($result_pendente && $result_pendente->num_rows > 0) {
+            // Cliente já está pendente - atualizar informações
+            $pendente = $result_pendente->fetch_assoc();
+            $cliente_pendente_id = $pendente['id'];
+            $novo_total = $pendente['total_mensagens'] + 1;
+            
+            $sql_update_pendente = "UPDATE clientes_pendentes SET 
+                                   ultima_mensagem = '" . $mysqli->real_escape_string($texto) . "',
+                                   data_ultima_mensagem = '$data_hora',
+                                   total_mensagens = $novo_total
+                                   WHERE id = $cliente_pendente_id";
+            $mysqli->query($sql_update_pendente);
+            
+            error_log("[WEBHOOK WHATSAPP] 🟡 Cliente pendente atualizado - ID: $cliente_pendente_id, Total mensagens: $novo_total");
         } else {
-            error_log("[WEBHOOK WHATSAPP] Erro ao criar cliente: " . $mysqli->error);
+            // Novo cliente - criar na tabela de pendentes
+            $texto_escaped = $mysqli->real_escape_string($texto);
+            $sql_pendente = "INSERT INTO clientes_pendentes 
+                           (numero_whatsapp, numero_formatado, primeira_mensagem, data_primeira_mensagem, 
+                            ultima_mensagem, data_ultima_mensagem, dados_extras) 
+                           VALUES (
+                               '" . $mysqli->real_escape_string($numero_para_salvar) . "',
+                               '" . $mysqli->real_escape_string($numero_formatado) . "',
+                               '$texto_escaped', '$data_hora', 
+                               '$texto_escaped', '$data_hora',
+                               '" . $mysqli->real_escape_string(json_encode(['numero_original' => $numero, 'webhook_data' => $data])) . "'
+                           )";
+            
+            if ($mysqli->query($sql_pendente)) {
+                $cliente_pendente_id = $mysqli->insert_id;
+                error_log("[WEBHOOK WHATSAPP] 🆕 NOVO CLIENTE PENDENTE - ID: $cliente_pendente_id, Número: $numero_formatado");
+            } else {
+                error_log("[WEBHOOK WHATSAPP] ❌ Erro ao criar cliente pendente: " . $mysqli->error);
+                // Responder erro e sair
+                echo json_encode(['success' => false, 'error' => 'Erro interno']);
+                exit;
+            }
         }
+        
+        // Salvar mensagem na tabela de mensagens pendentes
+        if (isset($cliente_pendente_id)) {
+            $texto_escaped = $mysqli->real_escape_string($texto);
+            $tipo_escaped = $mysqli->real_escape_string($tipo);
+            $webhook_data_escaped = $mysqli->real_escape_string(json_encode($data));
+            
+            $sql_msg_pendente = "INSERT INTO mensagens_pendentes 
+                               (cliente_pendente_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, dados_webhook) 
+                               VALUES ($cliente_pendente_id, '" . $mysqli->real_escape_string($numero_para_salvar) . "', 
+                                      '$texto_escaped', '$tipo_escaped', '$data_hora', 'recebido', '$webhook_data_escaped')";
+            
+            if ($mysqli->query($sql_msg_pendente)) {
+                error_log("[WEBHOOK WHATSAPP] 📝 Mensagem pendente salva para cliente pendente ID: $cliente_pendente_id");
+            } else {
+                error_log("[WEBHOOK WHATSAPP] ❌ Erro ao salvar mensagem pendente: " . $mysqli->error);
+            }
+        }
+        
+        // Resposta de sucesso para cliente pendente
+        echo json_encode([
+            'success' => true,
+            'message' => 'Cliente salvo como pendente para aprovação',
+            'cliente_pendente_id' => $cliente_pendente_id ?? null,
+            'status' => 'pendente'
+        ]);
+        exit; // Importante: sair aqui para não continuar o processamento
+    } else {
+        error_log("[WEBHOOK WHATSAPP] ✅ Cliente existente encontrado - ID: $cliente_id, Nome: {$cliente['nome']}");
     }
 
     // Buscar canal WhatsApp padrão ou criar um
