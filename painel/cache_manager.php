@@ -314,7 +314,7 @@ function cache_conversas($mysqli) {
         }
         
         return $conversas;
-    }, 10); // Reduzido de 30s para 10s para atualizações quase em tempo real
+    }, 60); // Voltando para 60s para reduzir carga no banco
 }
 
 /**

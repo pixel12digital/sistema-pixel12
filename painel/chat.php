@@ -830,25 +830,62 @@ function render_content() {
     // Primeira verificação imediata
     checkForNewMessages(clienteId);
     
-    // Polling otimizado para experiência WhatsApp mais responsiva
+    // Polling adaptativo baseado em atividade
+    let pollingSpeed = 5000; // Padrão 5s
+    let inactivityTimer = 0;
+    
     pollingInterval = setInterval(() => {
       // Só verificar se a janela está ativa
       if (document.visibilityState === 'visible') {
         checkForNewMessages(clienteId);
-        // Atualizar lista de conversas também
         updateConversationList();
+        
+        // Aumentar intervalo se não há atividade
+        inactivityTimer += pollingSpeed;
+        if (inactivityTimer > 120000) { // 2 minutos
+          pollingSpeed = 10000; // Reduzir para 10s
+        }
+        if (inactivityTimer > 300000) { // 5 minutos  
+          pollingSpeed = 30000; // Reduzir para 30s
+        }
       }
-    }, 2000); // Reduzido de 5s para 2s para experiência mais responsiva
+    }, pollingSpeed);
     
     // Listener para quando a página volta ao foco
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && clienteId) {
+        // Reset para velocidade máxima ao voltar
+        pollingSpeed = 2000; 
+        inactivityTimer = 0;
         setTimeout(() => {
           checkForNewMessages(clienteId);
           updateConversationList();
         }, 1000);
       }
     });
+    
+    // Reset velocidade quando há interação do usuário
+    document.addEventListener('click', () => {
+      pollingSpeed = 2000;
+      inactivityTimer = 0;
+      // Salvar atividade
+      recordUserActivity(clienteId);
+    });
+    
+    document.addEventListener('keypress', () => {
+      pollingSpeed = 2000;
+      inactivityTimer = 0;
+      recordUserActivity(clienteId);
+    });
+  }
+  
+  function recordUserActivity(clienteId) {
+    // Registrar atividade do usuário para otimizar cache
+    fetch('api/record_activity.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `cliente_id=${clienteId}`
+    }).catch(() => {}); // Ignorar erros
   }
   
   function updateConversationList() {

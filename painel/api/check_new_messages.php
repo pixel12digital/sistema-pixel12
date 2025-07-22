@@ -13,9 +13,29 @@ if (!$cliente_id) {
     exit;
 }
 
+// Cache inteligente adaptativo
+$cacheTimeout = 10; // Padrão 10s
+$activityFile = sys_get_temp_dir() . "/chat_activity_{$cliente_id}.json";
+
+// Verificar atividade recente
+if (file_exists($activityFile)) {
+    $activity = json_decode(file_get_contents($activityFile), true);
+    $timeSinceActivity = time() - $activity['last_activity'];
+    
+    if ($timeSinceActivity < 60) {
+        // Atividade recente - cache menor
+        $cacheTimeout = 5;
+    } elseif ($timeSinceActivity < 300) {
+        // Atividade moderada - cache médio
+        $cacheTimeout = 15;
+    } else {
+        // Sem atividade - cache longo
+        $cacheTimeout = 30;
+    }
+}
+
 // Cache simples em arquivo para evitar consultas desnecessárias
 $cacheFile = sys_get_temp_dir() . "/chat_cache_{$cliente_id}.json";
-$cacheTimeout = 3; // Reduzido de 10s para 3s
 
 if (file_exists($cacheFile)) {
     $cacheData = json_decode(file_get_contents($cacheFile), true);
