@@ -116,6 +116,10 @@ function render_content() {
   . '.modal h3 { font-size: 1.25em; margin-bottom: 18px; }'
   . '.modal button { top: 14px; right: 18px; }'
   . '@media (max-width: 700px) { .com-table th, .com-table td { padding: 8px 2px; font-size: 0.95em; } .modal { padding: 18px 6px; } }'
+  . '#modal-qr-canal { display: none !important; }'
+  . '#modal-qr-canal[style*="flex"] { display: flex !important; align-items: center !important; justify-content: center !important; }'
+  . '.modal-qr-content { background: #fff !important; color: #222 !important; display: flex !important; flex-direction: column !important; align-items: center !important; }'
+  . '#qr-code-area { display: flex !important; align-items: center !important; justify-content: center !important; flex-direction: column !important; }'
   . '</style>';
   
   echo '<link rel="stylesheet" href="/public/assets/css/style.css">';
@@ -166,17 +170,20 @@ function render_content() {
   echo '</form>';
   echo '</div></div>';
 
-  // Modal para exibir QR Code
-  echo '<div id="modal-qr-canal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:#0008;z-index:9999;align-items:center;justify-content:center;">';
-  echo '<div class="modal">';
-  echo '<button id="close-modal-qr" style="position:absolute;top:12px;right:16px;font-size:1.3rem;background:none;border:none;cursor:pointer;">&times;</button>';
-  echo '<h3 class="text-lg font-bold mb-4">Conectar WhatsApp</h3>';
-  echo '<div id="qr-code-area" class="flex flex-col items-center justify-center" style="min-height:180px;"></div>';
-  echo '<div style="text-align: center; margin-top: 15px;">';
-  echo '<button id="btn-atualizar-qr" style="background: #3b82f6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🔄 Atualizar QR Code</button>';
-  echo '<button id="btn-forcar-novo-qr" style="background: #f59e0b; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🆕 Forçar Novo QR</button>';
+  // Modal para exibir QR Code - VERSÃO CORRIGIDA
+  echo '<div id="modal-qr-canal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.53);z-index:9999 !important;">';
+  echo '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;">';
+  echo '<div class="modal-qr-content" style="background:#fff !important;color:#222 !important;padding:32px 32px 24px 32px;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.2), 0 1.5px 8px rgba(162,89,230,0.2);min-width:320px;max-width:95vw;position:relative;display:flex !important;flex-direction:column;align-items:center;justify-content:flex-start;z-index:10000;">';
+  echo '<button id="close-modal-qr" style="position:absolute;top:12px;right:16px;font-size:1.3rem;background:none;border:none;cursor:pointer;color:#666;z-index:10001;">&times;</button>';
+  echo '<h3 style="font-size:1.25rem;font-weight:bold;margin-bottom:16px;color:#222;text-align:center;">📱 Conectar WhatsApp</h3>';
+  echo '<div id="qr-code-area" style="min-height:220px;min-width:220px;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#f8f9fa;border-radius:8px;padding:20px;margin-bottom:16px;border:2px dashed #ddd;">Carregando QR Code...</div>';
+  echo '<div style="text-align:center;margin-top:15px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">';
+  echo '<button id="btn-atualizar-qr" style="background:#3b82f6;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;margin:2px;font-size:0.9rem;">🔄 Atualizar QR</button>';
+  echo '<button id="btn-forcar-novo-qr" style="background:#f59e0b;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;margin:2px;font-size:0.9rem;">🆕 Forçar Novo QR</button>';
   echo '</div>';
-  echo '</div></div>';
+  echo '</div>';
+  echo '</div>';
+  echo '</div>';
 
   // Modal de confirmação de exclusão
   echo '<div id="modal-confirm-excluir" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:#0008;z-index:9999;align-items:center;justify-content:center;">';
@@ -327,6 +334,8 @@ function render_content() {
   echo '<button onclick="testarAjaxManual();" style="background: #3b82f6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🧪 Teste Manual Ajax</button>';
   echo '<button onclick="testarVPSManual();" style="background: #8b5cf6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">📡 Teste Manual VPS</button>';
   echo '<button onclick="descobrirEndpointsQR();" style="background: #f59e0b; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🔍 Descobrir QR Endpoints</button>';
+  echo '<button onclick="iniciarSessaoWhatsApp();" style="background: #22c55e; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🚀 Iniciar Sessão WhatsApp</button>';
+  echo '<button onclick="reiniciarSessaoWhatsApp();" style="background: #f97316; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🔄 Reiniciar Sessão</button>';
   echo '</div>';
   echo '</div>';
 
@@ -584,10 +593,48 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function abrirModalQr(porta) {
     pausarPollingStatus();
+    debug('🔄 Abrindo modal QR para porta: ' + porta, 'info');
+    
+    // Garantir que o modal existe
+    var modalQr = document.getElementById('modal-qr-canal');
+    if (!modalQr) {
+      debug('❌ Modal QR não encontrado no DOM!', 'error');
+      alert('Erro: Modal QR não encontrado!');
+      return;
+    }
+    
+    // Forçar visibilidade do modal
     modalQr.style.display = 'flex';
-    document.getElementById('qr-code-area').innerHTML = 'Aguardando QR Code...';
+    modalQr.style.visibility = 'visible';
+    modalQr.style.opacity = '1';
+    
+    // Garantir que o conteúdo interno também está visível
+    var modalContent = modalQr.querySelector('.modal-qr-content');
+    if (modalContent) {
+      modalContent.style.display = 'flex';
+      modalContent.style.visibility = 'visible';
+      modalContent.style.opacity = '1';
+      debug('✅ Modal QR content configurado para visível', 'success');
+    } else {
+      debug('⚠️ Modal QR content não encontrado', 'warning');
+    }
+    
+    // Garantir que a área do QR Code está visível
+    var qrArea = document.getElementById('qr-code-area');
+    if (qrArea) {
+      qrArea.innerHTML = 'Aguardando QR Code...';
+      qrArea.style.display = 'flex';
+      qrArea.style.visibility = 'visible';
+      debug('✅ QR Code area configurada', 'success');
+    } else {
+      debug('❌ QR Code area não encontrada!', 'error');
+    }
+    
+    debug('✅ Modal QR aberto com sucesso', 'success');
+    
     exibirQrCode(porta); // Exibe imediatamente
-    // Atualiza o QR Code e checa status a cada 3 segundos enquanto o modal estiver aberto (reduzido de 7s para 3s)
+    
+    // Atualiza o QR Code e checa status a cada 3 segundos enquanto o modal estiver aberto
     let qrInterval = setInterval(function() {
       if (modalQr.style.display === 'flex') {
         exibirQrCode(porta);
@@ -595,40 +642,61 @@ document.addEventListener('DOMContentLoaded', function() {
       } else {
         clearInterval(qrInterval);
       }
-    }, 3000); // Reduzido de 7000ms para 3000ms
-    closeQr.onclick = function() {
-      modalQr.style.display = 'none';
-      pararPollingQr();
-      clearInterval(qrInterval);
-      retomarPollingStatus();
-    };
+    }, 3000);
+    
+    // Configurar botão de fechar
+    var closeQr = document.getElementById('close-modal-qr');
+    if (closeQr) {
+      closeQr.onclick = function() {
+        debug('🔒 Fechando modal QR', 'info');
+        modalQr.style.display = 'none';
+        pararPollingQr();
+        clearInterval(qrInterval);
+        retomarPollingStatus();
+      };
+    }
     
     // Botões de atualização do QR Code
-    document.getElementById('btn-atualizar-qr').onclick = function() {
-      debug('🔄 Usuário clicou em Atualizar QR Code', 'info');
-      exibirQrCode(porta);
-    };
+    var btnAtualizar = document.getElementById('btn-atualizar-qr');
+    if (btnAtualizar) {
+      btnAtualizar.onclick = function() {
+        debug('🔄 Usuário clicou em Atualizar QR Code', 'info');
+        exibirQrCode(porta);
+      };
+    }
     
-    document.getElementById('btn-forcar-novo-qr').onclick = function() {
-      debug('🆕 Usuário clicou em Forçar Novo QR', 'info');
-      // Forçar nova geração de QR no VPS
-      makeWhatsAppRequest('logout')
-        .then(() => {
-          debug('✅ Logout realizado, gerando novo QR...', 'success');
-          setTimeout(() => exibirQrCode(porta), 1000);
-        })
-        .catch(err => {
-          debug(`❌ Erro ao forçar novo QR: ${err.message}`, 'error');
-          exibirQrCode(porta); // Tentar mesmo assim
-        });
-    };
+    var btnForcar = document.getElementById('btn-forcar-novo-qr');
+    if (btnForcar) {
+      btnForcar.onclick = function() {
+        debug('🆕 Usuário clicou em Forçar Novo QR', 'info');
+        // Forçar nova geração de QR no VPS
+        makeWhatsAppRequest('logout')
+          .then(() => {
+            debug('✅ Logout realizado, gerando novo QR...', 'success');
+            setTimeout(() => exibirQrCode(porta), 1000);
+          })
+          .catch(err => {
+            debug(`❌ Erro ao forçar novo QR: ${err.message}`, 'error');
+            exibirQrCode(porta); // Tentar mesmo assim
+          });
+      };
+    }
   }
 
   function exibirQrCode(porta) {
     debug('🔄 Buscando QR Code atualizado...', 'info');
+    
+    var qrArea = document.getElementById('qr-code-area');
+    if (!qrArea) {
+      debug('❌ Área do QR Code não encontrada!', 'error');
+      return;
+    }
+    
+    // Mostrar loading
+    qrArea.innerHTML = '<div style="text-align:center;padding:20px;color:#666;"><div style="font-size:2rem;margin-bottom:10px;">⏳</div><div>Carregando QR Code...</div></div>';
+    
     makeWhatsAppRequest('qr')
       .then(resp => {
-        var qrArea = document.getElementById('qr-code-area');
         // Limpar área do QR Code
         while (qrArea.firstChild) qrArea.removeChild(qrArea.firstChild);
 
@@ -655,7 +723,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (isAlreadyConnected) {
           debug('🎉 WhatsApp já está conectado! Fechando modal QR.', 'success');
-          modalQr.style.display = 'none';
+          var modalQr = document.getElementById('modal-qr-canal');
+          if (modalQr) modalQr.style.display = 'none';
           pararPollingQr();
           retomarPollingStatus();
           atualizarStatusCanais();
@@ -665,8 +734,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (resp.qr) {
           debug(`✅ QR Code encontrado! Tamanho: ${resp.qr.length} chars`, 'success');
           debug(`🔗 Endpoint usado: ${resp.endpoint_used || 'N/A'}`, 'info');
+          
+          // Criar container para o QR Code
+          var qrContainer = document.createElement('div');
+          qrContainer.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;';
+          
           // Gerar novo QR Code
-          new QRCode(qrArea, {
+          new QRCode(qrContainer, {
             text: resp.qr,
             width: 220,
             height: 220,
@@ -674,29 +748,36 @@ document.addEventListener('DOMContentLoaded', function() {
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.H
           });
+          
           // Adicionar informações de debug
           const infoDiv = document.createElement('div');
           infoDiv.style.cssText = 'margin-top: 10px; font-size: 12px; color: #666; text-align: center;';
-          infoDiv.innerHTML = `QR Code atualizado em: ${new Date().toLocaleTimeString()}<br>Status: ${resp.debug?.qr_status || 'Aguardando escaneamento'}`;
-          qrArea.appendChild(infoDiv);
+          infoDiv.innerHTML = `✅ QR Code atualizado em: ${new Date().toLocaleTimeString()}<br>📱 Escaneie com seu WhatsApp`;
+          qrContainer.appendChild(infoDiv);
           
-          // Adicionar informações de debug detalhadas
-          const debugDiv = document.createElement('div');
-          debugDiv.style.cssText = 'margin-top: 10px; font-size: 11px; color: #999; text-align: left; background: #f5f5f5; padding: 8px; border-radius: 4px;';
-          debugDiv.innerHTML = `Debug: ${JSON.stringify(resp.debug || {}, null, 2)}`;
-          qrArea.appendChild(debugDiv);
+          // Adicionar container à área do QR
+          qrArea.appendChild(qrContainer);
+          
+          // Garantir que a área está visível
+          qrArea.style.display = 'flex';
+          qrArea.style.visibility = 'visible';
+          qrArea.style.opacity = '1';
           
           qrCodeErrorShown = false; // Resetar flag de erro
+          debug('✅ QR Code exibido com sucesso!', 'success');
         } else {
-          debug('⚠️ ❌ QR Code não disponível na resposta', 'warning');
+          debug('⚠️ QR Code não disponível na resposta', 'warning');
           qrArea.innerHTML = `
             <div style="text-align: center; padding: 40px 20px; color: #f59e0b;">
               <div style="font-size: 3rem; margin-bottom: 1rem;">📱</div>
               <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">QR Code não disponível</div>
-              <div style="font-size: 0.9rem; color: #666;">Aguarde alguns segundos e tente novamente</div>
-              <div style="margin-top: 1rem; font-size: 0.8rem; color: #999;">
-                Status: ${resp.debug?.status || 'Desconhecido'}<br>
-                Endpoint: ${resp.endpoint_used || 'N/A'}
+              <div style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">Aguarde alguns segundos e tente novamente</div>
+              <div style="margin-top: 1rem; font-size: 0.8rem; color: #999; background: #f5f5f5; padding: 10px; border-radius: 6px; text-align: left;">
+                <strong>Debug:</strong><br>
+                Status: ${resp.debug?.status || resp.status || 'Desconhecido'}<br>
+                Endpoint: ${resp.endpoint_used || 'N/A'}<br>
+                Ready: ${resp.ready || 'false'}<br>
+                Message: ${resp.message || 'N/A'}
               </div>
             </div>
           `;
@@ -710,12 +791,12 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(err => {
         debug('❌ Erro ao buscar QR Code: ' + err.message, 'error');
-        var qrArea = document.getElementById('qr-code-area');
         qrArea.innerHTML = `
           <div style="text-align: center; padding: 40px 20px; color: #ef4444;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
             <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">Erro ao carregar QR Code</div>
-            <div style="font-size: 0.9rem; color: #666;">${err.message}</div>
+            <div style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">${err.message}</div>
+            <div style="font-size: 0.8rem; color: #999;">Verifique se o serviço WhatsApp Multi-Sessão está funcionando</div>
           </div>
         `;
       });
@@ -1248,6 +1329,69 @@ document.addEventListener('DOMContentLoaded', function() {
       .catch(error => {
         debug(`❌ Erro ao descobrir endpoints QR: ${error.message}`, 'error');
         alert('Erro ao descobrir endpoints QR: ' + error.message);
+      });
+  };
+
+  // ===== NOVA FUNÇÃO: INICIAR SESSÃO WHATSAPP =====
+  window.iniciarSessaoWhatsApp = function(sessionName = 'default') {
+    debug(`🚀 Iniciando sessão WhatsApp: ${sessionName}...`, 'info');
+    
+    const formData = new FormData();
+    formData.append('session_name', sessionName);
+    
+    fetch('iniciar_sessao.php', {
+      method: 'POST',
+      body: formData,
+      cache: 'no-cache'
+    })
+    .then(response => response.json())
+    .then(data => {
+      debug(`📋 Resultado da inicialização: ${JSON.stringify(data, null, 2)}`, 'info');
+      
+      if (data.success) {
+        debug(`✅ Sessão ${sessionName} iniciada com sucesso!`, 'success');
+        
+        if (data.qr_check && data.qr_check.has_qr) {
+          debug('📱 QR Code já disponível!', 'success');
+          alert('✅ Sessão iniciada e QR Code disponível!\n\nAgora você pode:\n1. Clicar em "Conectar" no canal\n2. Escanear o QR Code com seu WhatsApp');
+        } else {
+          debug('⏳ Sessão iniciada, aguardando QR Code...', 'info');
+          alert('✅ Sessão iniciada!\n\nAgora:\n1. Clique em "Conectar" no canal\n2. O QR Code deve aparecer em alguns segundos');
+        }
+        
+        // Atualizar status dos canais após iniciar sessão
+        setTimeout(() => {
+          debug('🔄 Atualizando status após iniciar sessão...', 'info');
+          atualizarStatusCanais();
+        }, 3000);
+        
+      } else {
+        debug(`❌ Falha ao iniciar sessão: ${data.instructions}`, 'error');
+        alert(`❌ Erro ao iniciar sessão:\n\n${data.instructions}\n\nDetalhes técnicos:\n${JSON.stringify(data.start_session, null, 2)}`);
+      }
+    })
+    .catch(error => {
+      debug(`❌ Erro na requisição: ${error.message}`, 'error');
+      alert(`❌ Erro ao conectar com o servidor:\n${error.message}`);
+    });
+  };
+
+  // ===== FUNÇÃO PARA REINICIAR SESSÃO =====
+  window.reiniciarSessaoWhatsApp = function(sessionName = 'default') {
+    debug(`🔄 Reiniciando sessão WhatsApp: ${sessionName}...`, 'info');
+    
+    // Primeiro tentar desconectar
+    makeWhatsAppRequest('logout')
+      .then(() => {
+        debug('✅ Logout realizado, aguardando 2 segundos...', 'info');
+        // Aguardar 2 segundos e iniciar nova sessão
+        setTimeout(() => {
+          iniciarSessaoWhatsApp(sessionName);
+        }, 2000);
+      })
+      .catch(err => {
+        debug(`⚠️ Logout falhou, tentando iniciar sessão mesmo assim: ${err.message}`, 'warning');
+        iniciarSessaoWhatsApp(sessionName);
       });
   };
 });
