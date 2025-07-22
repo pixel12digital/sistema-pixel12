@@ -277,14 +277,15 @@ function cache_cliente($cliente_id, $mysqli) {
  */
 function cache_conversas($mysqli) {
     return cache_remember('conversas_recentes', function() use ($mysqli) {
-        // Query otimizada para buscar conversas com última mensagem
+        // Query otimizada para buscar conversas com última mensagem - UMA POR CLIENTE
         $sql = "SELECT 
                     c.id as cliente_id,
                     c.nome,
                     c.celular,
                     cc.nome_exibicao as canal_nome,
                     m.mensagem as ultima_mensagem,
-                    m.data_hora as ultima_data
+                    m.data_hora as ultima_data,
+                    COUNT(mc_nao_lidas.id) as mensagens_nao_lidas
                 FROM clientes c
                 INNER JOIN (
                     SELECT 
@@ -296,6 +297,12 @@ function cache_conversas($mysqli) {
                 ) ultima ON c.id = ultima.cliente_id
                 INNER JOIN mensagens_comunicacao m ON m.cliente_id = ultima.cliente_id AND m.data_hora = ultima.max_data_hora
                 LEFT JOIN canais_comunicacao cc ON m.canal_id = cc.id
+                LEFT JOIN mensagens_comunicacao mc_nao_lidas ON (
+                    mc_nao_lidas.cliente_id = c.id 
+                    AND mc_nao_lidas.direcao = 'recebido' 
+                    AND mc_nao_lidas.status != 'lido'
+                )
+                GROUP BY c.id, c.nome, c.celular, cc.nome_exibicao, m.mensagem, m.data_hora
                 ORDER BY m.data_hora DESC
                 LIMIT 50";
         
@@ -307,7 +314,7 @@ function cache_conversas($mysqli) {
         }
         
         return $conversas;
-    }, 120); // 2 minutos para lista de conversas
+    }, 60); // Aumentado para 1 minuto para reduzir consultas
 }
 
 /**

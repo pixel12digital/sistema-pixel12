@@ -94,51 +94,7 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         error_log("[WEBHOOK WHATSAPP] Erro ao salvar mensagem: " . $mysqli->error);
     }
     
-    // Resposta automática
-    if ($texto) {
-        if ($cliente_id) {
-            $resposta = "Olá! Sua mensagem foi recebida. Em breve entraremos em contato.";
-        } else {
-            $resposta = "Olá! Bem-vindo! Sua mensagem foi recebida. Em breve entraremos em contato.";
-        }
-        
-        // Enviar resposta via API WhatsApp
-        $api_url = "http://212.85.11.238:3000/send/text";
-        $data_envio = [
-            "number" => $numero,
-            "message" => $resposta
-        ];
-        
-        $ch = curl_init($api_url);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data_envio));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-        
-        $api_response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        if ($http_code === 200) {
-            $api_result = json_decode($api_response, true);
-            if ($api_result && isset($api_result["success"]) && $api_result["success"]) {
-                error_log("[WEBHOOK WHATSAPP] Resposta automática enviada com sucesso para $numero");
-                
-                // Salvar resposta enviada
-                $resposta_escaped = $mysqli->real_escape_string($resposta);
-                $sql_resposta = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) 
-                                VALUES ($canal_id, " . ($cliente_id ? $cliente_id : "NULL") . ", \"$resposta_escaped\", \"texto\", \"$data_hora\", \"enviado\", \"enviado\")";
-                $mysqli->query($sql_resposta);
-            } else {
-                error_log("[WEBHOOK WHATSAPP] Erro ao enviar resposta automática: " . $api_response);
-            }
-        } else {
-            error_log("[WEBHOOK WHATSAPP] Erro HTTP ao enviar resposta: $http_code");
-        }
-    }
-    
-    // Responder sucesso
+    // Responder sucesso sem enviar resposta automática
     echo json_encode([
         'success' => true,
         'message' => 'Mensagem processada com sucesso',

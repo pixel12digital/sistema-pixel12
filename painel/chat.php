@@ -99,18 +99,8 @@ function render_content() {
       <div class="chat-conversations" id="listaConversas">
         <?php foreach ($conversas as $conv): ?>
           <?php
-          // Verificar se há mensagens não lidas para esta conversa
-          $nao_lidas = cache_remember("conv_nao_lidas_{$conv['cliente_id']}", function() use ($conv, $mysqli) {
-            $sql = "SELECT COUNT(*) as total FROM mensagens_comunicacao 
-                    WHERE cliente_id = ? AND direcao = 'recebido' AND status != 'lido'";
-            $stmt = $mysqli->prepare($sql);
-            $stmt->bind_param('i', $conv['cliente_id']);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $row = $result->fetch_assoc();
-            $stmt->close();
-            return intval($row['total']);
-          }, 30); // Cache de 30 segundos
+          // Usar dados do cache em vez de nova consulta
+          $nao_lidas = intval($conv['mensagens_nao_lidas'] ?? 0);
           ?>
           <div class="conversation-item <?= ($cliente_selecionado && $cliente_selecionado['id'] == $conv['cliente_id']) ? 'active' : '' ?> <?= ($nao_lidas > 0) ? 'has-unread' : '' ?>" 
                data-cliente-id="<?= $conv['cliente_id'] ?>"
@@ -127,13 +117,16 @@ function render_content() {
                 <span class="conversation-tag"><?= htmlspecialchars($conv['canal_nome'] ?? 'Canal') ?></span>
                 <span class="conversation-preview">
                   <?php if ($nao_lidas > 0): ?>
-                    <?= $nao_lidas ?> nova<?= $nao_lidas > 1 ? 's' : '' ?> mensagem<?= $nao_lidas > 1 ? 's' : '' ?>
+                    <strong><?= $nao_lidas ?> nova<?= $nao_lidas > 1 ? 's' : '' ?> mensagem<?= $nao_lidas > 1 ? 's' : '' ?></strong>
                   <?php else: ?>
                     <?= htmlspecialchars(substr($conv['ultima_mensagem'] ?? '', 0, 50)) ?>
                   <?php endif; ?>
                 </span>
               </div>
             </div>
+            <?php if ($nao_lidas > 0): ?>
+              <div class="unread-badge"><?= $nao_lidas ?></div>
+            <?php endif; ?>
           </div>
         <?php endforeach; ?>
       </div>
@@ -837,20 +830,71 @@ function render_content() {
     // Primeira verificação imediata
     checkForNewMessages(clienteId);
     
-    // Polling mais conservador - apenas para cliente ativo
+    // Polling otimizado para experiência WhatsApp
     pollingInterval = setInterval(() => {
       // Só verificar se a janela está ativa
       if (document.visibilityState === 'visible') {
         checkForNewMessages(clienteId);
+        // Atualizar lista de conversas também
+        updateConversationList();
       }
-    }, 30000); // Reduzido de 15s para 30s
+    }, 5000); // Reduzido para 5 segundos para experiência mais responsiva
     
     // Listener para quando a página volta ao foco
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && clienteId) {
-        setTimeout(() => checkForNewMessages(clienteId), 1000);
+        setTimeout(() => {
+          checkForNewMessages(clienteId);
+          updateConversationList();
+        }, 1000);
       }
     });
+  }
+  
+  function updateConversationList() {
+    // Atualizar lista de conversas sem recarregar a página
+    fetch('api/conversas_recentes.php')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && data.conversas) {
+          const container = document.getElementById('listaConversas');
+          if (container) {
+            let html = '';
+            data.conversas.forEach(conv => {
+              const isActive = currentClientId == conv.cliente_id ? 'active' : '';
+              const hasUnread = conv.mensagens_nao_lidas > 0 ? 'has-unread' : '';
+              const iniciais = conv.nome.charAt(0).toUpperCase();
+              const tempo = conv.ultima_data ? new Date(conv.ultima_data).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '';
+              
+              html += `
+                <div class="conversation-item ${isActive} ${hasUnread}" 
+                     data-cliente-id="${conv.cliente_id}"
+                     onclick="return carregarCliente(${conv.cliente_id}, '${conv.nome.replace(/'/g, "\\'")}', event);">
+                  <div class="conversation-avatar">${iniciais}</div>
+                  <div class="conversation-content">
+                    <div class="conversation-header">
+                      <span class="conversation-name">${conv.nome}</span>
+                      <span class="conversation-time">${tempo}</span>
+                    </div>
+                    <div class="conversation-meta">
+                      <span class="conversation-tag">${conv.canal_nome || 'Canal'}</span>
+                      <span class="conversation-preview">
+                        ${conv.mensagens_nao_lidas > 0 ? 
+                          `<strong>${conv.mensagens_nao_lidas} nova${conv.mensagens_nao_lidas > 1 ? 's' : ''} mensagem${conv.mensagens_nao_lidas > 1 ? 's' : ''}</strong>` :
+                          (conv.ultima_mensagem || '').substring(0, 50)
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  ${conv.mensagens_nao_lidas > 0 ? `<div class="unread-badge">${conv.mensagens_nao_lidas}</div>` : ''}
+                </div>
+              `;
+            });
+            container.innerHTML = html;
+          }
+        }
+      })
+      .catch(error => console.error('Erro ao atualizar conversas:', error));
   }
   
   function checkForNewMessages(clienteId) {
