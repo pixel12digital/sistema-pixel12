@@ -884,6 +884,89 @@ document.addEventListener('DOMContentLoaded', function() {
   const btnEstatisticas = document.getElementById('btn-estatisticas');
   const estatisticasDetalhadas = document.getElementById('estatisticas-detalhadas');
   
+  // ===== VERIFICAÇÃO INICIAL AUTOMÁTICA =====
+  async function verificarStatusInicial() {
+    console.log('Verificando status inicial da API do Asaas...');
+    
+    try {
+      const response = await fetch('verificador_automatico_chave_otimizado.php?action=status');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Status inicial recebido:', data);
+      
+      atualizarStatusInterface(data);
+      
+    } catch (error) {
+      console.error('Erro na verificação inicial:', error);
+      mostrarStatusErro(error.message);
+    }
+  }
+  
+  function atualizarStatusInterface(status) {
+    const container = document.getElementById('status-chave-asaas-container');
+    if (!container) {
+      console.error('Container status-chave-asaas-container não encontrado');
+      return;
+    }
+    
+    if (!status) {
+      container.innerHTML = `
+        <div class="status-chave-asaas status-invalido">
+          <div class="status-header">
+            <span class="status-icone">❌</span>
+            <span class="status-texto">Erro ao carregar status</span>
+          </div>
+        </div>
+      `;
+      return;
+    }
+    
+    const icone = status.valida ? '✅' : '❌';
+    const classe = status.valida ? 'status-valido' : 'status-invalido';
+    const texto = status.valida ? 'Chave Válida' : 'Chave Inválida';
+    const tipoChave = status.tipo_chave || (status.chave_mascarada && status.chave_mascarada.includes('_test_') ? 'TESTE' : 'PRODUÇÃO');
+    
+    container.innerHTML = `
+      <div class="status-chave-asaas ${classe}">
+        <div class="status-header">
+          <span class="status-icone">${icone}</span>
+          <span class="status-texto">${texto}</span>
+          ${tipoChave ? `<span class="status-tipo">(${tipoChave})</span>` : ''}
+        </div>
+        <div class="status-detalhes">
+          <small>Última verificação: ${status.timestamp || 'N/A'}</small>
+          ${status.http_code ? `<br><small>HTTP: ${status.http_code}</small>` : ''}
+          ${status.response_time ? `<br><small>Tempo: ${status.response_time}ms</small>` : ''}
+        </div>
+      </div>
+    `;
+    
+    console.log('Interface atualizada com sucesso');
+  }
+  
+  function mostrarStatusErro(mensagem) {
+    const container = document.getElementById('status-chave-asaas-container');
+    if (container) {
+      container.innerHTML = `
+        <div class="status-chave-asaas status-invalido">
+          <div class="status-header">
+            <span class="status-icone">❌</span>
+            <span class="status-texto">Erro: ${mensagem}</span>
+          </div>
+        </div>
+      `;
+    }
+  }
+  
+  // Executar verificação inicial quando a página carregar
+  verificarStatusInicial();
+  
+  // ===== EVENT LISTENERS DOS BOTÕES =====
+  
   if (btnVerificarChave) {
     btnVerificarChave.addEventListener('click', async () => {
       btnVerificarChave.disabled = true;
@@ -894,12 +977,14 @@ document.addEventListener('DOMContentLoaded', function() {
           const resultado = await window.monitoramentoAsaas.forcarVerificacao();
           if (resultado) {
             mostrarNotificacao(resultado.valida ? '✅ Chave válida!' : '❌ Chave inválida', resultado.valida ? 'success' : 'error');
+            atualizarStatusInterface(resultado);
           }
         } else {
           // Fallback para verificação direta
           const response = await fetch('verificador_automatico_chave_otimizado.php?action=verificar');
           const data = await response.json();
           mostrarNotificacao(data.valida ? '✅ Chave válida!' : '❌ Chave inválida', data.valida ? 'success' : 'error');
+          atualizarStatusInterface(data);
         }
       } catch (error) {
         mostrarNotificacao('Erro ao verificar chave', 'error');
