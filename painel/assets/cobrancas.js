@@ -118,23 +118,44 @@ function renderizarTabelaCobrancas() {
         
         // Coluna de Monitoramento
         const celularCliente = cob.cliente_celular || '';
-        const monitoramentoHtml = `
-            <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
-                <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: background 0.2s;">
-                    <input type="checkbox" class="checkbox-monitoramento" data-cliente-id="${cob.cliente_id}" style="width: 14px; height: 14px; cursor: pointer;">
-                    <span>Monitorar</span>
-                </label>
-                <button class="btn-validar-cliente" 
-                        data-cliente-id="${cob.cliente_id}" 
-                        data-cliente-nome="${cob.cliente_nome || ''}" 
-                        data-cliente-celular="${celularCliente}"
-                        style="background: #10b981; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; transition: background 0.2s;"
-                        ${!celularCliente ? 'disabled' : ''}
-                        title="${!celularCliente ? 'Cliente sem celular' : 'Enviar mensagem de validação'}">
-                    Validar
-                </button>
-            </div>
-        `;
+        
+        // Verificar se a cobrança já foi paga (não deve ter monitoramento)
+        const statusPagos = ['RECEIVED', 'PAID', 'CONFIRMED'];
+        const cobrancaPaga = statusPagos.includes(cob.status);
+        
+        let monitoramentoHtml = '';
+        if (cobrancaPaga) {
+            // Cobrança já paga - apenas mostrar status
+            monitoramentoHtml = `
+                <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
+                    <span style="background: #f0fdf4; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; border: 1px solid #bbf7d0;">
+                        ✅ Pago
+                    </span>
+                    <span style="font-size: 10px; color: #6b7280; text-align: center;">
+                        Não requer monitoramento
+                    </span>
+                </div>
+            `;
+        } else {
+            // Cobrança pendente - mostrar opções de monitoramento
+            monitoramentoHtml = `
+                <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: background 0.2s;">
+                        <input type="checkbox" class="checkbox-monitoramento" data-cliente-id="${cob.cliente_id}" style="width: 14px; height: 14px; cursor: pointer;">
+                        <span>Monitorar</span>
+                    </label>
+                    <button class="btn-validar-cliente" 
+                            data-cliente-id="${cob.cliente_id}" 
+                            data-cliente-nome="${cob.cliente_nome || ''}" 
+                            data-cliente-celular="${celularCliente}"
+                            style="background: #10b981; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; transition: background 0.2s;"
+                            ${!celularCliente ? 'disabled' : ''}
+                            title="${!celularCliente ? 'Cliente sem celular' : 'Enviar mensagem de validação'}">
+                        Validar
+                    </button>
+                </div>
+            `;
+        }
         
         tr.innerHTML = `
             <td class="px-3 py-2 text-center">${inicio + idx + 1}</td>
