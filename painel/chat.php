@@ -830,7 +830,7 @@ function render_content() {
     // Primeira verificação imediata
     checkForNewMessages(clienteId);
     
-    // Polling otimizado para experiência WhatsApp
+    // Polling otimizado para experiência WhatsApp mais responsiva
     pollingInterval = setInterval(() => {
       // Só verificar se a janela está ativa
       if (document.visibilityState === 'visible') {
@@ -838,7 +838,7 @@ function render_content() {
         // Atualizar lista de conversas também
         updateConversationList();
       }
-    }, 5000); // Reduzido para 5 segundos para experiência mais responsiva
+    }, 2000); // Reduzido de 5s para 2s para experiência mais responsiva
     
     // Listener para quando a página volta ao foco
     document.addEventListener('visibilitychange', () => {
@@ -904,7 +904,7 @@ function render_content() {
     
     if (cachedConversations.has(cacheKey)) {
       const cached = cachedConversations.get(cacheKey);
-      if (now - cached.timestamp < 15000) { // 15 segundos de cache
+      if (now - cached.timestamp < 5000) { // Reduzido de 15s para 5s
         return; // Não fazer request se já verificou recentemente
       }
     }
@@ -1207,7 +1207,7 @@ function render_content() {
       if (document.visibilityState === 'visible') {
         verificarTotalNaoLidas();
       }
-    }, 60000); // A cada 1 minuto
+    }, 30000); // Reduzido de 60s para 30s
     
     // Debug: Verificar se o chat-messages existe após carregamento
     setTimeout(() => {

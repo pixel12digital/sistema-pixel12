@@ -4,7 +4,7 @@ require_once '../db.php';
 require_once '../cache_manager.php';
 
 header('Content-Type: application/json');
-header('Cache-Control: private, max-age=15'); // Cache HTTP de 15 segundos
+header('Cache-Control: private, max-age=5'); // Reduzido de 15s para 5s
 
 try {
     // Buscar conversas usando o cache manager existente
