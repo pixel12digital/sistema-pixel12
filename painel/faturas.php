@@ -893,16 +893,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.monitoramentoAsaas) {
           const resultado = await window.monitoramentoAsaas.forcarVerificacao();
           if (resultado) {
-            showToast(resultado.valida ? '✅ Chave válida!' : '❌ Chave inválida', resultado.valida ? 'success' : 'error');
+            mostrarNotificacao(resultado.valida ? '✅ Chave válida!' : '❌ Chave inválida', resultado.valida ? 'success' : 'error');
           }
         } else {
           // Fallback para verificação direta
           const response = await fetch('verificador_automatico_chave_otimizado.php?action=verificar');
           const data = await response.json();
-          showToast(data.valida ? '✅ Chave válida!' : '❌ Chave inválida', data.valida ? 'success' : 'error');
+          mostrarNotificacao(data.valida ? '✅ Chave válida!' : '❌ Chave inválida', data.valida ? 'success' : 'error');
         }
       } catch (error) {
-        showToast('Erro ao verificar chave', 'error');
+        mostrarNotificacao('Erro ao verificar chave', 'error');
       } finally {
         btnVerificarChave.disabled = false;
         btnVerificarChave.textContent = '🔍 Verificar Agora';
@@ -941,9 +941,54 @@ document.addEventListener('DOMContentLoaded', function() {
         estatisticasDetalhadas.style.display = estatisticasDetalhadas.style.display === 'none' ? 'block' : 'none';
         
       } catch (error) {
-        showToast('Erro ao carregar estatísticas', 'error');
+        mostrarNotificacao('Erro ao carregar estatísticas', 'error');
       }
     });
+  }
+
+  // Função para mostrar notificações
+  function mostrarNotificacao(mensagem, tipo) {
+    const notificacao = document.createElement('div');
+    notificacao.className = `notificacao ${tipo}`;
+    notificacao.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 500;
+      z-index: 9999;
+      max-width: 300px;
+      word-wrap: break-word;
+      ${tipo === 'success' ? 'background-color: #10b981;' : 'background-color: #ef4444;'}
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    `;
+    
+    notificacao.innerHTML = `
+      <div class="notificacao-conteudo">
+        <span class="notificacao-mensagem">${mensagem}</span>
+      </div>
+    `;
+    
+    document.body.appendChild(notificacao);
+    
+    // Animação de entrada
+    setTimeout(() => {
+      notificacao.style.transform = 'translateX(0)';
+    }, 10);
+    
+    // Remover após 5 segundos
+    setTimeout(() => {
+      notificacao.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (notificacao.parentNode) {
+          notificacao.remove();
+        }
+      }, 300);
+    }, 5000);
   }
   
   // Configurar monitoramento quando estiver disponível
