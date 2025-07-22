@@ -47,7 +47,7 @@ function render_content() {
         $stmt->close();
         
         return $mensagens;
-      }, 60); // Cache de 1 minuto para mensagens
+      }, 15); // Reduzido de 60s para 15s para mensagens mais responsivas
       
       // Invalidar cache de mensagens quando houver nova mensagem
       if (isset($_POST['nova_mensagem'])) {
@@ -920,6 +920,9 @@ function render_content() {
         
         if (data.has_new_messages) {
           lastMessageTimestamp = data.latest_timestamp || now;
+          // Invalidar cache forçadamente
+          cache_forget("mensagens_{$clienteId}");
+          cache_forget("conversas_recentes");
           loadFullChatHistory(clienteId);
         }
       })

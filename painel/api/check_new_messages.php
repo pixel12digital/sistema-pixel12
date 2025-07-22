@@ -15,7 +15,7 @@ if (!$cliente_id) {
 
 // Cache simples em arquivo para evitar consultas desnecessárias
 $cacheFile = sys_get_temp_dir() . "/chat_cache_{$cliente_id}.json";
-$cacheTimeout = 10; // 10 segundos de cache
+$cacheTimeout = 3; // Reduzido de 10s para 3s
 
 if (file_exists($cacheFile)) {
     $cacheData = json_decode(file_get_contents($cacheFile), true);
