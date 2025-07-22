@@ -1,0 +1,16 @@
+{
+  "ativa": false,
+  "url_api": "",
+  "api_key": "",
+  "modelo": "assistente_financeiro",
+  "configuracao": {
+    "nome": "Assistente Financeiro Pixel12",
+    "personalidade": "profissional_amigavel",
+    "timeout": 10,
+    "fallback_ativo": true,
+    "log_conversas": true,
+    "versao": "1.0"
+  },
+  "ultima_atualizacao": null,
+  "status": "desativada"
+} 

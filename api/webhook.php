@@ -118,7 +118,45 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     // Resposta automática melhorada
     if ($texto) {
         if ($cliente_id) {
-            $resposta = "Olá! Sua mensagem foi recebida. Em breve entraremos em contato.";
+            // Cliente encontrado - usar IA para processar mensagem
+            $payload_ia = [
+                'from' => $numero,
+                'message' => $texto,
+                'type' => $tipo
+            ];
+            
+            // Chamar endpoint da IA
+            $ch_ia = curl_init(($is_local ? 'http://localhost:8080/loja-virtual-revenda' : '') . '/painel/api/processar_mensagem_ia.php');
+            curl_setopt($ch_ia, CURLOPT_POST, true);
+            curl_setopt($ch_ia, CURLOPT_POSTFIELDS, json_encode($payload_ia));
+            curl_setopt($ch_ia, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
+            curl_setopt($ch_ia, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch_ia, CURLOPT_TIMEOUT, 15);
+            
+            $resposta_ia = curl_exec($ch_ia);
+            $http_code_ia = curl_getinfo($ch_ia, CURLINFO_HTTP_CODE);
+            curl_close($ch_ia);
+            
+            $resposta = "Olá! Sua mensagem foi recebida. Em breve entraremos em contato."; // Fallback padrão
+            
+            if ($resposta_ia && $http_code_ia === 200) {
+                $resultado_ia = json_decode($resposta_ia, true);
+                if ($resultado_ia && $resultado_ia['success'] && isset($resultado_ia['resposta'])) {
+                    $resposta = $resultado_ia['resposta'];
+                    
+                    if (DEBUG_MODE) {
+                        error_log("[WEBHOOK {$ambiente}] ✅ Resposta IA: {$resultado_ia['metodo']} - {$resultado_ia['tipo']}");
+                    }
+                } else {
+                    if (DEBUG_MODE) {
+                        error_log("[WEBHOOK {$ambiente}] ❌ Erro na resposta IA: " . $resposta_ia);
+                    }
+                }
+            } else {
+                if (DEBUG_MODE) {
+                    error_log("[WEBHOOK {$ambiente}] ❌ Falha na comunicação com IA: HTTP $http_code_ia");
+                }
+            }
         } else {
             $resposta = "Olá! Bem-vindo! Sua mensagem foi recebida. Em breve entraremos em contato.";
         }

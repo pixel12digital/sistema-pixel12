@@ -26,6 +26,9 @@ function render_content() {
       <button id="btn-estatisticas" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md text-sm">
         📊 Estatísticas
       </button>
+      <a href="configuracao_ia.php" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-md text-sm inline-flex items-center gap-1">
+        🤖 Configurar IA
+      </a>
     </div>
   </div>
   
