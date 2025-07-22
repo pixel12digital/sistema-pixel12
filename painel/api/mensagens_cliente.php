@@ -15,6 +15,8 @@ if (!$cliente_id) {
     exit;
 }
 
+file_put_contents(__DIR__ . '/debug_mensagens_cliente.log', date('Y-m-d H:i:s') . " - Cliente: $cliente_id\n", FILE_APPEND);
+
 // Cache para todo o output HTML das mensagens
 echo cache_remember("mensagens_html_{$cliente_id}", function() use ($cliente_id, $mysqli) {
     // Buscar dados do cliente usando cache
@@ -44,6 +46,7 @@ echo cache_remember("mensagens_html_{$cliente_id}", function() use ($cliente_id,
         
         $mensagens = [];
         while ($msg = $result->fetch_assoc()) {
+            file_put_contents(__DIR__ . '/debug_mensagens_cliente.log', print_r($msg, true), FILE_APPEND);
             $mensagens[] = $msg;
         }
         $stmt->close();

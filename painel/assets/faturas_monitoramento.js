@@ -1,11 +1,11 @@
 /**
- * Sistema de Monitoramento Automático de Clientes - Versão 2.0
+ * Sistema de Monitoramento Automático de Clientes - Versão 3.0
  * Pixel12 Digital - Financeiro
+ * Sistema Inteligente com Validações
  */
 
 class ClienteMonitoramento {
     constructor() {
-        this.mensagemValidacao = "Olá! Este é nosso contato financeiro da Pixel12 Digital. Se precisar consultar faturas, tirar dúvidas sobre pagamentos ou solicitar documentos, estamos à disposição. 😊";
         this.init();
     }
 
@@ -31,6 +31,20 @@ class ClienteMonitoramento {
     }
 
     /**
+     * Monta mensagem de validação personalizada
+     */
+    montarMensagemValidacao(clienteNome, clienteContactName) {
+        const nome = clienteContactName || clienteNome || 'cliente';
+        
+        let mensagem = `Olá ${nome}! Este é nosso contato financeiro da Pixel12 Digital. `;
+        mensagem += `Aqui você pode solicitar faturas, tirar dúvidas sobre pagamentos ou solicitar documentos. `;
+        mensagem += `Se precisar de algo relacionado a projetos, comercial ou suporte, entre em contato através do (47) 99730-9525. `;
+        mensagem += `\n\nEste canal é automatizado e está disponível 24/7 para suas consultas financeiras. 😊`;
+        
+        return mensagem;
+    }
+
+    /**
      * Envia mensagem de validação para o cliente
      */
     async enviarMensagemValidacao(btn) {
@@ -42,6 +56,21 @@ class ClienteMonitoramento {
             this.mostrarAlerta('Cliente sem número de celular cadastrado', 'error');
             return;
         }
+
+        // Buscar nome do contato principal
+        let clienteContactName = '';
+        try {
+            const response = await fetch(`api/dados_cliente.php?id=${clienteId}`);
+            const data = await response.json();
+            if (data.success && data.cliente) {
+                clienteContactName = data.cliente.contact_name || '';
+            }
+        } catch (error) {
+            console.error('Erro ao buscar dados do cliente:', error);
+        }
+
+        // Montar mensagem personalizada
+        const mensagem = this.montarMensagemValidacao(clienteNome, clienteContactName);
 
         // Desabilitar botão
         btn.disabled = true;
@@ -57,20 +86,15 @@ class ClienteMonitoramento {
                     cliente_id: clienteId,
                     cliente_nome: clienteNome,
                     cliente_celular: clienteCelular,
-                    mensagem: this.mensagemValidacao
+                    mensagem: mensagem
                 })
             });
 
             const data = await response.json();
 
             if (data.success) {
-                this.mostrarAlerta(`Mensagem enviada para ${clienteNome}`, 'success');
-                // Marcar checkbox como monitorado
-                const checkbox = document.querySelector(`input[data-cliente-id="${clienteId}"].checkbox-monitoramento`);
-                if (checkbox) {
-                    checkbox.checked = true;
-                    this.salvarStatusMonitoramento(clienteId, true);
-                }
+                this.mostrarAlerta(`Mensagem enviada para ${clienteContactName || clienteNome}`, 'success');
+                // NÃO marca automaticamente - usuário decide quando marcar
             } else {
                 this.mostrarAlerta(`Erro ao enviar mensagem: ${data.error}`, 'error');
             }
@@ -84,13 +108,38 @@ class ClienteMonitoramento {
     }
 
     /**
-     * Alterna o status de monitoramento do cliente
+     * Alterna o status de monitoramento do cliente com validação inteligente
      */
     async toggleMonitoramento(checkbox) {
         const clienteId = checkbox.getAttribute('data-cliente-id');
         const isMonitorado = checkbox.checked;
 
+        // Feedback visual imediato
+        const label = checkbox.closest('label');
+        const originalBackground = label.style.background;
+        const originalColor = label.style.color;
+        
+        // Mudar cor do label
+        label.style.background = isMonitorado ? '#bbf7d0' : '#fee2e2';
+        label.style.color = isMonitorado ? '#166534' : '#b91c1c';
+        label.style.transition = 'all 0.3s ease';
+
         try {
+            // Se está marcando para monitorar, validar se há cobranças vencidas
+            if (isMonitorado) {
+                const podeMonitorar = await this.validarMonitoramento(clienteId);
+                if (!podeMonitorar.pode) {
+                    // Reverter checkbox
+                    checkbox.checked = false;
+                    this.mostrarAlerta(podeMonitorar.motivo, 'warning');
+                    
+                    // Restaurar cor original
+                    label.style.background = originalBackground;
+                    label.style.color = originalColor;
+                    return;
+                }
+            }
+
             await this.salvarStatusMonitoramento(clienteId, isMonitorado);
             
             if (isMonitorado) {
@@ -102,6 +151,40 @@ class ClienteMonitoramento {
             // Reverter checkbox em caso de erro
             checkbox.checked = !isMonitorado;
             this.mostrarAlerta('Erro ao salvar status de monitoramento', 'error');
+        } finally {
+            // Restaurar cor original após 2 segundos
+            setTimeout(() => {
+                label.style.background = originalBackground;
+                label.style.color = originalColor;
+            }, 2000);
+        }
+    }
+
+    /**
+     * Valida se o cliente pode ser monitorado
+     */
+    async validarMonitoramento(clienteId) {
+        try {
+            const response = await fetch(`api/validar_monitoramento.php?cliente_id=${clienteId}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                return {
+                    pode: data.pode_monitorar,
+                    motivo: data.motivo || 'Cliente não possui cobranças vencidas'
+                };
+            } else {
+                return {
+                    pode: false,
+                    motivo: data.error || 'Erro ao validar monitoramento'
+                };
+            }
+        } catch (error) {
+            console.error('Erro ao validar monitoramento:', error);
+            return {
+                pode: false,
+                motivo: 'Erro de conexão ao validar'
+            };
         }
     }
 
@@ -139,8 +222,16 @@ class ClienteMonitoramento {
             if (data.success) {
                 data.clientes.forEach(cliente => {
                     const checkbox = document.querySelector(`input[data-cliente-id="${cliente.id}"].checkbox-monitoramento`);
+                    
                     if (checkbox) {
-                        checkbox.checked = cliente.monitorado === '1';
+                        checkbox.checked = cliente.monitorado === '1' || cliente.monitorado === 1;
+                        
+                        // Aplicar estilo visual
+                        const label = checkbox.closest('label');
+                        if (label) {
+                            label.style.background = '#bbf7d0';
+                            label.style.color = '#166534';
+                        }
                     }
                 });
             }
@@ -159,8 +250,6 @@ class ClienteMonitoramento {
             const data = await response.json();
 
             if (data.success && data.cobrancas.length > 0) {
-                console.log(`Encontradas ${data.cobrancas.length} cobranças vencidas para clientes monitorados`);
-                
                 for (const cobranca of data.cobrancas) {
                     // Verificar status real no Asaas antes de agendar mensagem
                     await this.verificarEAgendarMensagem(cobranca);
@@ -192,16 +281,9 @@ class ClienteMonitoramento {
             const statusData = await statusResponse.json();
 
             if (statusData.success) {
-                // Se houve atualizações de status
-                if (statusData.total_atualizadas > 0) {
-                    console.log(`Status atualizado para cliente ${cobranca.cliente_nome}: ${statusData.total_atualizadas} cobranças`);
-                }
-
                 // Se ainda há cobranças vencidas após verificação
                 if (statusData.total_vencidas > 0) {
                     await this.agendarMensagemCobrancaVencida(cobranca, statusData.cobrancas_vencidas);
-                } else {
-                    console.log(`Cliente ${cobranca.cliente_nome} não possui mais cobranças vencidas`);
                 }
             }
         } catch (error) {
@@ -232,7 +314,7 @@ class ClienteMonitoramento {
 
             const data = await response.json();
             if (data.success) {
-                console.log(`Mensagem agendada para ${cobranca.cliente_nome} - Horário: ${data.horario_envio}`);
+                // Mensagem agendada com sucesso
             } else {
                 console.error(`Erro ao agendar mensagem para ${cobranca.cliente_nome}:`, data.error);
             }
@@ -402,7 +484,7 @@ Equipe Financeira Pixel12 Digital`;
 
             const data = await response.json();
             if (data.success) {
-                console.log(`Mensagem automática enviada para cliente ${clienteId}`);
+                // Mensagem enviada com sucesso
             }
         } catch (error) {
             console.error('Erro ao enviar mensagem automática:', error);
@@ -434,12 +516,16 @@ Equipe Financeira Pixel12 Digital`;
             position: fixed;
             top: 20px;
             right: 20px;
-            padding: 12px 20px;
+            padding: 16px 24px;
             border-radius: 8px;
             color: white;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 14px;
             z-index: 10000;
             animation: slideIn 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-width: 400px;
+            word-wrap: break-word;
         `;
 
         // Cores por tipo
@@ -451,12 +537,43 @@ Equipe Financeira Pixel12 Digital`;
         };
         alerta.style.background = cores[tipo] || cores.info;
 
+        // Adicionar ícone
+        const icones = {
+            success: '✅',
+            error: '❌',
+            info: 'ℹ️',
+            warning: '⚠️'
+        };
+        alerta.innerHTML = `${icones[tipo] || icones.info} ${mensagem}`;
+
         document.body.appendChild(alerta);
 
-        // Remover após 5 segundos
+        // Remover após 4 segundos
         setTimeout(() => {
-            alerta.remove();
-        }, 5000);
+            alerta.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => {
+                if (alerta.parentNode) {
+                    alerta.remove();
+                }
+            }, 300);
+        }, 4000);
+
+        // Adicionar CSS para animações
+        if (!document.getElementById('alerta-animations')) {
+            const style = document.createElement('style');
+            style.id = 'alerta-animations';
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
     }
 
     /**
@@ -472,8 +589,6 @@ Equipe Financeira Pixel12 Digital`;
         setTimeout(() => {
             this.verificarCobrancasVencidas();
         }, 5 * 60 * 1000);
-
-        console.log('Monitoramento automático iniciado - Versão 2.0');
     }
 }
 
@@ -481,8 +596,9 @@ Equipe Financeira Pixel12 Digital`;
 document.addEventListener('DOMContentLoaded', () => {
     window.clienteMonitoramento = new ClienteMonitoramento();
     
-    // Iniciar monitoramento automático se houver clientes monitorados
+    // Aguardar um pouco mais para garantir que a tabela esteja carregada
     setTimeout(() => {
+        window.clienteMonitoramento.carregarClientesMonitorados();
         window.clienteMonitoramento.iniciarMonitoramentoAutomatico();
-    }, 5000);
+    }, 2000); // Aumentado para 2 segundos
 }); 

@@ -109,6 +109,8 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         if (DEBUG_MODE) {
             error_log("[WEBHOOK {$ambiente}] ✅ Mensagem salva - ID: $mensagem_id, Cliente: $cliente_id");
         }
+        require_once '../painel/cache_invalidator.php';
+        if ($cliente_id) invalidate_message_cache($cliente_id);
     } else {
         error_log("[WEBHOOK {$ambiente}] ❌ Erro ao salvar mensagem: " . $mysqli->error);
     }

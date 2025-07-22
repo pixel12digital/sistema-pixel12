@@ -84,6 +84,18 @@ function render_content() {
     <p class="text-xs uppercase text-gray-500">Vencidas</p>
     <p class="text-xl font-semibold mt-1">0 (R$ 0,00)</p>
   </div>
+  <div class="summary-card summary-monitoring bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg shadow-sm">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-xs uppercase text-purple-100">Monitoramento</p>
+        <p class="text-xl font-semibold mt-1" id="monitoring-stats">0 clientes</p>
+      </div>
+      <div class="text-2xl">📊</div>
+    </div>
+    <div class="mt-2 text-xs text-purple-100" id="monitoring-details">
+      R$ 0,00 vencidos
+    </div>
+  </div>
 </section>
 <!-- Invoices Table -->
 <section class="p-4 overflow-x-auto">
@@ -313,8 +325,15 @@ function render_content() {
 </div>
 <script src="assets/invoices.js"></script>
 <script src="assets/cobrancas.js"></script>
+<script src="assets/faturas_monitoramento.js"></script>
+<script src="assets/faturas_monitoramento_integracao.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  // Verificar se o script foi carregado
+  if (typeof ClienteMonitoramento !== 'undefined') {
+    window.clienteMonitoramento = new ClienteMonitoramento();
+  }
+  
   const btnSync = document.getElementById('btn-sincronizar');
   const btnConfigAsaas = document.getElementById('btn-config-asaas');
   const modal = document.getElementById('modal-sync-progress');
@@ -857,16 +876,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // ===== SISTEMA DE MONITORAMENTO SIMPLES =====
   
-  // Carregar o sistema de monitoramento simples
-  const scriptMonitoramento = document.createElement('script');
-  scriptMonitoramento.src = 'monitoramento_simples.js';
-  document.head.appendChild(scriptMonitoramento);
-  
-  // Carregar o sistema de monitoramento de clientes
-  const scriptMonitoramentoClientes = document.createElement('script');
-  scriptMonitoramentoClientes.src = 'assets/faturas_monitoramento.js';
-  document.head.appendChild(scriptMonitoramentoClientes);
-  
   // Configurar botões do monitoramento
   const btnVerificarChave = document.getElementById('btn-verificar-chave');
   const btnEstatisticas = document.getElementById('btn-estatisticas');
@@ -935,19 +944,19 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // Configurar monitoramento quando estiver disponível
-  scriptMonitoramento.onload = () => {
-    if (window.monitoramentoAsaas) {
-      // Registrar callback para mudanças de status
-      window.monitoramentoAsaas.onStatusChange((status) => {
-        console.log('Status da API mudou:', status);
+  // scriptMonitoramento.onload = () => {
+  //   if (window.monitoramentoAsaas) {
+  //     // Registrar callback para mudanças de status
+  //     window.monitoramentoAsaas.onStatusChange((status) => {
+  //       console.log('Status da API mudou:', status);
         
-        // Atualizar interface se necessário
-        if (status && !status.valida) {
-          showToast('⚠️ Chave da API inválida detectada', 'error');
-        }
-      });
-    }
-  };
+  //       // Atualizar interface se necessário
+  //       if (status && !status.valida) {
+  //         showToast('⚠️ Chave da API inválida detectada', 'error');
+  //       }
+  //     });
+  //   }
+  // };
 });
 </script>
 <?php

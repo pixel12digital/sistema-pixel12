@@ -894,7 +894,7 @@ function render_content() {
     if (window.loadingHistory) return;
     window.loadingHistory = true;
     
-    fetch('api/historico_mensagens.php?cliente_id=' + clienteId)
+    fetch('api/historico_mensagens.php?cliente_id=' + clienteId + '&_=' + Date.now())
       .then(res => res.text())
       .then(html => {
         const chatMessages = document.getElementById('chat-messages');
@@ -912,6 +912,7 @@ function render_content() {
             console.log('✅ Histórico atualizado e scroll aplicado');
           }, 200);
         }
+        // Reatribuir evento do formulário após atualizar o chat
         bindChatFormAjax();
       })
       .catch(err => {
@@ -1776,6 +1777,8 @@ function render_content() {
         
         // Recarregar mensagens
         loadFullChatHistory(clienteId);
+        // Garantir reatribuição do evento do formulário após recarregar o chat
+        setTimeout(() => { bindChatFormAjax(); }, 800);
         
         // Limpar formulário
         form.reset();

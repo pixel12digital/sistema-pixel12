@@ -1,41 +1,52 @@
 <?php
+header('Content-Type: application/json');
 require_once '../config.php';
 require_once '../db.php';
 
-header('Content-Type: application/json; charset=utf-8');
-
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    http_response_code(400);
-    echo json_encode(['error' => 'ID do cliente é obrigatório']);
-    exit;
-}
-
-$cliente_id = intval($_GET['id']);
-
 try {
-    $stmt = $mysqli->prepare("SELECT id, nome, email, telefone, celular FROM clientes WHERE id = ?");
-    $stmt->bind_param('i', $cliente_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    $cliente_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
     
-    if ($cliente = $result->fetch_assoc()) {
-        echo json_encode([
-            'success' => true,
-            'id' => $cliente['id'],
-            'nome' => $cliente['nome'],
-            'email' => $cliente['email'],
-            'telefone' => $cliente['telefone'],
-            'celular' => $cliente['celular']
-        ]);
-    } else {
-        http_response_code(404);
-        echo json_encode(['error' => 'Cliente não encontrado']);
+    if (!$cliente_id) {
+        throw new Exception('ID do cliente não informado');
     }
     
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Erro interno do servidor']);
-}
+    // Buscar dados do cliente
+    $sql = "SELECT 
+                id,
+                nome,
+                celular,
+                contact_name,
+                email,
+                created_at
+            FROM clientes 
+            WHERE id = $cliente_id 
+            LIMIT 1";
+    
+    $result = $mysqli->query($sql);
+    
+    if (!$result || $result->num_rows === 0) {
+        throw new Exception('Cliente não encontrado');
+    }
+    
+    $cliente = $result->fetch_assoc();
+    
+    // Buscar dados de monitoramento
+    $sql_monitoramento = "SELECT monitorado FROM clientes_monitoramento WHERE cliente_id = $cliente_id LIMIT 1";
+    $result_monitoramento = $mysqli->query($sql_monitoramento);
+    $monitoramento = $result_monitoramento->fetch_assoc();
+    
+    $cliente['monitorado'] = $monitoramento ? boolval($monitoramento['monitorado']) : false;
+    
+    echo json_encode([
+        'success' => true,
+        'cliente' => $cliente
+    ]);
 
-$mysqli->close();
+} catch (Exception $e) {
+    error_log("Erro ao buscar dados do cliente: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ]);
+}
 ?> 

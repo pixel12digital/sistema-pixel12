@@ -59,17 +59,20 @@ class CacheManager {
         
         $file = $this->cacheDir . md5($key) . '.cache';
         if (!file_exists($file)) {
+            file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [CacheManager::get] Arquivo de cache não existe: $file\n", FILE_APPEND);
             return null;
         }
         
         $data = json_decode(file_get_contents($file), true);
         if (!$data || $data['expires'] < time()) {
             @unlink($file);
+            file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [CacheManager::get] Cache expirado ou inválido: $file\n", FILE_APPEND);
             return null;
         }
         
         // Salvar também em memória
         $this->setMemory($key, $data['value'], min($data['expires'] - time(), 300));
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [CacheManager::get] Cache lido com sucesso: $file\n", FILE_APPEND);
         
         return $data['value'];
     }
@@ -88,7 +91,8 @@ class CacheManager {
             'created' => time()
         ];
         
-        file_put_contents($file, json_encode($data));
+        $result = file_put_contents($file, json_encode($data));
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [CacheManager::set] Salvando cache em $file, resultado: $result\n", FILE_APPEND);
         return true;
     }
     
@@ -185,7 +189,16 @@ function cache_set($key, $value, $ttl = null) {
 }
 
 function cache_remember($key, $callback, $ttl = null) {
-    return CacheManager::getInstance()->remember($key, $callback, $ttl);
+    file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_remember] chamada para chave: $key\n", FILE_APPEND);
+    $value = CacheManager::getInstance()->get($key);
+    if ($value !== null) {
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_remember] cache HIT para chave: $key\n", FILE_APPEND);
+        return $value;
+    }
+    file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_remember] cache MISS para chave: $key\n", FILE_APPEND);
+    $value = $callback();
+    CacheManager::getInstance()->set($key, $value, $ttl);
+    return $value;
 }
 
 function cache_forget($pattern) {
@@ -231,14 +244,30 @@ function cache_query($mysqli, $sql, $params = [], $ttl = 300) {
  * Cache específico para dados de cliente
  */
 function cache_cliente($cliente_id, $mysqli) {
+    file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] chamada com cliente_id=$cliente_id\n", FILE_APPEND);
     return cache_remember("cliente_{$cliente_id}", function() use ($cliente_id, $mysqli) {
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] INICIO callback\n", FILE_APPEND);
         $sql = "SELECT * FROM clientes WHERE id = ? LIMIT 1";
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] Antes do prepare SQL\n", FILE_APPEND);
         $stmt = $mysqli->prepare($sql);
+        if (!$stmt) {
+            file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] erro ao preparar statement: " . $mysqli->error . "\n", FILE_APPEND);
+            return false;
+        }
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] statement preparado\n", FILE_APPEND);
         $stmt->bind_param('i', $cliente_id);
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] bind_param executado\n", FILE_APPEND);
         $stmt->execute();
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] statement executado\n", FILE_APPEND);
         $result = $stmt->get_result();
+        if (!$result) {
+            file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] erro ao obter resultado: " . $stmt->error . "\n", FILE_APPEND);
+            $stmt->close();
+            return false;
+        }
         $cliente = $result->fetch_assoc();
         $stmt->close();
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] resultado: " . var_export($cliente, true) . "\n", FILE_APPEND);
         return $cliente;
     }, 600); // 10 minutos para dados de cliente
 }
@@ -285,16 +314,23 @@ function cache_conversas($mysqli) {
  * Cache específico para status de canais
  */
 function cache_status_canais($mysqli) {
-    return cache_remember('status_canais', function() use ($mysqli) {
+    $canais = cache_remember('status_canais', function() use ($mysqli) {
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_status_canais] INICIO callback\n", FILE_APPEND);
         $sql = "SELECT id, nome_exibicao, porta, tipo, status, identificador FROM canais_comunicacao WHERE status != 'excluido'";
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_status_canais] Antes do query SQL\n", FILE_APPEND);
         $result = $mysqli->query($sql);
+        if (!$result) {
+            file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_status_canais] ERRO SQL: " . $mysqli->error . "\n", FILE_APPEND);
+            return [];
+        }
         $canais = [];
-        
         while ($canal = $result->fetch_assoc()) {
             $canais[] = $canal;
         }
-        
+        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_status_canais] canais retornados: " . var_export($canais, true) . "\n", FILE_APPEND);
         return $canais;
-    }, 60); // 1 minuto para status de canais
+    }, 60);
+    file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_status_canais] canais usados: " . var_export($canais, true) . "\n", FILE_APPEND);
+    return $canais;
 }
 ?> 

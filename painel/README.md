@@ -39,6 +39,23 @@ Este painel permite o gerenciamento centralizado de clientes e cobranças, com i
 
 ---
 
+## Integração com WhatsApp
+
+Este painel está integrado a um servidor Node.js rodando a biblioteca [whatsapp-web.js](https://wwebjs.dev/), localizado na VPS em `/var/whatsapp-api`.
+
+- O backend PHP se comunica com o WhatsApp via requisições HTTP para este serviço Node.js.
+- O serviço Node.js é responsável por enviar e receber mensagens do WhatsApp, utilizando a automação do WhatsApp Web.
+- Para que mensagens recebidas no WhatsApp apareçam no painel, o serviço Node.js deve estar configurado para enviar webhooks para o endpoint:
+  ```
+  http://localhost:8080/loja-virtual-revenda/painel/api/whatsapp_webhook.php
+  ```
+- O serviço utiliza o pacote `whatsapp-web.js` e depende do Node.js e do Chrome/Chromium (via Puppeteer).
+
+**Atenção:**  
+Se precisar reiniciar ou configurar o serviço WhatsApp, acesse a VPS e utilize o diretório `/var/whatsapp-api`.
+
+---
+
 ## Como rodar localmente
 
 1. **Pré-requisitos:**

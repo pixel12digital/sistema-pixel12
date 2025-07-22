@@ -1,6 +1,7 @@
 <?php
 require_once 'config.php';
 require_once 'db.php';
+require_once 'cache_invalidator.php';
 
 header('Content-Type: application/json');
 
@@ -41,6 +42,8 @@ $formatos_numero[] = $numero_limpo; // Formato original (554796164699)
 $formatos_numero[] = substr($numero_limpo, 2); // Sem código do país (4796164699)
 $formatos_numero[] = substr($numero_limpo, 0, 2) . '9' . substr($numero_limpo, 2); // Com 9 (554796164699)
 $formatos_numero[] = substr($numero_limpo, 2, 2) . '9' . substr($numero_limpo, 4); // Sem código + 9 (4796164699)
+$ddd_mais_numero = substr($numero_limpo, -10); // DDD + número
+$formatos_numero[] = $ddd_mais_numero;
 
 error_log("[RECEBIMENTO] Formatos a testar: " . implode(', ', $formatos_numero));
 
@@ -71,6 +74,13 @@ if ($cliente_id) {
   $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) VALUES ($canal_id, $cliente_id, '$body', 'texto', '$data_hora', 'recebido', 'recebido')";
   if ($mysqli->query($sql)) {
     error_log("[RECEBIMENTO] SUCESSO: Mensagem salva no banco, ID: " . $mysqli->insert_id);
+    invalidate_message_cache($cliente_id);
+    // Forçar limpeza de todos os caches relevantes
+    if (function_exists('cache_forget')) {
+        cache_forget("mensagens_{$cliente_id}");
+        cache_forget("historico_html_{$cliente_id}");
+        cache_forget("mensagens_html_{$cliente_id}");
+    }
     echo json_encode(['success' => true, 'mensagem_id' => $mysqli->insert_id]);
   } else {
     error_log("[RECEBIMENTO] ERRO SQL: " . $mysqli->error);

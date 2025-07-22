@@ -1,18 +1,29 @@
 <?php
+ini_set('display_errors', 1);
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Entrou no script\n", FILE_APPEND);
 header('Content-Type: application/json');
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
 
+try {
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Antes do require config\n", FILE_APPEND);
 require_once 'config.php';
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Depois do require config\n", FILE_APPEND);
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Antes do require db\n", FILE_APPEND);
 require_once 'db.php';
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Depois do require db\n", FILE_APPEND);
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Antes do require cache_invalidator\n", FILE_APPEND);
 require_once 'cache_invalidator.php'; // Sistema de invalidação de cache
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Depois do require cache_invalidator\n", FILE_APPEND);
+require_once 'cache_manager.php';
 
 // Verificar se é POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Saiu por: método não permitido\n", FILE_APPEND);
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'Método não permitido']);
     exit;
 }
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Passou validação método POST\n", FILE_APPEND);
 
 $cliente_id = isset($_POST['cliente_id']) ? intval($_POST['cliente_id']) : 0;
 $mensagem = isset($_POST['mensagem']) ? trim($_POST['mensagem']) : '';
@@ -20,29 +31,38 @@ $canal_id = isset($_POST['canal_id']) ? intval($_POST['canal_id']) : 0;
 
 // Validações
 if (!$cliente_id) {
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Saiu por: Cliente ID inválido\n", FILE_APPEND);
     echo json_encode(['success' => false, 'error' => 'Cliente ID inválido']);
     exit;
 }
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Passou validação cliente_id\n", FILE_APPEND);
 
 if (empty($mensagem)) {
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Saiu por: Mensagem vazia\n", FILE_APPEND);
     echo json_encode(['success' => false, 'error' => 'Mensagem não pode estar vazia']);
     exit;
 }
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Passou validação mensagem\n", FILE_APPEND);
 
 if (!$canal_id) {
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Saiu por: Canal ID inválido\n", FILE_APPEND);
     echo json_encode(['success' => false, 'error' => 'Canal ID inválido']);
     exit;
 }
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Passou validação canal_id\n", FILE_APPEND);
 
 // Usar cache para verificar cliente (mais rápido)
 $cliente = cache_cliente($cliente_id, $mysqli);
 if (!$cliente) {
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Saiu por: Cliente não encontrado\n", FILE_APPEND);
     echo json_encode(['success' => false, 'error' => 'Cliente não encontrado']);
     exit;
 }
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Passou validação cliente encontrado\n", FILE_APPEND);
 
 // Verificar se canal existe e está conectado usando cache
 $canais = cache_status_canais($mysqli);
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [chat_enviar] canais retornados: " . var_export($canais, true) . "\n", FILE_APPEND);
 $canal = null;
 foreach ($canais as $c) {
     if ($c['id'] == $canal_id) {
@@ -50,11 +70,13 @@ foreach ($canais as $c) {
         break;
     }
 }
-
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [chat_enviar] canal encontrado: " . var_export($canal, true) . "\n", FILE_APPEND);
 if (!$canal) {
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Saiu por: Canal não encontrado ou não conectado\n", FILE_APPEND);
     echo json_encode(['success' => false, 'error' => 'Canal não encontrado ou não conectado']);
     exit;
 }
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Passou validação canal conectado\n", FILE_APPEND);
 
 // Processar anexo se houver
 $anexo_path = '';
@@ -68,6 +90,7 @@ if (isset($_FILES['anexo']) && $_FILES['anexo']['error'] === UPLOAD_ERR_OK) {
     $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'];
     
     if (!in_array($file_extension, $allowed_extensions)) {
+        file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Saiu por: Tipo de arquivo não permitido\n", FILE_APPEND);
         echo json_encode(['success' => false, 'error' => 'Tipo de arquivo não permitido']);
         exit;
     }
@@ -76,11 +99,13 @@ if (isset($_FILES['anexo']) && $_FILES['anexo']['error'] === UPLOAD_ERR_OK) {
     $anexo_path = $upload_dir . $filename;
     
     if (!move_uploaded_file($_FILES['anexo']['tmp_name'], $anexo_path)) {
+        file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Saiu por: Falha ao salvar anexo\n", FILE_APPEND);
         echo json_encode(['success' => false, 'error' => 'Falha ao salvar anexo']);
         exit;
     }
 }
 
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Antes de salvar mensagem no banco\n", FILE_APPEND);
 // Salvar mensagem no banco
 $numero = $cliente['celular'];
 $data_hora = date('Y-m-d H:i:s');
@@ -89,18 +114,22 @@ $sql = "INSERT INTO mensagens_comunicacao (cliente_id, canal_id, mensagem, anexo
 $stmt = $mysqli->prepare($sql);
 
 if (!$stmt) {
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Saiu por: Erro na preparação da query\n", FILE_APPEND);
     echo json_encode(['success' => false, 'error' => 'Erro na preparação da query']);
     exit;
 }
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Passou preparação da query\n", FILE_APPEND);
 
 $stmt->bind_param('iisss', $cliente_id, $canal_id, $mensagem, $anexo_path, $data_hora);
 
 if (!$stmt->execute()) {
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Saiu por: Erro ao salvar mensagem\n", FILE_APPEND);
     echo json_encode(['success' => false, 'error' => 'Erro ao salvar mensagem']);
     exit;
 }
 
 $mensagem_id = $mysqli->insert_id;
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Mensagem salva no banco, id: $mensagem_id\n", FILE_APPEND);
 
 // INVALIDAR CACHE após inserir nova mensagem
 invalidate_message_cache($cliente_id, [
@@ -109,11 +138,18 @@ invalidate_message_cache($cliente_id, [
     'mensagem' => $mensagem,
     'data_hora' => $data_hora
 ]);
+// Forçar limpeza de todos os caches relevantes
+if (function_exists('cache_forget')) {
+    cache_forget("mensagens_{$cliente_id}");
+    cache_forget("historico_html_{$cliente_id}");
+    cache_forget("mensagens_html_{$cliente_id}");
+}
 
 // Enviar via API do robô
 $enviado_api = false;
 
 try {
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Antes do envio via API do robô\n", FILE_APPEND);
     $api_url = WHATSAPP_ROBOT_URL . "/send/text";
     $api_data = [
         'sessionName' => 'default',
@@ -136,6 +172,7 @@ try {
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Resposta da API: $api_response | HTTP: $http_code\n", FILE_APPEND);
     if ($api_response && $http_code === 200) {
         $api_result = json_decode($api_response, true);
         if ($api_result && isset($api_result['success']) && $api_result['success']) {
@@ -151,13 +188,21 @@ try {
         }
     }
 } catch (Exception $e) {
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Erro ao enviar via API: " . $e->getMessage() . "\n", FILE_APPEND);
     error_log("Erro ao enviar via API: " . $e->getMessage());
 }
 
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Finalizando script com sucesso\n", FILE_APPEND);
 echo json_encode([
     'success' => true,
     'mensagem_id' => $mensagem_id,
     'enviado_api' => $enviado_api,
     'cache_invalidated' => true // Indicar que cache foi invalidado
 ]);
+?>
+<?php
+} catch (Throwable $e) {
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Erro fatal: " . $e->getMessage() . "\n", FILE_APPEND);
+    echo json_encode(['success' => false, 'error' => 'Erro fatal: ' . $e->getMessage()]);
+}
 ?> 

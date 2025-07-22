@@ -121,7 +121,7 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
             </div>
         </div>
         <!-- Financeiro -->
-        <div class="sidebar-group<?php if(in_array($page,['faturas.php','assinaturas.php','contas-pagar.php'])) echo ' open'; ?>">
+        <div class="sidebar-group<?php if(in_array($page,['faturas.php','assinaturas.php','contas-pagar.php','monitoramento.php','relatorios_financeiros.php'])) echo ' open'; ?>">
             <a href="#" class="sidebar-link has-sub" title="Financeiro">
                 <!-- Lucide CreditCard SVG -->
                 <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
@@ -133,6 +133,16 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
                     <!-- Lucide CreditCard SVG -->
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                     Faturas
+                </a>
+                <a href="monitoramento.php" class="sidebar-sublink<?php if($page=='monitoramento.php') echo ' active'; ?>">
+                    <!-- Lucide Eye SVG -->
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Monitoramento
+                </a>
+                <a href="relatorios_financeiros.php" class="sidebar-sublink<?php if($page=='relatorios_financeiros.php') echo ' active'; ?>">
+                    <!-- Lucide BarChart3 SVG -->
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="12" width="4" height="8"/><rect x="9" y="8" width="4" height="12"/><rect x="15" y="4" width="4" height="16"/></svg>
+                    Relatórios
                 </a>
                 <a href="assinaturas.php" class="sidebar-sublink<?php if($page=='assinaturas.php') echo ' active'; ?>">
                     <!-- Lucide RefreshCcw SVG -->

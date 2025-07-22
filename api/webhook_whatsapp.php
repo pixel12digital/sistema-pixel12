@@ -88,6 +88,8 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     if ($mysqli->query($sql)) {
         $mensagem_id = $mysqli->insert_id;
         error_log("[WEBHOOK WHATSAPP] Mensagem salva - ID: $mensagem_id, Cliente: $cliente_id, Número: $numero");
+        require_once '../painel/cache_invalidator.php';
+        if ($cliente_id) invalidate_message_cache($cliente_id);
     } else {
         error_log("[WEBHOOK WHATSAPP] Erro ao salvar mensagem: " . $mysqli->error);
     }

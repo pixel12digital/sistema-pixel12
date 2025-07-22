@@ -23,6 +23,53 @@ try {
         exit;
     }
 
+    // Se está tentando adicionar ao monitoramento, validar se pode
+    if ($monitorado) {
+        // Buscar cobranças do cliente
+        $sql_cobrancas = "SELECT 
+                            id, 
+                            valor, 
+                            vencimento, 
+                            status,
+                            DATEDIFF(CURDATE(), vencimento) as dias_vencido
+                          FROM cobrancas 
+                          WHERE cliente_id = $cliente_id";
+        
+        $result_cobrancas = $mysqli->query($sql_cobrancas);
+        
+        if (!$result_cobrancas) {
+            throw new Exception("Erro ao buscar cobranças: " . $mysqli->error);
+        }
+        
+        $total_cobrancas = 0;
+        $cobrancas_vencidas = 0;
+        $cobrancas_pagas = 0;
+        
+        while ($cobranca = $result_cobrancas->fetch_assoc()) {
+            $total_cobrancas++;
+            
+            if (in_array($cobranca['status'], ['PENDING', 'OVERDUE']) && intval($cobranca['dias_vencido']) > 0) {
+                $cobrancas_vencidas++;
+            } elseif (in_array($cobranca['status'], ['RECEIVED', 'CONFIRMED'])) {
+                $cobrancas_pagas++;
+            }
+        }
+        
+        // Validar se pode monitorar
+        if ($total_cobrancas === 0) {
+            echo json_encode(['success' => false, 'error' => 'Cliente não possui cobranças cadastradas']);
+            exit;
+        } elseif ($cobrancas_vencidas === 0) {
+            if ($cobrancas_pagas > 0 && $cobrancas_pagas === $total_cobrancas) {
+                echo json_encode(['success' => false, 'error' => 'Todas as cobranças do cliente já foram pagas/recebidas']);
+                exit;
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Cliente não possui cobranças vencidas']);
+                exit;
+            }
+        }
+    }
+
     // Verificar se já existe registro de monitoramento
     $existe = $mysqli->query("SELECT id FROM clientes_monitoramento WHERE cliente_id = $cliente_id LIMIT 1")->fetch_assoc();
 
