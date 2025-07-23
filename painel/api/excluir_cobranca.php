@@ -26,6 +26,14 @@ $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curl_error = curl_error($ch);
 curl_close($ch);
 
+if ($http_code === 404) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'Cobrança não encontrada ou não pode ser cancelada individualmente no Asaas. Se for uma parcela de cartão, o cancelamento deve ser feito no grupo de parcelas diretamente no painel do Asaas.'
+    ]);
+    exit;
+}
+
 if ($http_code !== 200) {
     echo json_encode(['success' => false, 'error' => 'Erro ao cancelar cobrança no Asaas: ' . $response]);
     exit;
