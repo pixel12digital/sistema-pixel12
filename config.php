@@ -63,8 +63,8 @@ if ($is_local) {
     define('DB_USER', getenv('DB_USER') ?: 'root');
     define('DB_PASS', getenv('DB_PASS') ?: '');
     
-    // API de teste Asaas
-    define('ASAAS_API_KEY', getenv('ASAAS_API_KEY') ?: '$aact_test_CHAVE_DE_TESTE_AQUI');
+    // API de produção Asaas - NOVA CHAVE VÁLIDA
+    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjMyOWFlYTU1LTY1ZjUtNDJjOC05YzY2LThlMGIxY2Y1MmRkOTo6JGFhY2hfMmUwZjZjZTAtYmQyOS00ZDA5LWI0OGUtNGEzNzU1YmM4ZTBl');
     define('DEBUG_MODE', true);
     define('ENABLE_CACHE', false); // Desabilitar cache em desenvolvimento
 } else {
@@ -74,8 +74,8 @@ if ($is_local) {
     define('DB_USER', 'u342734079_revendaweb');
     define('DB_PASS', 'Los@ngo#081081');
     
-    // API de produção Asaas - CHAVE CORRETA
-    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjNmMzY0Y2M4LTU5NzktNDM1Ny1hNmM5LTA1ZDJmZGVhYWQwZDo6JGFhY2hfNmE3Y2IwNzQtYjY3Yy00ZDFkLTg4OGMtOWU0YjE4NGUyYTA0');
+    // API de produção Asaas - NOVA CHAVE VÁLIDA
+    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjMyOWFlYTU1LTY1ZjUtNDJjOC05YzY2LThlMGIxY2Y1MmRkOTo6JGFhY2hfMmUwZjZjZTAtYmQyOS00ZDA5LWI0OGUtNGEzNzU1YmM4ZTBl');
     define('DEBUG_MODE', false);
     define('ENABLE_CACHE', true);
 }

@@ -1,4 +1,9 @@
 <?php
+// Configurar codificação UTF-8
+mb_internal_encoding('UTF-8');
+mb_http_output('UTF-8');
+mysqli_set_charset($mysqli, 'utf8mb4');
+
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -42,6 +47,10 @@ function getAsaas($endpoint) {
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);                    // Timeout maior
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);           // SSL configurado
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);              // SSL configurado  
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Asaas-API-Test/1.0'); // User-Agent específico
     $result = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlError = curl_error($ch);
