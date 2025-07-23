@@ -175,6 +175,9 @@ class InvoicesManager {
             new Date(cobranca.ultima_interacao).toLocaleDateString('pt-BR') : 
             'Nunca';
         
+        // Traduzir status para português
+        const statusTraduzido = this.traduzirStatus(cobranca.status);
+        
         return `
             <tr class="hover:bg-gray-50">
                 <td class="px-4 py-2">${cobranca.id}</td>
@@ -184,7 +187,7 @@ class InvoicesManager {
                 <td class="px-4 py-2">${vencimento}</td>
                 <td class="px-4 py-2">
                     <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">
-                        ${cobranca.status}
+                        ${statusTraduzido}
                     </span>
                 </td>
                 <td class="px-4 py-2 text-sm text-gray-600">${ultimaInteracao}</td>
@@ -218,6 +221,16 @@ class InvoicesManager {
             'CANCELLED': 'bg-gray-100 text-gray-800'
         };
         return classes[status] || 'bg-gray-100 text-gray-800';
+    }
+
+    traduzirStatus(status) {
+        const traducoes = {
+            'PENDING': 'Pendente',
+            'CONFIRMED': 'Confirmada',
+            'OVERDUE': 'Vencida',
+            'CANCELLED': 'Cancelada'
+        };
+        return traducoes[status] || status;
     }
     
     getWhatsAppStatus(status, motivoErro) {

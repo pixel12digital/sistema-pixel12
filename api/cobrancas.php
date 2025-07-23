@@ -9,6 +9,18 @@ if ($conn->connect_error) {
 }
 header('Content-Type: application/json');
 
+// CORREÇÃO: Atualizar automaticamente faturas vencidas antes de buscar
+$updateSQL = "UPDATE cobrancas 
+              SET status = 'OVERDUE' 
+              WHERE status = 'PENDING' 
+              AND vencimento < CURDATE()";
+$conn->query($updateSQL);
+
+// Log da atualização para debug
+if ($conn->affected_rows > 0) {
+    error_log("[CORREÇÃO AUTOMÁTICA] {$conn->affected_rows} faturas atualizadas de PENDING para OVERDUE");
+}
+
 // Filtros
 $status = isset($_GET['status']) && $_GET['status'] !== '' ? $_GET['status'] : null;
 $data_emissao = isset($_GET['data_emissao']) && $_GET['data_emissao'] !== '' ? $_GET['data_emissao'] : null;
