@@ -292,6 +292,11 @@ $total_vencido = $total_vencido ?? 0.0;
 }
 .status-clicavel:hover { opacity:0.8; text-decoration:underline; }
 .menu-status-cobranca { font-size:1em; }
+.painel-container, .painel-card {
+  position: relative !important;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
 </style>
 
 <div class="painel-container">
@@ -478,7 +483,7 @@ $total_vencido = $total_vencido ?? 0.0;
             </div>
           </div>
         </div>
-        <div style="overflow-x:auto;">
+        <div style="overflow-x:auto; max-height:400px; overflow-y:auto;">
           <table class="w-full text-sm mb-6" style="border-collapse: collapse; width: 100%;">
             <thead>
               <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
