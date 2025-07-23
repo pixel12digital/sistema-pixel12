@@ -3,9 +3,9 @@ header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 
 try {
-    // Incluir configurações - CORRIGIDO: usar caminhos corretos
-    require_once __DIR__ . '/../config.php';
-    require_once __DIR__ . '/../painel/db.php';
+    // Incluir configurações
+    require_once '../config.php';
+    require_once '../db.php';
     
     // Testar conexão básica
     if (!$mysqli || $mysqli->connect_error) {

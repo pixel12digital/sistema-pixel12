@@ -1,82 +1,54 @@
-# 🔄 Configuração da Integração com Asaas - FUNCIONAL
+# 🔄 Configuração da Integração com Asaas
 
 ## 📋 Visão Geral
 
-Este sistema implementa uma integração **COMPLETA E FUNCIONAL** com o Asaas para gerenciamento de clientes, cobranças e assinaturas. O fluxo funciona da seguinte forma:
+Este sistema implementa uma integração completa com o Asaas para gerenciamento de clientes, cobranças e assinaturas. O fluxo funciona da seguinte forma:
 
 1. **Criação**: Clientes e cobranças são criados no sistema e automaticamente sincronizados com o Asaas
-2. **Webhook**: ✅ **FUNCIONANDO** - Notificações de pagamento são recebidas via webhook e atualizam o banco local
+2. **Webhook**: Notificações de pagamento são recebidas via webhook e atualizam o banco local
 3. **Sincronização**: Script diário mantém os dados sincronizados entre o sistema e o Asaas
-4. **Monitoramento**: Logs completos e interface de testes integrada
 
 ## 🚀 Configuração Inicial
 
-### 1. Configurar API Key do Asaas
+### 1. Executar Verificação do Banco de Dados
 
-```php
-// painel/config.php
-define('ASAAS_API_KEY', '$aact_prod_SUA_CHAVE_AQUI');
-define('ASAAS_API_URL', 'https://www.asaas.com/api/v3');
+```bash
+php fix_database_structure.php
 ```
 
-### 2. Configurar Webhook no Asaas ✅ FUNCIONAL
+Este script irá:
+- Verificar se todas as tabelas necessárias existem
+- Criar tabelas faltantes com a estrutura correta
+- Verificar integridade dos dados existentes
 
-1. Acesse o painel do Asaas: https://asaas.com/customerConfigurations/webhooks
+### 2. Configurar Webhook no Asaas
+
+1. Acesse o painel do Asaas
 2. Vá em **Configurações > Webhooks**
 3. Adicione um novo webhook com as seguintes configurações:
 
 ```
-URL: https://seu-dominio.com/public/webhook_asaas.php
+URL: https://seudominio.com/api/webhooks.php
 Eventos: Todos os eventos de pagamento e assinatura
 ```
 
-**🎯 URL CORRETA DO WEBHOOK:**
-- **Produção**: `https://app.pixel12digital.com.br/public/webhook_asaas.php`
-- **Local**: `http://localhost:8080/loja-virtual-revenda/public/webhook_asaas.php`
-
 **Eventos importantes:**
-- `PAYMENT_RECEIVED` - Pagamento recebido ✅
-- `PAYMENT_CONFIRMED` - Pagamento confirmado ✅
-- `PAYMENT_OVERDUE` - Pagamento vencido ✅
-- `PAYMENT_DELETED` - Pagamento excluído ✅
-- `PAYMENT_RESTORED` - Pagamento restaurado ✅
-- `PAYMENT_REFUNDED` - Pagamento estornado ✅
-- `SUBSCRIPTION_CREATED` - Assinatura criada ✅
-- `SUBSCRIPTION_PAYMENT_RECEIVED` - Pagamento de assinatura recebido ✅
+- `PAYMENT_RECEIVED` - Pagamento recebido
+- `PAYMENT_CONFIRMED` - Pagamento confirmado
+- `PAYMENT_OVERDUE` - Pagamento vencido
+- `SUBSCRIPTION_CREATED` - Assinatura criada
+- `SUBSCRIPTION_PAYMENT_RECEIVED` - Pagamento de assinatura recebido
 
-### 3. Testar o Webhook ✅ FUNCIONAL
+### 3. Testar o Webhook
 
-#### **Opção 1: Interface de Testes (Recomendado)**
-```
-Acesse: https://seu-dominio.com/admin/webhook-test.php
-Clique em: "💰 Testar Webhook Asaas"
-```
-
-#### **Opção 2: Linha de Comando**
 ```bash
-curl -X POST https://seu-dominio.com/public/webhook_asaas.php \
-  -H "Content-Type: application/json" \
-  -d '{
-    "event": "PAYMENT_RECEIVED",
-    "payment": {
-      "id": "pay_test_123",
-      "status": "RECEIVED",
-      "value": 100.00,
-      "customer": "cus_test_123",
-      "description": "Teste de webhook"
-    }
-  }'
+php test_webhook.php
 ```
 
-#### **Resposta Esperada:**
-```json
-{
-  "success": true,
-  "message": "Webhook processado com sucesso",
-  "event": "PAYMENT_RECEIVED",
-  "timestamp": "2025-07-22 21:09:16"
-}
-```
+Este script simula um webhook do Asaas e verifica se:
+- O webhook está funcionando
+- Os dados estão sendo salvos no banco
+- A estrutura está correta
 
 ## 📊 Estrutura do Banco de Dados
 
@@ -84,247 +56,219 @@ curl -X POST https://seu-dominio.com/public/webhook_asaas.php \
 ```sql
 CREATE TABLE clientes (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    asaas_id VARCHAR(64) NOT NULL UNIQUE,
     nome VARCHAR(255) NOT NULL,
-    email VARCHAR(255),
-    telefone VARCHAR(20),
-    asaas_id VARCHAR(255) UNIQUE, -- ID do cliente no Asaas
-    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    email VARCHAR(255) NOT NULL,
+    telefone VARCHAR(50),
+    celular VARCHAR(20),
+    cpf_cnpj VARCHAR(32),
+    -- Endereço
+    cep VARCHAR(10),
+    rua VARCHAR(255),
+    numero VARCHAR(10),
+    complemento VARCHAR(50),
+    bairro VARCHAR(100),
+    cidade VARCHAR(100),
+    estado VARCHAR(2),
+    pais VARCHAR(50) DEFAULT 'Brasil',
+    -- Outros campos
+    notificacao_desativada TINYINT(1) DEFAULT 0,
+    emails_adicionais VARCHAR(255),
+    referencia_externa VARCHAR(100),
+    observacoes TEXT,
+    razao_social VARCHAR(255),
+    criado_em_asaas DATETIME,
+    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 ```
 
-### Tabela `cobrancas` ✅ FUNCIONAL
+### Tabela `cobrancas`
 ```sql
 CREATE TABLE cobrancas (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    asaas_payment_id VARCHAR(255) UNIQUE, -- ID do pagamento no Asaas
+    asaas_payment_id VARCHAR(64) NOT NULL UNIQUE,
     cliente_id INT,
     valor DECIMAL(10,2) NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    vencimento DATE,
-    data_pagamento DATETIME NULL,
-    data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    descricao TEXT,
-    tipo VARCHAR(50),
-    url_fatura VARCHAR(500),
-    FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE SET NULL,
-    INDEX(asaas_payment_id),
-    INDEX(status),
-    INDEX(vencimento)
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    vencimento DATE NOT NULL,
+    data_pagamento DATE,
+    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    descricao VARCHAR(255),
+    tipo VARCHAR(50) DEFAULT 'BOLETO',
+    tipo_pagamento VARCHAR(20),
+    url_fatura VARCHAR(255),
+    parcela VARCHAR(32),
+    assinatura_id VARCHAR(64),
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE SET NULL
 );
 ```
 
-### Tabela `assinaturas` (Criada automaticamente pelo webhook)
+### Tabela `assinaturas`
 ```sql
 CREATE TABLE assinaturas (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    cliente_id INT,
+    cliente_id INT NOT NULL,
     asaas_id VARCHAR(255) NOT NULL UNIQUE,
-    status VARCHAR(50) NOT NULL,
-    periodicidade VARCHAR(20),
+    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+    periodicidade VARCHAR(20) NOT NULL,
     start_date DATE,
     next_due_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX(cliente_id),
-    INDEX(asaas_id)
+    FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 );
 ```
 
-## 🔧 Webhook - Implementação Funcional
+## 🔧 Serviços e Controladores
 
-### Endpoint Principal ✅ FUNCIONAL
-**Arquivo**: `public/webhook_asaas.php`
+### AsaasIntegrationService
+Localização: `src/Services/AsaasIntegrationService.php`
 
-### Funcionalidades:
-- ✅ **Recebimento de eventos** do Asaas
-- ✅ **Validação de JSON** e estrutura dos dados
-- ✅ **Processamento de pagamentos** (PAYMENT_*)
-- ✅ **Processamento de assinaturas** (SUBSCRIPTION_*)
-- ✅ **Atualização automática** do banco de dados
-- ✅ **Sistema de logs** completo para auditoria
-- ✅ **Resposta JSON** adequada para o Asaas
-- ✅ **Criação automática** de tabelas se não existirem
+**Métodos principais:**
+- `criarCliente($dados)` - Cria cliente no Asaas e no banco local
+- `criarCobranca($dados)` - Cria cobrança no Asaas e no banco local
+- `criarAssinatura($dados)` - Cria assinatura no Asaas e no banco local
 
-### Sistema de Logs ✅ FUNCIONAL
+### ClienteController
+Localização: `painel/cliente_controller.php`
+
+**Métodos principais:**
+- `listarClientes($filtro, $pagina, $limite)` - Lista clientes com paginação
+- `criarCliente($dados)` - Cria novo cliente
+- `atualizarCliente($id, $dados)` - Atualiza dados do cliente
+- `buscarCobrancasCliente($cliente_id)` - Busca cobranças do cliente
+
+### CobrancaController
+Localização: `painel/cobranca_controller.php`
+
+**Métodos principais:**
+- `listarCobrancas($filtro, $status, $pagina)` - Lista cobranças com filtros
+- `criarCobranca($dados)` - Cria nova cobrança
+- `cancelarCobranca($id)` - Cancela cobrança
+- `reenviarLink($id)` - Reenvia link de pagamento
+- `getEstatisticas()` - Obtém estatísticas das cobranças
+
+## 📝 Webhook
+
+### Endpoint
+`/api/webhooks.php`
+
+### Eventos Suportados
+- **Pagamentos**: `PAYMENT_RECEIVED`, `PAYMENT_CONFIRMED`, `PAYMENT_OVERDUE`, etc.
+- **Assinaturas**: `SUBSCRIPTION_CREATED`, `SUBSCRIPTION_PAYMENT_RECEIVED`, etc.
+
+### Processamento
+1. Recebe evento do Asaas
+2. Valida dados recebidos
+3. Atualiza banco local
+4. Registra log para auditoria
+5. Retorna resposta de sucesso
+
+### Logs
+Os logs são salvos em: `logs/webhook_YYYY-MM-DD.log`
+
+## 🔄 Sincronização
+
+### Script de Sincronização
+Localização: `painel/sincroniza_asaas.php`
+
+**Funcionalidades:**
+- Sincroniza clientes do Asaas para o banco local
+- Sincroniza cobranças do Asaas para o banco local
+- Sincroniza assinaturas do Asaas para o banco local
+- Registra data/hora da última sincronização
+
+### Agendamento
+Para manter os dados sempre atualizados, agende a execução diária:
+
+**Linux/Hostinger (Cron):**
 ```bash
-# Logs são salvos automaticamente em:
-logs/webhook_asaas_YYYY-MM-DD.log
-
-# Exemplo de conteúdo:
-2025-07-22 21:09:16 - Evento: PAYMENT_RECEIVED - Dados: {...}
-2025-07-22 21:09:16 - Evento: PAYMENT_PROCESSED - Dados: {
-  "asaas_id": "pay_123456789",
-  "status": "RECEIVED", 
-  "cliente_id": null,
-  "valor": 100
-}
+# Executar diariamente às 2h da manhã
+0 2 * * * php /caminho/para/painel/sincroniza_asaas.php
 ```
 
-### Monitoramento dos Logs
-```bash
-# Ver logs em tempo real:
-tail -f logs/webhook_asaas_$(date +%Y-%m-%d).log
+**Windows (Agendador de Tarefas):**
+- Abra o Agendador de Tarefas
+- Crie uma nova tarefa
+- Configure para executar diariamente: `php C:\xampp\htdocs\loja-virtual-revenda\painel\sincroniza_asaas.php`
 
-# Verificar últimas 50 linhas:
-tail -n 50 logs/webhook_asaas_$(date +%Y-%m-%d).log
+## 🎯 Fluxo de Trabalho
 
-# Buscar por erros:
-grep "ERROR" logs/webhook_asaas_*.log
-```
-
-## 📝 Fluxo de Processamento
-
-### Pagamentos (PAYMENT_*)
-1. **Asaas envia evento** → `public/webhook_asaas.php`
-2. **Validação** do JSON e evento
-3. **Extração de dados**: ID, status, valor, cliente, etc.
-4. **Busca do cliente** local pelo ID do Asaas
-5. **Atualização/inserção** na tabela `cobrancas`
-6. **Log do processamento**
-7. **Resposta de sucesso** para o Asaas
-
-### Assinaturas (SUBSCRIPTION_*)
-1. **Asaas envia evento** → `public/webhook_asaas.php`
-2. **Validação** do JSON e evento
-3. **Extração de dados**: ID, status, periodicidade, etc.
-4. **Verificação/criação** da tabela `assinaturas`
-5. **Atualização/inserção** na tabela `assinaturas`
-6. **Log do processamento**
-7. **Resposta de sucesso** para o Asaas
-
-## 🧪 Testes e Monitoramento
-
-### Interface de Testes ✅ FUNCIONAL
-```
-URL: admin/webhook-test.php
-
-Testes Disponíveis:
-- 💰 Testar Webhook Asaas
-- 🌐 Conectividade VPS  
-- 🗄️ Banco de Dados
-- 🧪 Fluxo Completo
-- 🩺 Diagnóstico
-```
-
-### Comandos de Teste
-```bash
-# Testar webhook diretamente:
-php -r "
-$payload = json_encode([
-    'event' => 'PAYMENT_RECEIVED',
-    'payment' => [
-        'id' => 'pay_test_'.time(),
-        'status' => 'RECEIVED',
-        'value' => 100.00,
-        'customer' => 'cus_test_123'
-    ]
+### 1. Criar Cliente
+```php
+$controller = new ClienteController();
+$resultado = $controller->criarCliente([
+    'nome' => 'João Silva',
+    'email' => 'joao@email.com',
+    'cpf_cnpj' => '12345678901',
+    'telefone' => '(11) 99999-9999'
 ]);
-file_put_contents('php://stdin', \$payload);
-" | php public/webhook_asaas.php
-
-# Verificar status da API:
-php painel/api/verificar_status_asaas.php
-
-# Sincronização manual:
-php painel/sincroniza_asaas.php
 ```
 
-## 🔍 Troubleshooting
-
-### Problemas Comuns:
-
-#### **1. Webhook não recebe eventos**
-```bash
-# Verificar URL no painel Asaas:
-# Deve ser: https://seu-dominio.com/public/webhook_asaas.php
-
-# Testar conectividade:
-curl -X POST https://seu-dominio.com/public/webhook_asaas.php \
-  -H "Content-Type: application/json" \
-  -d '{"test": true}'
-
-# Resposta esperada: {"error":"Evento inválido"}
+### 2. Criar Cobrança
+```php
+$controller = new CobrancaController();
+$resultado = $controller->criarCobranca([
+    'cliente_id' => 1,
+    'valor' => 100.00,
+    'vencimento' => '2024-01-15',
+    'descricao' => 'Mensalidade Janeiro'
+]);
 ```
 
-#### **2. Eventos não são processados**
-```bash
-# Verificar logs:
-tail -f logs/webhook_asaas_$(date +%Y-%m-%d).log
+### 3. Receber Pagamento (via Webhook)
+Quando o cliente paga, o Asaas envia um webhook que:
+1. Atualiza o status da cobrança para `RECEIVED`
+2. Registra a data de pagamento
+3. Atualiza a tabela de faturas
+4. Registra log para auditoria
 
-# Verificar se eventos estão configurados no Asaas:
-# PAYMENT_RECEIVED, PAYMENT_CONFIRMED, etc.
-```
+## 🔍 Monitoramento
 
-#### **3. Dados não aparecem no banco**
-```bash
-# Verificar estrutura da tabela:
-mysql -u usuario -p -e "DESCRIBE cobrancas" banco
+### Logs de Webhook
+Verifique os logs em: `logs/webhook_*.log`
 
-# Verificar se cliente existe:
-mysql -u usuario -p -e "SELECT * FROM clientes WHERE asaas_id = 'cus_123'" banco
+### Última Sincronização
+Arquivo: `painel/ultima_sincronizacao.log`
 
-# Executar teste completo:
-# Acesse: admin/webhook-test.php → "💰 Testar Webhook Asaas"
-```
+### Estatísticas
+Use o método `getEstatisticas()` do `CobrancaController` para obter:
+- Total de cobranças
+- Cobranças por status
+- Valor total recebido
+- Valor total pendente
 
-#### **4. Erro de coluna não encontrada**
-```bash
-# Se aparecer erro "Unknown column 'asaas_customer_id'":
-# Execute: ALTER TABLE clientes ADD COLUMN asaas_id VARCHAR(255);
+## ⚠️ Troubleshooting
 
-# Ou use o comando correto (que já está implementado):
-# O webhook usa apenas 'asaas_id', não 'asaas_customer_id'
-```
+### Webhook não está funcionando
+1. Verifique se a URL está correta no painel do Asaas
+2. Teste com: `php test_webhook.php`
+3. Verifique os logs em `logs/webhook_*.log`
+4. Confirme se o servidor está acessível
 
-## 📈 Estatísticas e Métricas
+### Sincronização falhando
+1. Verifique as credenciais da API no `config.php`
+2. Confirme se a API do Asaas está funcionando
+3. Verifique os logs de erro do PHP
+4. Teste a conexão com o banco de dados
 
-### KPIs do Webhook:
-- **Taxa de sucesso**: > 99%
-- **Tempo de processamento**: < 2 segundos
-- **Eventos processados**: Monitorado via logs
-- **Sincronização**: Automática e em tempo real
-
-### Monitoramento:
-```bash
-# Contar eventos processados hoje:
-grep "PAYMENT_PROCESSED\|SUBSCRIPTION_PROCESSED" logs/webhook_asaas_$(date +%Y-%m-%d).log | wc -l
-
-# Verificar erros hoje:
-grep "ERROR" logs/webhook_asaas_$(date +%Y-%m-%d).log
-
-# Status da última sincronização:
-ls -la painel/ultima_sincronizacao.log
-```
-
-## 🎯 Status Final
-
-### ✅ **TOTALMENTE FUNCIONAL:**
-- **Webhook**: 100% operacional
-- **Logs**: Sistema completo implementado
-- **Testes**: Interface integrada funcionando
-- **Banco**: Estruturas criadas e sincronizadas
-- **Monitoramento**: Logs e métricas em tempo real
-
-### 🚀 **Pronto para Produção:**
-- **URL configurada**: `https://app.pixel12digital.com.br/public/webhook_asaas.php`
-- **Eventos suportados**: Todos os eventos PAYMENT_* e SUBSCRIPTION_*
-- **Validação**: JSON e estrutura de dados
-- **Resposta**: JSON adequada para o Asaas
-- **Auditoria**: Logs detalhados de todos os eventos
-
----
+### Dados não sincronizados
+1. Execute manualmente: `php painel/sincroniza_asaas.php`
+2. Verifique se há erros na execução
+3. Confirme se as tabelas existem e têm a estrutura correta
+4. Verifique se há dados no Asaas para sincronizar
 
 ## 📞 Suporte
 
-### Para problemas com o webhook:
-1. **Verificar logs**: `logs/webhook_asaas_*.log`
-2. **Testar via interface**: `admin/webhook-test.php`
-3. **Verificar configuração**: URL e eventos no painel Asaas
-4. **Contato**: suporte@pixel12digital.com.br
+Para dúvidas ou problemas:
+1. Verifique os logs primeiro
+2. Execute os scripts de teste
+3. Consulte esta documentação
+4. Entre em contato com o suporte técnico
 
 ---
 
-**🎉 Integração Asaas 100% funcional e testada! Pronto para produção.**
-
-**Última atualização**: Julho 2025 - **Versão**: 2.1.0 - **Status**: FUNCIONAL 
+**Última atualização**: Janeiro 2024
+**Versão**: 1.0 
