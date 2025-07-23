@@ -290,6 +290,8 @@ $total_vencido = $total_vencido ?? 0.0;
   .painel-grid { display: block !important; }
   .painel-card { margin-bottom: 18px !important; }
 }
+.status-clicavel:hover { opacity:0.8; text-decoration:underline; }
+.menu-status-cobranca { font-size:1em; }
 </style>
 
 <div class="painel-container">
@@ -504,7 +506,9 @@ $total_vencido = $total_vencido ?? 0.0;
                     <td style="padding:10px;font-weight:500;"><?= ($i+1) ?></td>
                     <td style="padding:10px;font-weight:600;">R$ <?= number_format($cob['valor'],2,',','.') ?></td>
                     <td style="padding:10px;"><?= date('d/m/Y', strtotime($cob['vencimento'])) ?></td>
-                    <td style="padding:10px;"><span style="color:<?= $status_color ?>;font-weight:500;"><?= htmlspecialchars($status_pt) ?></span></td>
+                    <td style="padding:10px;">
+                      <span class="status-clicavel" style="color:<?= $status_color ?>;font-weight:500;cursor:pointer;text-decoration:underline;" onclick="abrirMenuStatusCobranca('<?= htmlspecialchars($cob['asaas_payment_id']) ?>', <?= (int)$cob['id'] ?>, '<?= htmlspecialchars($cob['status']) ?>', this)"><?= htmlspecialchars($status_pt) ?></span>
+                    </td>
                     <td style="padding:10px;"><?= ($cob['data_pagamento'] ? date('d/m/Y', strtotime($cob['data_pagamento'])) : '—') ?></td>
                     <td style="padding:10px;">
                       <?= (!empty($cob['url_fatura']) ? '<a href="' . htmlspecialchars($cob['url_fatura']) . '" target="_blank" style="color:#7c2ae8;text-decoration:underline;font-weight:500;">Ver Fatura</a>' : '—') ?>
@@ -642,5 +646,26 @@ function marcarRecebida(asaasPaymentId, cobrancaId) {
   .catch(() => {
     alert('Erro ao conectar ao servidor.');
   });
+}
+
+function abrirMenuStatusCobranca(asaasPaymentId, cobrancaId, status, el) {
+  // Remove menu anterior, se existir
+  document.querySelectorAll('.menu-status-cobranca').forEach(e => e.remove());
+  // Cria menu
+  const menu = document.createElement('div');
+  menu.className = 'menu-status-cobranca';
+  menu.style = 'position:absolute;z-index:9999;background:#fff;border:1.5px solid #7c2ae8;border-radius:8px;box-shadow:0 4px 16px #7c2ae820;padding:8px 0;min-width:160px;top:' + (el.getBoundingClientRect().bottom + window.scrollY + 4) + 'px;left:' + (el.getBoundingClientRect().left + window.scrollX) + 'px;';
+  if (status === 'PENDING' || status === 'OVERDUE') {
+    menu.innerHTML += '<div style="padding:8px 18px;cursor:pointer;color:#059669;font-weight:500;" onmouseover="this.style.background=\'#f0fdf4\'" onmouseout="this.style.background=\'#fff\'" onclick="marcarRecebida(\'' + asaasPaymentId + '\',' + cobrancaId + ');this.parentNode.remove();">Marcar como Recebido</div>';
+  }
+  menu.innerHTML += '<div style="padding:8px 18px;cursor:pointer;color:#ef4444;font-weight:500;" onmouseover="this.style.background=\'#fef2f2\'" onmouseout="this.style.background=\'#fff\'" onclick="excluirCobranca(\'' + asaasPaymentId + '\',' + cobrancaId + ');this.parentNode.remove();">Excluir</div>';
+  menu.innerHTML += '<div style="padding:8px 18px;cursor:pointer;color:#64748b;" onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'#fff\'" onclick="this.parentNode.remove();">Cancelar</div>';
+  document.body.appendChild(menu);
+  // Fecha menu ao clicar fora
+  setTimeout(() => {
+    document.addEventListener('mousedown', function fecharMenu(e) {
+      if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('mousedown', fecharMenu); }
+    });
+  }, 10);
 }
 </script> 
