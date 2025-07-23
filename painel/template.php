@@ -3,6 +3,10 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 $page_title = $page_title ?? 'Título da Página';
 $custom_header = $custom_header ?? '';
+
+// Detectar se estamos sendo acessados do diretório admin
+$is_admin_access = strpos($_SERVER['REQUEST_URI'], '/admin/') !== false;
+$asset_path = $is_admin_access ? '../painel/' : '';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -11,8 +15,16 @@ $custom_header = $custom_header ?? '';
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title><?= htmlspecialchars($page_title) ?> • Pixel12Digital</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="<?= $asset_path ?>assets/style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <?php if ($is_admin_access): ?>
+  <style>
+  /* Correções para acesso via admin */
+  .sidebar-logo {
+    background-image: url('<?= $asset_path ?>assets/images/logo-pixel12digital.png') !important;
+  }
+  </style>
+  <?php endif; ?>
   <style>
   html body .painel-card {
     background: #f9f9fb !important;

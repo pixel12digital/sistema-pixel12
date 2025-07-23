@@ -7,6 +7,10 @@ if (isset($_SESSION['logado']) && $_SESSION['logado']) {
     // Se quiser lógica mais avançada, ajuste aqui
     $is_admin = true;
 }
+
+// Detectar se estamos sendo acessados do diretório admin
+$is_admin_access = strpos($_SERVER['REQUEST_URI'], '/admin/') !== false;
+$logo_path = $is_admin_access ? '../painel/assets/images/logo-pixel12digital.png' : 'assets/images/logo-pixel12digital.png';
 ?>
 <style>
 body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
@@ -59,7 +63,7 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
 }
 </style>
 <div class="sidebar" id="sidebar">
-    <img src="assets/images/logo-pixel12digital.png" alt="Pixel 12 Digital" class="sidebar-logo" id="sidebarToggle">
+    <img src="<?php echo $logo_path; ?>" alt="Pixel 12 Digital" class="sidebar-logo" id="sidebarToggle">
     <nav class="sidebar-nav">
         <!-- Dashboard -->
         <a href="dashboard.php" class="sidebar-link<?php if($page=='dashboard.php') echo ' active'; ?>" title="Dashboard">
@@ -224,10 +228,10 @@ body { background: #181c23; color: #f5f5f5; font-family: Arial, sans-serif; }
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14.7 6.3a5 5 0 0 0-7.1 7.1l7.1-7.1z"/><path d="M5.3 17.7a5 5 0 0 0 7.1-7.1l-7.1 7.1z"/></svg>
                     Logs de Sistema
                 </a>
-                <a href="/admin/webhook-test.php" class="sidebar-sublink<?php if($page=='webhook-test.php') echo ' active'; ?>">
-                    <!-- Lucide Tool SVG -->
-                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14.7 6.3a5 5 0 0 0-7.1 7.1l7.1-7.1z"/><path d="M5.3 17.7a5 5 0 0 0 7.1-7.1l-7.1 7.1z"/></svg>
-                    Testes de Webhook
+                <a href="../admin/webhook-test.php" class="sidebar-sublink<?php if($page=='webhook-test.php') echo ' active'; ?>">
+                    <!-- Lucide Webhook SVG -->
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 12h.01"/><path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M22 13a18.15 18.15 0 0 1-20 0"/><path d="M6 13a18.15 18.15 0 0 1 12 0"/><path d="M12 10v4"/><path d="M12 21v-3"/></svg>
+                    Webhook
                 </a>
                 <a href="/admin/entregas-manuais.php" class="sidebar-sublink<?php if($page=='entregas-manuais.php') echo ' active'; ?>">
                     <!-- Lucide Package SVG -->
