@@ -426,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('api/sync_status.php?all=1')
       .then(r => r.json())
       .then(logs => {
-        logCompletoArea.textContent = logs.join('\n');
+        logCompletoArea.textContent = (logs.lines || []).join('\n');
       });
     modalLogCompleto.style.display = 'flex';
   }

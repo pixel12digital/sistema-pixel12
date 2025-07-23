@@ -86,8 +86,8 @@ if (!empty($result)) {
         if (strpos($logLower, 'processada e atualizada') !== false) {
             $processed++;
             $updated++;
-        } elseif (strpos($logLower, 'erro') !== false && 
-                  strpos($logLower, '0 erros') === false) {
+        } elseif ((strpos($logLower, 'erro sql') !== false || strpos($logLower, 'erro fatal') !== false || strpos($logLower, 'erro ao') !== false)
+            && strpos($logLower, '0 erros') === false) {
             $errors++;
         }
     }
