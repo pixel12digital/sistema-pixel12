@@ -331,6 +331,49 @@ function render_content() {
 <script src="assets/faturas_monitoramento.js"></script>
 <script src="assets/faturas_monitoramento_integracao.js"></script>
 <script>
+function excluirCobranca(asaasPaymentId, cobrancaId) {
+  if (!confirm('Tem certeza que deseja excluir esta cobrança?')) return;
+  fetch('api/excluir_cobranca.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ asaas_payment_id: asaasPaymentId, cobranca_id: cobrancaId })
+  })
+  .then(r => r.json())
+  .then(resp => {
+    if (resp.success) {
+      alert('Cobrança excluída com sucesso!');
+      location.reload();
+    } else {
+      alert('Erro ao excluir cobrança: ' + (resp.error || 'Erro desconhecido'));
+    }
+  })
+  .catch(() => {
+    alert('Erro ao conectar ao servidor.');
+  });
+}
+
+function marcarRecebida(asaasPaymentId, cobrancaId) {
+  if (!confirm('Confirmar recebimento desta cobrança?')) return;
+  fetch('api/marcar_recebida.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ asaas_payment_id: asaasPaymentId, cobranca_id: cobrancaId })
+  })
+  .then(r => r.json())
+  .then(resp => {
+    if (resp.success) {
+      alert('Cobrança marcada como recebida!');
+      location.reload();
+    } else {
+      alert('Erro ao marcar como recebida: ' + (resp.error || 'Erro desconhecido'));
+    }
+  })
+  .catch(() => {
+    alert('Erro ao conectar ao servidor.');
+  });
+}
+</script>
+<script>
 document.addEventListener('DOMContentLoaded', function() {
   // Verificar se o script foi carregado
   if (typeof ClienteMonitoramento !== 'undefined') {
