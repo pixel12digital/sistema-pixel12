@@ -8,7 +8,7 @@ if (!isset($_SESSION['logado']) || !$_SESSION['logado']) {
     echo "<h2>Erro: sessão expirada. Faça login novamente.</h2>";
     exit;
 }
-require_once 'config.php';
+require_once __DIR__ . '/config.php';
 require_once 'db.php';
 $config = $mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();
 $api_key = $config ? $config['valor'] : '';

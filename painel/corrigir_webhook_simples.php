@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once __DIR__ . '/config.php';
 
 echo "🔧 CORRIGINDO WEBHOOK - XAMPP FUNCIONANDO NA PORTA 8080\n\n";
 

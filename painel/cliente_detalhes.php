@@ -2,7 +2,7 @@
 $page = 'clientes.php';
 $page_title = 'Detalhes do Cliente';
 $custom_header = '';
-require_once 'config.php';
+require_once __DIR__ . '/config.php';
 require_once 'db.php';
 
 // Processa salvamento do formulário de edição do cliente

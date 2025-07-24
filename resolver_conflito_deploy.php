@@ -96,7 +96,9 @@ if (file_exists('config.php')) {
 }
 
 if (file_exists('painel/config.php')) {
-    echo "   ✅ painel/config.php existe\n";
+    require_once __DIR__ . '/painel/config.php';
+    echo "   ✅ painel/config.php carregado com sucesso\n";
+    echo "   Ambiente: " . (defined('DEBUG_MODE') && DEBUG_MODE ? 'DESENVOLVIMENTO' : 'PRODUÇÃO') . "\n";
 } else {
     echo "   ❌ painel/config.php não encontrado\n";
 }
