@@ -384,9 +384,44 @@ class MonitoramentoDashboard {
     /**
      * Ver detalhes do cliente
      */
-    verDetalhes(clienteId) {
-        // Implementar modal de detalhes
-        this.mostrarAlerta('Funcionalidade de detalhes em desenvolvimento', 'info');
+    async verDetalhes(clienteId) {
+        // Buscar dados detalhados do cliente monitorado
+        try {
+            const response = await fetch('api/buscar_dados_monitoramento_faturas.php');
+            const data = await response.json();
+            if (!data.success || !data.dados_monitoramento[clienteId]) {
+                this.mostrarAlerta('Não foi possível carregar os detalhes do cliente.', 'error');
+                return;
+            }
+            const cli = data.dados_monitoramento[clienteId];
+            let html = `<div class='mb-4'><b>Cliente:</b> ${cli.cliente_nome} <br><b>Celular:</b> ${cli.celular || '-'} <br><b>Monitorado:</b> ${cli.monitorado ? 'Sim' : 'Não'}</div>`;
+            html += `<div class='mb-4'><b>Próximas Ações:</b><br>`;
+            if (cli.proximas_acoes && cli.proximas_acoes.length > 0) {
+                html += `<ul class='list-disc pl-6'>`;
+                cli.proximas_acoes.forEach(a => {
+                    html += `<li><b>${a.tipo}</b> - ${a.data_agendada ? new Date(a.data_agendada).toLocaleString('pt-BR') : '-'} <span class='ml-2 px-2 py-1 rounded text-xs' style='background:${a.status==='agendada'?'#f59e0b':'#3b82f6'};color:white;'>${a.status}</span></li>`;
+                });
+                html += `</ul>`;
+            } else {
+                html += `<span class='text-gray-500'>Nenhuma ação agendada.</span>`;
+            }
+            html += `</div>`;
+            html += `<div class='mb-2'><b>Histórico de Envios Recentes:</b><br>`;
+            if (cli.historico_envios && cli.historico_envios.length > 0) {
+                html += `<ul class='list-disc pl-6'>`;
+                cli.historico_envios.forEach(e => {
+                    html += `<li><b>${e.tipo}</b> - ${e.data_hora ? new Date(e.data_hora).toLocaleString('pt-BR') : '-'} <span class='ml-2 px-2 py-1 rounded text-xs' style='background:${e.status==='enviado'?'#10b981':(e.status==='erro'?'#ef4444':'#f59e0b')};color:white;'>${e.status}</span> <span class='ml-2 text-xs text-gray-500'>${e.direcao}</span></li>`;
+                });
+                html += `</ul>`;
+            } else {
+                html += `<span class='text-gray-500'>Nenhum envio recente.</span>`;
+            }
+            html += `</div>`;
+            document.getElementById('detalhes-monitoramento-content').innerHTML = html;
+            document.getElementById('modal-detalhes-monitoramento').classList.remove('hidden');
+        } catch (error) {
+            this.mostrarAlerta('Erro ao buscar detalhes do cliente.', 'error');
+        }
     }
 
     /**

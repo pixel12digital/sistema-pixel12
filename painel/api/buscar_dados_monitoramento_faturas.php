@@ -29,14 +29,45 @@ try {
     
     $dados_monitoramento = [];
     while ($row = $result->fetch_assoc()) {
-        $dados_monitoramento[$row['cliente_id']] = [
+        $cliente_id = $row['cliente_id'];
+        // Buscar próximas ações agendadas (mensagens pendentes para o cliente)
+        $proximas_acoes = [];
+        $sql_agendadas = "SELECT tipo, data_agendada, status FROM mensagens_agendadas WHERE cliente_id = $cliente_id AND status IN ('agendada','pendente') ORDER BY data_agendada ASC LIMIT 3";
+        $res_agendadas = $mysqli->query($sql_agendadas);
+        if ($res_agendadas) {
+            while ($ag = $res_agendadas->fetch_assoc()) {
+                $proximas_acoes[] = [
+                    'tipo' => $ag['tipo'],
+                    'data_agendada' => $ag['data_agendada'],
+                    'status' => $ag['status']
+                ];
+            }
+        }
+        // Buscar histórico recente de envios (últimos 3)
+        $historico_envios = [];
+        $sql_envios = "SELECT tipo, canal_id, data_hora, status, direcao FROM mensagens_comunicacao WHERE cliente_id = $cliente_id ORDER BY data_hora DESC LIMIT 3";
+        $res_envios = $mysqli->query($sql_envios);
+        if ($res_envios) {
+            while ($env = $res_envios->fetch_assoc()) {
+                $historico_envios[] = [
+                    'tipo' => $env['tipo'],
+                    'canal_id' => $env['canal_id'],
+                    'data_hora' => $env['data_hora'],
+                    'status' => $env['status'],
+                    'direcao' => $env['direcao']
+                ];
+            }
+        }
+        $dados_monitoramento[$cliente_id] = [
             'monitorado' => boolval($row['monitorado']),
             'cliente_nome' => $row['cliente_nome'],
             'celular' => $row['celular'],
             'total_cobrancas' => intval($row['total_cobrancas']),
             'valor_vencido' => floatval($row['valor_vencido']),
             'cobrancas_vencidas' => intval($row['cobrancas_vencidas']),
-            'ultima_mensagem' => $row['ultima_mensagem'] ? date('d/m/Y H:i', strtotime($row['ultima_mensagem'])) : null
+            'ultima_mensagem' => $row['ultima_mensagem'] ? date('d/m/Y H:i', strtotime($row['ultima_mensagem'])) : null,
+            'proximas_acoes' => $proximas_acoes,
+            'historico_envios' => $historico_envios
         ];
     }
     

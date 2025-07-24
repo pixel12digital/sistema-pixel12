@@ -7,6 +7,7 @@ header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 
 require_once '../config.php';
+require_once '../db.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -119,7 +120,12 @@ try {
         echo json_encode(['success' => false, 'error' => 'Erro ao salvar o arquivo de configuração']);
         exit;
     }
-    
+
+    // Atualizar/inserir a chave no banco de dados
+    $chave_escaped = $mysqli->real_escape_string($nova_chave);
+    $sql = "INSERT INTO configuracoes (chave, valor, descricao, data_atualizacao) VALUES ('asaas_api_key', '$chave_escaped', 'Chave da API do Asaas', NOW())\n        ON DUPLICATE KEY UPDATE valor = '$chave_escaped', data_atualizacao = NOW()";
+    $mysqli->query($sql);
+
     // Log da alteração
     $log_data = date('Y-m-d H:i:s') . " - Chave API Asaas atualizada (tipo: $tipo) - Backup: $backup_file\n";
     file_put_contents(dirname(__FILE__) . '/../../logs/asaas_key_updates.log', $log_data, FILE_APPEND);

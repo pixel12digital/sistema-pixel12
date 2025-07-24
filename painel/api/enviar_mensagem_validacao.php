@@ -76,6 +76,24 @@ try {
     $log_data = date('Y-m-d H:i:s') . " - Mensagem de validação enviada para cliente $cliente_id ($cliente_nome) - $numero_formatado\n";
     file_put_contents('../log_envio_robo.txt', $log_data, FILE_APPEND);
 
+    // Enviar e-mail ao cliente
+    $email_cliente = '';
+    $res_email = $mysqli->query("SELECT email FROM clientes WHERE id = $cliente_id LIMIT 1");
+    if ($res_email && ($row_email = $res_email->fetch_assoc())) {
+        $email_cliente = $row_email['email'];
+    }
+    if ($email_cliente && filter_var($email_cliente, FILTER_VALIDATE_EMAIL)) {
+        $assunto = 'Validação de Cadastro - Pixel12 Digital';
+        $headers = "From: Pixel12 Digital <nao-responder@pixel12digital.com.br>\r\n";
+        $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+        $enviado_email = mail($email_cliente, $assunto, $mensagem, $headers);
+        $log_email = date('Y-m-d H:i:s') . " - Email de validacao para $cliente_id ($email_cliente): " . ($enviado_email ? 'ENVIADO' : 'FALHA') . "\n";
+        file_put_contents('../log_envio_robo.txt', $log_email, FILE_APPEND);
+    } else {
+        $log_email = date('Y-m-d H:i:s') . " - Email de validacao para $cliente_id: EMAIL INVALIDO OU NAO ENCONTRADO\n";
+        file_put_contents('../log_envio_robo.txt', $log_email, FILE_APPEND);
+    }
+
     echo json_encode([
         'success' => true,
         'message' => 'Mensagem de validação enviada com sucesso',

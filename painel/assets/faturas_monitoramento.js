@@ -23,11 +23,7 @@ class ClienteMonitoramento {
         });
 
         // Event listener para botão de validação
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('btn-validar-cliente')) {
-                this.enviarMensagemValidacao(e.target);
-            }
-        });
+        // Remover event listener e função enviarMensagemValidacao relacionadas ao botão 'Validar'
     }
 
     /**
@@ -601,4 +597,20 @@ document.addEventListener('DOMContentLoaded', () => {
         window.clienteMonitoramento.carregarClientesMonitorados();
         window.clienteMonitoramento.iniciarMonitoramentoAutomatico();
     }, 2000); // Aumentado para 2 segundos
+}); 
+
+// Sincronizar chave com banco
+$(document).on('click', '#btn-sincronizar-chave', function() {
+    var chaveAtual = $('.chave-atual').text().trim();
+    var $status = $('#status-sincronizar-chave');
+    $status.text('Sincronizando...');
+    $.post('api/sincronizar_asaas_key.php', { chave: chaveAtual }, function(resp) {
+        if (resp && resp.success) {
+            $status.text(resp.mensagem).css('color', resp.status === 'atualizada' ? 'green' : 'blue');
+        } else {
+            $status.text(resp && resp.error ? resp.error : 'Erro ao sincronizar').css('color', 'red');
+        }
+    }, 'json').fail(function() {
+        $status.text('Erro de comunicação com o servidor').css('color', 'red');
+    });
 }); 

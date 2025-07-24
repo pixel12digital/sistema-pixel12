@@ -144,15 +144,6 @@ function renderizarTabelaCobrancas() {
                         <input type="checkbox" class="checkbox-monitoramento" data-cliente-id="${cob.cliente_id}" style="width: 14px; height: 14px; cursor: pointer;">
                         <span>Monitorar</span>
                     </label>
-                    <button class="btn-validar-cliente" 
-                            data-cliente-id="${cob.cliente_id}" 
-                            data-cliente-nome="${cob.cliente_nome || ''}" 
-                            data-cliente-celular="${celularCliente}"
-                            style="background: #10b981; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer; transition: background 0.2s;"
-                            ${!celularCliente ? 'disabled' : ''}
-                            title="${!celularCliente ? 'Cliente sem celular' : 'Enviar mensagem de validação'}">
-                        Validar
-                    </button>
                 </div>
             `;
         }
