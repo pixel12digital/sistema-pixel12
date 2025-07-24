@@ -76,65 +76,31 @@ try {
         ]);
         exit;
     }
+
+    // Chave é válida, salvar no banco de dados
+    $chave_escaped = $mysqli->real_escape_string($nova_chave);
+    $sql = "INSERT INTO configuracoes (chave, valor, descricao, data_atualizacao) VALUES ('asaas_api_key', '$chave_escaped', 'Chave da API do Asaas', NOW()) ON DUPLICATE KEY UPDATE valor = '$chave_escaped', data_atualizacao = NOW()";
     
-    // Chave é válida, agora vamos atualizá-la no arquivo de configuração
-    $config_file = dirname(__FILE__) . '/../config.php';
-    $config_content = file_get_contents($config_file);
-    
-    if (!$config_content) {
-        echo json_encode(['success' => false, 'error' => 'Não foi possível ler o arquivo de configuração']);
-        exit;
-    }
-    
-    // Fazer backup do arquivo atual
-    $backup_file = dirname(__FILE__) . '/../config.php.backup.' . date('Y-m-d_H-i-s');
-    file_put_contents($backup_file, $config_content);
-    
-    // Substituir a chave no arquivo de configuração
-    // Detectar qual ambiente estamos (local ou produção)
-    $is_local = (isset($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME'] === 'localhost') ||
-                (isset($_SERVER['DOCUMENT_ROOT']) && strpos($_SERVER['DOCUMENT_ROOT'], 'xampp') !== false);
-    
-    if ($is_local) {
-        // Atualizar chave local
-        $pattern = "/define\('ASAAS_API_KEY',\s*getenv\('ASAAS_API_KEY'\)\s*\?\:\s*'[^']*'\);/";
-        $replacement = "define('ASAAS_API_KEY', getenv('ASAAS_API_KEY') ?: '$nova_chave');";
-    } else {
-        // Atualizar chave de produção
-        $pattern = "/define\('ASAAS_API_KEY',\s*'[^']*'\);/";
-        $replacement = "define('ASAAS_API_KEY', '$nova_chave');";
-    }
-    
-    $new_content = preg_replace($pattern, $replacement, $config_content);
-    
-    if ($new_content === null || $new_content === $config_content) {
+    if (!$mysqli->query($sql)) {
         echo json_encode([
-            'success' => false, 
-            'error' => 'Não foi possível atualizar a configuração. Padrão não encontrado.'
+            'success' => false,
+            'error' => 'Erro ao salvar chave no banco de dados: ' . $mysqli->error
         ]);
         exit;
     }
-    
-    // Salvar o arquivo atualizado
-    if (!file_put_contents($config_file, $new_content)) {
-        echo json_encode(['success' => false, 'error' => 'Erro ao salvar o arquivo de configuração']);
-        exit;
-    }
-
-    // Atualizar/inserir a chave no banco de dados
-    $chave_escaped = $mysqli->real_escape_string($nova_chave);
-    $sql = "INSERT INTO configuracoes (chave, valor, descricao, data_atualizacao) VALUES ('asaas_api_key', '$chave_escaped', 'Chave da API do Asaas', NOW())\n        ON DUPLICATE KEY UPDATE valor = '$chave_escaped', data_atualizacao = NOW()";
-    $mysqli->query($sql);
 
     // Log da alteração
-    $log_data = date('Y-m-d H:i:s') . " - Chave API Asaas atualizada (tipo: $tipo) - Backup: $backup_file\n";
-    file_put_contents(dirname(__FILE__) . '/../../logs/asaas_key_updates.log', $log_data, FILE_APPEND);
+    $log_data = date('Y-m-d H:i:s') . " - Chave API Asaas atualizada no banco (tipo: $tipo)\n";
+    $log_dir = dirname(__FILE__) . '/../../logs';
+    if (!is_dir($log_dir)) {
+        mkdir($log_dir, 0755, true);
+    }
+    file_put_contents($log_dir . '/asaas_key_updates.log', $log_data, FILE_APPEND);
     
     echo json_encode([
         'success' => true,
-        'message' => 'Chave da API atualizada com sucesso',
+        'message' => 'Chave da API atualizada com sucesso no banco de dados',
         'tipo' => $tipo,
-        'backup_file' => basename($backup_file),
         'timestamp' => date('Y-m-d H:i:s')
     ]);
     
