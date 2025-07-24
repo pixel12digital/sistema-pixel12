@@ -98,18 +98,27 @@ function testarChave($chave) {
 try {
     // Verificar se é uma requisição POST (testar nova chave) ou GET (testar chave atual)
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // Testar nova chave enviada no corpo da requisição
-        $input = json_decode(file_get_contents('php://input'), true);
+        // Aceitar tanto JSON quanto form-data
+        $chave = '';
         
-        if (!isset($input['chave']) || empty($input['chave'])) {
+        // Tentar pegar da form-data primeiro
+        if (isset($_POST['chave']) && !empty($_POST['chave'])) {
+            $chave = trim($_POST['chave']);
+        } else {
+            // Tentar pegar do JSON
+            $input = json_decode(file_get_contents('php://input'), true);
+            if ($input && isset($input['chave']) && !empty($input['chave'])) {
+                $chave = trim($input['chave']);
+            }
+        }
+        
+        if (empty($chave)) {
             echo json_encode([
                 'success' => false,
                 'error' => 'Chave não fornecida'
             ]);
             exit;
         }
-        
-        $chave = trim($input['chave']);
         
         // Validar formato da chave
         if (!preg_match('/^\$aact_(test|prod)_/', $chave)) {
@@ -124,16 +133,23 @@ try {
         echo json_encode($resultado);
         
     } else {
-        // Testar chave atual
-        if (!defined('ASAAS_API_KEY')) {
+        // Testar chave atual do banco de dados
+        require_once '../db.php';
+        $config = $mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1");
+        $chave_atual = '';
+        if ($config && ($row = $config->fetch_assoc())) {
+            $chave_atual = $row['valor'];
+        }
+        
+        if (!$chave_atual) {
             echo json_encode([
                 'success' => false,
-                'error' => 'Chave da API não está definida'
+                'error' => 'Chave da API não está definida no banco de dados'
             ]);
             exit;
         }
         
-        $resultado = testarChave(ASAAS_API_KEY);
+        $resultado = testarChave($chave_atual);
         echo json_encode($resultado);
     }
     
