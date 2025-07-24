@@ -614,3 +614,19 @@ $(document).on('click', '#btn-sincronizar-chave', function() {
         $status.text('Erro de comunicação com o servidor').css('color', 'red');
     });
 }); 
+
+// Forçar sincronização da chave com banco
+$(document).on('click', '#btn-forcar-chave', function() {
+    var chaveAtual = $('.chave-atual').text().trim();
+    var $status = $('#status-sincronizar-chave');
+    $status.text('Forçando sincronização...');
+    $.post('api/sincronizar_asaas_key.php', { chave: chaveAtual, forcar: 1 }, function(resp) {
+        if (resp && resp.success) {
+            $status.text('Chave forçada no banco com sucesso!').css('color', 'green');
+        } else {
+            $status.text(resp && resp.error ? resp.error : 'Erro ao forçar sincronização').css('color', 'red');
+        }
+    }, 'json').fail(function() {
+        $status.text('Erro de comunicação com o servidor').css('color', 'red');
+    });
+}); 
