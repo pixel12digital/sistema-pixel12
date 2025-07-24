@@ -8,14 +8,18 @@ if (!isset($_SESSION['logado']) || !$_SESSION['logado']) {
     exit;
 }
 require_once 'config.php';
+require_once 'db.php';
+$config = $mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();
+$api_key = $config ? $config['valor'] : '';
 
 function getAsaas($endpoint) {
+    global $api_key;
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, ASAAS_API_URL . $endpoint);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'access_token: ' . ASAAS_API_KEY
+        'access_token: ' . $api_key
     ]);
     $result = curl_exec($ch);
     if ($result === false) {

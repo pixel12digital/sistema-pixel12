@@ -1,6 +1,7 @@
 <?php
 require_once 'conexao.php';
 require_once 'config.php';
+require_once 'db.php';
 
 // Cria tabela clientes
 $conn->query("CREATE TABLE IF NOT EXISTS clientes (
@@ -30,13 +31,17 @@ $conn->query("CREATE TABLE IF NOT EXISTS cobrancas (
     FOREIGN KEY (cliente_id) REFERENCES clientes(id)
 )");
 
+$config = $conn->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();
+$api_key = $config ? $config['valor'] : '';
+
 function getAsaas($endpoint) {
+    global $api_key;
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, ASAAS_API_URL . $endpoint);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Content-Type: application/json',
-        'access_token: ' . ASAAS_API_KEY
+        'access_token: ' . $api_key
     ]);
     $result = curl_exec($ch);
     curl_close($ch);

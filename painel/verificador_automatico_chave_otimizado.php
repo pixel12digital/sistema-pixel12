@@ -5,6 +5,13 @@
  */
 
 require_once 'config.php';
+require_once 'db.php';
+
+function getApiKeyFromDb() {
+    global $mysqli;
+    $config = $mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();
+    return $config ? $config['valor'] : '';
+}
 
 class VerificadorAutomaticoChaveOtimizado {
     private $logFile;
@@ -45,7 +52,7 @@ class VerificadorAutomaticoChaveOtimizado {
         if (preg_match("/define\('ASAAS_API_KEY',\s*'([^']*)'\);/", $conteudo, $matches)) {
             return $matches[1];
         }
-        return ASAAS_API_KEY; // Fallback
+        return getApiKeyFromDb(); // Fallback
     }
     
     /**
@@ -127,15 +134,15 @@ class VerificadorAutomaticoChaveOtimizado {
         
         try {
             // Testar a chave atual
-            $resultado = $this->testarChave(ASAAS_API_KEY);
+            $resultado = $this->testarChave(getApiKeyFromDb());
             
             $status = [
                 'timestamp' => date('Y-m-d H:i:s'),
                 'valida' => $resultado['success'],
                 'http_code' => $resultado['http_code'],
                 'response_time' => round((microtime(true) - $inicio) * 1000, 2),
-                'chave_mascarada' => substr(ASAAS_API_KEY, 0, 20) . '...',
-                'tipo_chave' => strpos(ASAAS_API_KEY, '_test_') !== false ? 'TESTE' : 'PRODUÇÃO',
+                'chave_mascarada' => substr(getApiKeyFromDb(), 0, 20) . '...',
+                'tipo_chave' => strpos(getApiKeyFromDb(), '_test_') !== false ? 'TESTE' : 'PRODUÇÃO',
                 'verificacao_real' => true
             ];
             

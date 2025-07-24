@@ -22,6 +22,11 @@ if (!isset($mysqli) || !$mysqli || $mysqli->connect_errno) {
     die('Erro ao conectar ao banco de dados: ' . (isset($mysqli) && $mysqli ? $mysqli->connect_error : 'variável $mysqli não definida'));
 }
 
+// Buscar chave da API do Asaas
+require_once 'db.php';
+$config = $mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();
+$api_key = $config ? $config['valor'] : '';
+
 // Limpar o log antes de iniciar nova sincronização
 file_put_contents(__DIR__ . '/../logs/sincroniza_asaas_debug.log', '');
 
@@ -37,11 +42,12 @@ function printAndLog($mensagem) {
 }
 
 function getAsaas($endpoint) {
+    global $api_key;
     $ch = curl_init();
     $url = ASAAS_API_URL . $endpoint;
     $header = [
         'Content-Type: application/json',
-        'access_token: ' . ASAAS_API_KEY
+        'access_token: ' . $api_key
     ];
     logDetalhado("[REQ] URL: $url");
     logDetalhado("[REQ] HEADER: " . json_encode($header));

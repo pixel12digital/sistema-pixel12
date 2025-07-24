@@ -381,6 +381,8 @@ class CobrancaController {
      * Fazer requisição para a API do Asaas
      */
     private function requestAsaas($method, $endpoint, $data = null) {
+        $config = $this->mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();
+        $api_key = $config ? $config['valor'] : '';
         $ch = curl_init();
         $url = rtrim(ASAAS_API_URL, '/') . '/' . ltrim($endpoint, '/');
         
@@ -389,7 +391,7 @@ class CobrancaController {
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
-            'access_token: ' . ASAAS_API_KEY
+            'access_token: ' . $api_key
         ]);
         
         if ($data) {

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../api/asaasService.php';
+require_once 'db.php';
 
 $asaas = new AsaasService();
 $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
@@ -8,6 +9,43 @@ $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 $page = 0;
 $total_importadas = 0;
 $total_erros = 0;
+
+$config = $conn->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();
+$api_key = $config ? $config['valor'] : '';
+
+class AsaasService {
+    private $apiKey;
+    public function __construct() {
+        global $api_key;
+        $this->apiKey = $api_key;
+    }
+    public function getApiKey() {
+        return $this->apiKey;
+    }
+    public function getApiUrl() {
+        return ASAAS_API_URL;
+    }
+    public function request($method, $endpoint, $data = null) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $this->getApiUrl() . '/' . ltrim($endpoint, '/'));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'access_token: ' . $this->apiKey
+        ]);
+        if ($data) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        }
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return [
+            'body' => json_decode($result, true),
+            'http_code' => $httpCode
+        ];
+    }
+}
 
 echo "Chave Asaas usada: ".$asaas->getApiKey()."\n";
 echo "Endpoint Asaas: ".$asaas->getApiUrl()."\n";

@@ -7,12 +7,14 @@ header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 
 require_once '../config.php';
+require_once '../db.php';
 
 try {
-    if (defined('ASAAS_API_KEY')) {
-        $chave = ASAAS_API_KEY;
-        $tipo = strpos($chave, '_test_') !== false ? 'test' : 'prod';
-        
+    $config = $mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();
+    $chave = $config ? $config['valor'] : '';
+    $tipo = strpos($chave, '_test_') !== false ? 'test' : 'prod';
+
+    if ($chave) {
         echo json_encode([
             'success' => true,
             'chave' => $chave,

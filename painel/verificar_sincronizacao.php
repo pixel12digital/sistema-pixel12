@@ -11,12 +11,15 @@ echo str_repeat("=", 50) . "\n\n";
 
 // 1. Verificar conexão com API
 echo "1. 📡 TESTE DE CONECTIVIDADE:\n";
+$config = $mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();
+$api_key = $config ? $config['valor'] : '';
+
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, ASAAS_API_URL . '/customers?limit=1');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json',
-    'access_token: ' . ASAAS_API_KEY
+    'access_token: ' . $api_key
 ]);
 curl_setopt($ch, CURLOPT_TIMEOUT, 15);                    // Timeout maior
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);           // SSL configurado
