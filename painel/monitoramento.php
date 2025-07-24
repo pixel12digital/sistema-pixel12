@@ -11,6 +11,22 @@ function render_content() {
     <div>
       <h2 class="text-2xl font-bold text-gray-800">📊 Dashboard de Monitoramento</h2>
       <p class="text-gray-600 mt-1">Controle inteligente de clientes com cobranças vencidas</p>
+      <!-- Relógio do servidor e do navegador -->
+      <div class="flex gap-6 mt-2 mb-2">
+        <div class="text-sm text-gray-700">
+          <b>Horário do servidor:</b> <?php echo date('d/m/Y H:i:s'); ?> (<?php echo date_default_timezone_get(); ?>)
+        </div>
+        <div class="text-sm text-gray-700" id="relogio-navegador">
+          <b>Horário do navegador:</b> <span id="hora-navegador"></span>
+        </div>
+      </div>
+      <script>
+        function atualizarRelogioNavegador() {
+          document.getElementById('hora-navegador').innerText = new Date().toLocaleString('pt-BR');
+        }
+        setInterval(atualizarRelogioNavegador, 1000);
+        atualizarRelogioNavegador();
+      </script>
     </div>
     <div class="flex gap-3">
       <div class="text-center">
