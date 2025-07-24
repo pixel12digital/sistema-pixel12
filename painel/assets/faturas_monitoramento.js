@@ -588,6 +588,10 @@ Equipe Financeira Pixel12 Digital`;
     }
 }
 
+function getChaveAtualCompleta() {
+    return $('#chave-atual-display').attr('data-chave') || '';
+}
+
 // Inicializar sistema quando DOM estiver carregado
 document.addEventListener('DOMContentLoaded', () => {
     window.clienteMonitoramento = new ClienteMonitoramento();
@@ -601,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Sincronizar chave com banco
 $(document).on('click', '#btn-sincronizar-chave', function() {
-    var chaveAtual = $('.chave-atual').text().trim();
+    var chaveAtual = getChaveAtualCompleta();
     var $status = $('#status-sincronizar-chave');
     $status.text('Sincronizando...');
     $.post('api/sincronizar_asaas_key.php', { chave: chaveAtual }, function(resp) {
@@ -617,7 +621,7 @@ $(document).on('click', '#btn-sincronizar-chave', function() {
 
 // Forçar sincronização da chave com banco
 $(document).on('click', '#btn-forcar-chave', function() {
-    var chaveAtual = $('.chave-atual').text().trim();
+    var chaveAtual = getChaveAtualCompleta();
     var $status = $('#status-sincronizar-chave');
     $status.text('Forçando sincronização...');
     $.post('api/sincronizar_asaas_key.php', { chave: chaveAtual, forcar: 1 }, function(resp) {
@@ -632,7 +636,7 @@ $(document).on('click', '#btn-forcar-chave', function() {
 }); 
 
 $(document).on('click', '#btn-testar-chave-atual', function() {
-    var chaveAtual = $('.chave-atual').text().trim();
+    var chaveAtual = getChaveAtualCompleta();
     var $status = $('#status-sincronizar-chave');
     $status.text('Testando e sincronizando...');
     // Primeiro, testar a chave (pode ser via endpoint de teste, se existir)

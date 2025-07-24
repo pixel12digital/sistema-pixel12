@@ -495,13 +495,16 @@ document.addEventListener('DOMContentLoaded', function() {
           const tipo = chave.includes('_test_') ? 'TESTE' : 'PRODUÇÃO';
           const chaveMascarada = chave.substring(0, 20) + '...' + chave.substring(chave.length - 10);
           chaveAtualDisplay.textContent = `${tipo}: ${chaveMascarada}`;
+          chaveAtualDisplay.setAttribute('data-chave', chave); // Salva a chave completa
         } else {
           chaveAtualDisplay.textContent = 'Erro ao carregar chave';
+          chaveAtualDisplay.removeAttribute('data-chave');
         }
       })
       .catch(error => {
         console.error('Erro ao carregar chave:', error);
         chaveAtualDisplay.textContent = 'Erro ao carregar chave';
+        chaveAtualDisplay.removeAttribute('data-chave');
       });
   }
 
