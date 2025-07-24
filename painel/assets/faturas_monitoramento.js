@@ -630,3 +630,28 @@ $(document).on('click', '#btn-forcar-chave', function() {
         $status.text('Erro de comunicação com o servidor').css('color', 'red');
     });
 }); 
+
+$(document).on('click', '#btn-testar-chave-atual', function() {
+    var chaveAtual = $('.chave-atual').text().trim();
+    var $status = $('#status-sincronizar-chave');
+    $status.text('Testando e sincronizando...');
+    // Primeiro, testar a chave (pode ser via endpoint de teste, se existir)
+    $.post('api/test_asaas_key.php', { chave: chaveAtual }, function(resp) {
+        if (resp && resp.success) {
+            // Se válida, sincronizar no banco
+            $.post('api/sincronizar_asaas_key.php', { chave: chaveAtual, forcar: 1 }, function(resp2) {
+                if (resp2 && resp2.success) {
+                    $status.text('Chave testada e salva no banco com sucesso!').css('color', 'green');
+                } else {
+                    $status.text(resp2 && resp2.error ? resp2.error : 'Erro ao salvar no banco').css('color', 'red');
+                }
+            }, 'json').fail(function() {
+                $status.text('Erro ao salvar chave no banco').css('color', 'red');
+            });
+        } else {
+            $status.text(resp && resp.error ? resp.error : 'Chave inválida').css('color', 'red');
+        }
+    }, 'json').fail(function() {
+        $status.text('Erro ao testar chave').css('color', 'red');
+    });
+}); 
