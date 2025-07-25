@@ -1,5 +1,5 @@
 <?php
-require_once '../painel/config.php';
+require_once '../config.php';
 require_once '../painel/db.php';
 $cliente_id = intval($_GET['cliente_id'] ?? 0);
 $canal_id = intval($_GET['canal_id'] ?? 0);

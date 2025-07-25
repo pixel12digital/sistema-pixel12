@@ -1,5 +1,5 @@
 <?php
-require_once '../painel/config.php';
+require_once '../config.php';
 require_once '../painel/db.php';
 header('Content-Type: application/json');
 $res = $mysqli->query("SELECT canal_id FROM canais_padrao_funcoes WHERE funcao = 'financeiro' LIMIT 1");

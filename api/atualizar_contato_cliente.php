@@ -1,5 +1,5 @@
 <?php
-require_once '../painel/config.php';
+require_once '../config.php';
 require_once '../painel/db.php';
 header('Content-Type: application/json');
 $input = file_get_contents('php://input');
