@@ -7,6 +7,13 @@ header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 
 require_once '../config.php';
+require_once '../db.php';
+
+// Função para buscar a chave do banco
+function buscarChaveBanco($mysqli) {
+    $config = $mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();
+    return $config ? $config['valor'] : '';
+}
 
 // Função para testar uma chave específica
 function testarChave($chave) {
@@ -96,11 +103,8 @@ function testarChave($chave) {
 }
 
 try {
-    // Verificar se é uma requisição POST (testar nova chave) ou GET (testar chave atual)
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // Testar nova chave enviada no corpo da requisição
         $input = json_decode(file_get_contents('php://input'), true);
-        
         if (!isset($input['chave']) || empty($input['chave'])) {
             echo json_encode([
                 'success' => false,
@@ -108,9 +112,7 @@ try {
             ]);
             exit;
         }
-        
         $chave = trim($input['chave']);
-        
         // Validar formato da chave
         if (!preg_match('/^\$aact_(test|prod)_/', $chave)) {
             echo json_encode([
@@ -119,24 +121,21 @@ try {
             ]);
             exit;
         }
-        
         $resultado = testarChave($chave);
         echo json_encode($resultado);
-        
     } else {
-        // Testar chave atual
-        if (!defined('ASAAS_API_KEY')) {
+        // Buscar chave do banco!
+        $chave = buscarChaveBanco($mysqli);
+        if (!$chave) {
             echo json_encode([
                 'success' => false,
-                'error' => 'Chave da API não está definida'
+                'error' => 'Chave da API não está definida no banco'
             ]);
             exit;
         }
-        
-        $resultado = testarChave(ASAAS_API_KEY);
+        $resultado = testarChave($chave);
         echo json_encode($resultado);
     }
-    
 } catch (Exception $e) {
     echo json_encode([
         'success' => false,
