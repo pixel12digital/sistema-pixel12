@@ -12,7 +12,7 @@ header('ETag: "' . md5(time()) . '"');
 
 $page = 'comunicacao.php';
 $page_title = 'Comunicação - Gerenciar Canais';
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../config.php';
 require_once 'db.php';
 
 // Processa exclusão de canal antes de renderizar a página

@@ -4,7 +4,7 @@
  * Executar via cron: 0,30 * * * * php /caminho/para/painel/cron/monitoramento_automatico.php
  */
 
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 require_once '../db.php';
 
 // Função para sincronizar status das faturas do cliente com o Asaas

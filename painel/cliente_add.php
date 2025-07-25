@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../config.php';
 require_once 'db.php';
 
 function criarClienteAsaas($nome, $email, $telefone, $cpf_cnpj) {

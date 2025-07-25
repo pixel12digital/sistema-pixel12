@@ -14,7 +14,7 @@ $clientes = [
 // Cards de resumo (exemplo)
 $totalClientes = count($clientes);
 $totalBancos = count(array_unique(array_column($clientes, 'banco')));
-require_once 'config.php';
+require_once __DIR__ . '/../config.php';
 require_once 'db.php';
 // Paginação real
 $por_pagina = 15;

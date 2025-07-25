@@ -4,7 +4,7 @@
  * Interface para configurar a chave da API de forma segura
  */
 
-require_once 'config.php';
+require_once __DIR__ . '/../config.php';
 require_once 'db.php';
 
 // Verificar se é uma requisição POST para salvar

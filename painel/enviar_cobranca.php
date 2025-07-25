@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once __DIR__ . '/../config.php';
 require_once 'db.php';
 $data = json_decode(file_get_contents('php://input'), true);
 $celular = $data['celular'] ?? '';

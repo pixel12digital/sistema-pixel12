@@ -1,5 +1,5 @@
 <?php
-require_once 'config.php';
+require_once __DIR__ . '/../config.php';
 require_once 'db.php';
 $canal_id = intval($_GET['canal_id'] ?? 0);
 if (!$canal_id) { echo 'Canal não informado.'; exit; }

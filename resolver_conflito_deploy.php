@@ -88,7 +88,7 @@ echo "   " . str_replace("\n", "\n   ", trim($status)) . "\n\n";
 // 6. Testar configurações
 echo "6. Testando configurações...\n";
 if (file_exists('config.php')) {
-    require_once 'config.php';
+    require_once __DIR__ . '/config.php';
     echo "   ✅ config.php carregado com sucesso\n";
     echo "   Ambiente: " . (defined('DEBUG_MODE') && DEBUG_MODE ? 'DESENVOLVIMENTO' : 'PRODUÇÃO') . "\n";
 } else {
@@ -96,9 +96,7 @@ if (file_exists('config.php')) {
 }
 
 if (file_exists('painel/config.php')) {
-    require_once __DIR__ . '/painel/config.php';
-    echo "   ✅ painel/config.php carregado com sucesso\n";
-    echo "   Ambiente: " . (defined('DEBUG_MODE') && DEBUG_MODE ? 'DESENVOLVIMENTO' : 'PRODUÇÃO') . "\n";
+    echo "   ✅ painel/config.php existe\n";
 } else {
     echo "   ❌ painel/config.php não encontrado\n";
 }

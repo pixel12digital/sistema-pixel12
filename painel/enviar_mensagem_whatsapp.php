@@ -2,13 +2,8 @@
 date_default_timezone_set('America/Sao_Paulo');
 
 // Corrigir caminhos dos includes
-if (file_exists('../config.php')) {
-    require_once '../config.php';
-    require_once 'db.php';
-} else {
-    require_once 'config.php';
-    require_once 'db.php';
-}
+require_once __DIR__ . '/../config.php';
+require_once 'db.php';
 
 header('Content-Type: application/json');
 

@@ -7,7 +7,7 @@
  */
 
 header('Content-Type: application/json');
-require_once '../painel/config.php';
+require_once __DIR__ . '/../config.php';
 require_once '../painel/db.php';
 
 // Log da requisição

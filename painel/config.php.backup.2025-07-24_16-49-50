@@ -50,10 +50,14 @@ define('DB_PASS', 'Los@ngo#081081');
 /* ===== Configurações por ambiente ===== */
 if ($is_local) {
     // Configurações para desenvolvimento local (XAMPP)
+    // Usar a chave de produção válida que foi testada
+    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjMyOWFlYTU1LTY1ZjUtNDJjOC05YzY2LThlMGIxY2Y1MmRkOTo6JGFhY2hfMmUwZjZjZTAtYmQyOS00ZDA5LWI0OGUtNGEzNzU1YmM4ZTBl');
     define('DEBUG_MODE', true);
     define('ENABLE_CACHE', false); // Desabilitar cache em desenvolvimento
 } else {
     // Configurações para produção (Hostinger)
+    // API de produção Asaas
+    define('ASAAS_API_KEY', '$aact_prod_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OjMyOWFlYTU1LTY1ZjUtNDJjOC05YzY2LThlMGIxY2Y1MmRkOTo6JGFhY2hfMmUwZjZjZTAtYmQyOS00ZDA5LWI0OGUtNGEzNzU1YmM4ZTBl');
     define('DEBUG_MODE', false);
     define('ENABLE_CACHE', true);
 }
@@ -86,10 +90,4 @@ if (DEBUG_MODE) {
     $db_info = ' (Banco Remoto)';
     error_log("[CONFIG] Ambiente detectado: {$env_info}{$port_info}{$db_info} | Host: " . ($_SERVER['SERVER_NAME'] ?? 'CLI'));
 }
-
-/**
- * IMPORTANTE: A chave da API do Asaas agora é armazenada exclusivamente no banco de dados
- * na tabela 'configuracoes' com chave = 'asaas_api_key'
- * Use api/get_asaas_config.php para recuperar a chave ativa
- */
 ?> 

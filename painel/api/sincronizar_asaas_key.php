@@ -1,41 +1,67 @@
 <?php
-require_once '../db.php';
 header('Content-Type: application/json');
+header('Cache-Control: no-cache, must-revalidate');
 
-// Aceitar tanto application/json quanto form-data
-$chave_atual = '';
-$forcar = false;
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['chave'])) {
-        $chave_atual = trim($_POST['chave']);
-        $forcar = isset($_POST['forcar']) && $_POST['forcar'] == 1;
+require_once '../config.php';
+require_once '../db.php';
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'error' => 'Método não permitido']);
+    exit;
+}
+
+$chave = isset($_POST['chave']) ? trim($_POST['chave']) : '';
+$forcar = isset($_POST['forcar']) ? intval($_POST['forcar']) : 0;
+
+if (empty($chave)) {
+    echo json_encode(['success' => false, 'error' => 'Chave não fornecida']);
+    exit;
+}
+
+// Opcional: validar formato da chave (exemplo para chaves Asaas)
+if (!preg_match('/^\$a?c?t?_(test|prod)_/', $chave)) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'Formato de chave inválido. Deve começar com $act_test_ ou $act_prod_'
+    ]);
+    exit;
+}
+
+// Atualizar ou inserir a chave no banco de dados
+global $mysqli;
+if (!$mysqli || $mysqli->connect_errno) {
+    echo json_encode(['success' => false, 'error' => 'Erro ao conectar ao banco de dados']);
+    exit;
+}
+
+// Verifica se já existe a configuração
+try {
+    $query = "SELECT * FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1";
+    $result = $mysqli->query($query);
+    if ($result && $result->num_rows > 0) {
+        // Atualiza
+        $update = $mysqli->prepare("UPDATE configuracoes SET valor = ? WHERE chave = 'asaas_api_key'");
+        $update->bind_param('s', $chave);
+        $ok = $update->execute();
+        $update->close();
+        if ($ok) {
+            echo json_encode(['success' => true, 'mensagem' => 'Chave atualizada com sucesso!', 'status' => 'atualizada']);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Erro ao atualizar a chave no banco.']);
+        }
     } else {
-        $input = json_decode(file_get_contents('php://input'), true);
-        if ($input && isset($input['chave'])) {
-            $chave_atual = trim($input['chave']);
-            $forcar = isset($input['forcar']) && $input['forcar'] == 1;
+        // Insere
+        $insert = $mysqli->prepare("INSERT INTO configuracoes (chave, valor) VALUES ('asaas_api_key', ?)");
+        $insert->bind_param('s', $chave);
+        $ok = $insert->execute();
+        $insert->close();
+        if ($ok) {
+            echo json_encode(['success' => true, 'mensagem' => 'Chave cadastrada com sucesso!', 'status' => 'cadastrada']);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Erro ao cadastrar a chave no banco.']);
         }
     }
-}
-if (!$chave_atual) {
-    echo json_encode(['success' => false, 'error' => 'Chave não informada']);
-    exit;
-}
-// Buscar chave do banco
-$res = $mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1");
-$chave_banco = '';
-if ($res && ($row = $res->fetch_assoc())) {
-    $chave_banco = trim($row['valor']);
-}
-if ($chave_banco === $chave_atual && !$forcar) {
-    echo json_encode(['success' => true, 'status' => 'sincronizada', 'mensagem' => 'Chave já está sincronizada no banco.']);
-    exit;
-}
-// Atualizar banco (sempre que forçar ou se diferente)
-$chave_escaped = $mysqli->real_escape_string($chave_atual);
-$sql = "INSERT INTO configuracoes (chave, valor, descricao, data_atualizacao) VALUES ('asaas_api_key', '$chave_escaped', 'Chave da API do Asaas', NOW())\n    ON DUPLICATE KEY UPDATE valor = '$chave_escaped', data_atualizacao = NOW()";
-if ($mysqli->query($sql)) {
-    echo json_encode(['success' => true, 'status' => $forcar ? 'forcada' : 'atualizada', 'mensagem' => 'Chave do banco foi atualizada com sucesso!']);
-} else {
-    echo json_encode(['success' => false, 'error' => 'Erro ao atualizar a chave no banco: ' . $mysqli->error]);
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'error' => 'Erro: ' . $e->getMessage()]);
 } 

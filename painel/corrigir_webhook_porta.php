@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../config.php';
 
 echo "🔧 CORRIGINDO PROBLEMA DO WEBHOOK - DETECÇÃO AUTOMÁTICA DE PORTA\n\n";
 

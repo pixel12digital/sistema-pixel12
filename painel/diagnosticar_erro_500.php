@@ -49,7 +49,7 @@ foreach ($arquivos_essenciais as $arquivo) {
 // 3. Testar conexão com banco
 echo "\n3. TESTANDO CONEXÃO COM BANCO:\n";
 try {
-    require_once 'config.php';
+    require_once __DIR__ . '/../config.php';
     echo "   ✅ config.php carregado\n";
     
     require_once 'db.php';

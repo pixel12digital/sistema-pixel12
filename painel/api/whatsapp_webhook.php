@@ -2,7 +2,7 @@
 file_put_contents(__DIR__ . '/debug_webhook.log', date('Y-m-d H:i:s') . " - Teste de escrita\n", FILE_APPEND);
 error_log("[WEBHOOK] Teste de escrita executado", 0);
 header('Content-Type: application/json');
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 require_once '../db.php';
 
 $input = file_get_contents('php://input');

@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-require_once 'config.php';
+require_once __DIR__ . '/../config.php';
 
 // Configurações
 $vps_url = 'http://212.85.11.238:3000';

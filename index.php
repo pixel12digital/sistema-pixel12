@@ -3,7 +3,7 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 // Carregar configurações
-require_once 'config.php';
+require_once __DIR__ . '/config.php';
 require_once 'src/db.php';
 
 // Carregar autoloader ou classes necessárias

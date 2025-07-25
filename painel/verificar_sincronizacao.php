@@ -3,7 +3,7 @@
  * Script para verificar e diagnosticar problemas na sincronização com Asaas
  */
 
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 require_once 'db.php';
 
 echo "🔍 VERIFICAÇÃO DA SINCRONIZAÇÃO ASAAS\n";

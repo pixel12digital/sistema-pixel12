@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 
 try {
 file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Antes do require config\n", FILE_APPEND);
-require_once 'config.php';
+require_once __DIR__ . '/../config.php';
 file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Depois do require config\n", FILE_APPEND);
 file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Antes do require db\n", FILE_APPEND);
 require_once 'db.php';

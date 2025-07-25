@@ -4,7 +4,7 @@ header('Cache-Control: no-cache, must-revalidate');
 
 try {
     // Incluir configurações
-    require_once '../config.php';
+    require_once __DIR__ . '/../config.php';
     require_once '../db.php';
     
     // Testar conexão básica
