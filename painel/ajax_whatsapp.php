@@ -1,4 +1,7 @@
 <?php
+// Log de execução do script
+file_put_contents(__DIR__.'/debug_ajax_whatsapp.log', date('Y-m-d H:i:s')." - ajax_whatsapp.php executado | Action: ".($_GET['action'] ?? 'não definida')."\n", FILE_APPEND);
+
 // Proxy PHP para contornar CORS - WhatsApp API
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, no-store, must-revalidate');
@@ -35,12 +38,18 @@ if (isset($_GET['test'])) {
 
 // Função para fazer requisições à VPS
 function makeVPSRequest($endpoint, $method = 'GET', $data = null) {
-    global $vps_url;
+    global $vps_url; // Adicionar acesso à variável global
     
-    $url = $vps_url . $endpoint;
+    // Log de início para depuração
+    file_put_contents(__DIR__.'/debug_ajax_whatsapp.log', date('Y-m-d H:i:s')." - Iniciando requisição: $method $endpoint | Data: ".json_encode($data)."\n", FILE_APPEND);
+    
+    $start_time = microtime(true);
     $ch = curl_init();
     
-    curl_setopt($ch, CURLOPT_URL, $url);
+    // Log das configurações
+    file_put_contents(__DIR__.'/debug_ajax_whatsapp.log', date('Y-m-d H:i:s')." - vps_url: $vps_url | Endpoint final: ".$vps_url . $endpoint."\n", FILE_APPEND);
+    
+    curl_setopt($ch, CURLOPT_URL, $vps_url . $endpoint);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 5); // Reduzido de 10 para 5 segundos
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2); // Reduzido de 5 para 2 segundos
@@ -63,7 +72,6 @@ function makeVPSRequest($endpoint, $method = 'GET', $data = null) {
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
     }
     
-    $start_time = microtime(true);
     $response = curl_exec($ch);
     $end_time = microtime(true);
     
@@ -72,6 +80,11 @@ function makeVPSRequest($endpoint, $method = 'GET', $data = null) {
     $info = curl_getinfo($ch);
     $latency = round(($end_time - $start_time) * 1000, 2); // Calcular latência em ms
     curl_close($ch);
+
+    // Log detalhado de erro para depuração
+    if ($httpCode !== 200 || $error || !$response) {
+        file_put_contents(__DIR__.'/debug_ajax_whatsapp.log', date('Y-m-d H:i:s')." - Erro na requisição: $method $endpoint | HTTP: $httpCode | Erro: $error | Resposta: $response\n", FILE_APPEND);
+    }
     
     // Log otimizado apenas com informações essenciais
     error_log("[WhatsApp Ajax] $method $endpoint: HTTP $httpCode ({$latency}ms)");

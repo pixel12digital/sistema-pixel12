@@ -538,7 +538,7 @@ function abrirModalWhatsapp(cliente_id, canal_id, mensagemPadrao, cobranca_id) {
     .then(jsonPadrao => {
       const canalPadraoId = jsonPadrao.canal_id;
       // Carregar canais
-      fetch('/painel/api/listar_canais_whatsapp.php')
+      fetch(getBasePath() + '/painel/api/listar_canais_whatsapp.php')
         .then(r => {
           return r.text().then(txt => {
             try {
@@ -549,18 +549,18 @@ function abrirModalWhatsapp(cliente_id, canal_id, mensagemPadrao, cobranca_id) {
             }
           });
         })
-        .then(canais => {
+        .then(resp => {
           selectCanal.innerHTML = '';
-          canais.forEach((canal, idx) => {
+          (resp.canais || []).forEach((canal, idx) => {
             const opt = document.createElement('option');
             opt.value = canal.id;
             let label = '';
-            if (canal.nome_exibicao && canal.identificador) {
-              label = canal.nome_exibicao + ' (' + canal.identificador + ')';
-            } else if (canal.nome_exibicao) {
-              label = canal.nome_exibicao;
-            } else if (canal.identificador) {
-              label = canal.identificador;
+            if (canal.numero && canal.nome) {
+              label = canal.numero + ' - ' + canal.nome;
+            } else if (canal.numero) {
+              label = canal.numero;
+            } else if (canal.nome) {
+              label = canal.nome;
             } else {
               label = 'Canal';
             }

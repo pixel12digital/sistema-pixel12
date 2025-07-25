@@ -1,5 +1,5 @@
 <?php
-require_once '../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once '../db.php';
 require_once '../cache_manager.php';
 
@@ -29,19 +29,17 @@ if ($resCanais) {
             
     // CORREÇÃO: Usar proxy PHP ao invés de chamada direta ao localhost
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, 'http://localhost/loja-virtual-revenda/painel/ajax_whatsapp.php');
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, 'action=status');
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_URL, 'http://localhost:8080/loja-virtual-revenda/painel/ajax_whatsapp.php?action=status');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/x-www-form-urlencoded',
         'User-Agent: Status-Canais-API/1.0'
     ]);
             
             $result = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            file_put_contents(__DIR__.'/debug_status_update.log', date('Y-m-d H:i:s')." - Resposta ajax_whatsapp: $result\n", FILE_APPEND);
     curl_close($ch);
     
     if ($result && $httpCode === 200) {
@@ -86,9 +84,8 @@ if ($resCanais) {
             $novo_status = $conectado ? 'conectado' : 'pendente';
             $status_atual = $canal['status'] ?? 'pendente';
             
-            if ($novo_status !== $status_atual) {
-                $mysqli->query("UPDATE canais_comunicacao SET status = '" . $mysqli->real_escape_string($novo_status) . "' WHERE id = $canal_id");
-            }
+            $mysqli->query("UPDATE canais_comunicacao SET status = '" . $mysqli->real_escape_string($novo_status) . "' WHERE id = $canal_id");
+            file_put_contents(__DIR__.'/debug_status_update.log', date('Y-m-d H:i:s')." - Canal $canal_id atualizado para $novo_status | Linhas afetadas: ".$mysqli->affected_rows."\n", FILE_APPEND);
             
             // Ajuste de fuso horário para lastSession
             if ($lastSession) {
