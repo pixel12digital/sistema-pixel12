@@ -24,7 +24,7 @@ class VerificadorAutomaticoChaveOtimizado {
         $this->logFile = __DIR__ . '/../logs/verificador_chave_otimizado.log';
         $this->statusFile = __DIR__ . '/../logs/status_chave_atual.json';
         $this->cacheFile = __DIR__ . '/../logs/cache_chave.json';
-        $this->configFile = __DIR__ . '/config.php';
+        $this->configFile = __DIR__ . '/../config.php';
         $this->ultimaVerificacao = $this->carregarUltimaVerificacao();
     }
     

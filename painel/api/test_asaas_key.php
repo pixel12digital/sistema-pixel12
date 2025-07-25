@@ -6,8 +6,14 @@
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 
-require_once '../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once '../db.php';
+
+// Debug: Verificar conexão com o banco
+if (!$mysqli || $mysqli->connect_errno) {
+    echo json_encode(['success' => false, 'error' => 'Erro ao conectar ao banco: ' . $mysqli->connect_error]);
+    exit;
+}
 
 // Função para buscar a chave do banco
 function buscarChaveBanco($mysqli) {
@@ -18,6 +24,9 @@ function buscarChaveBanco($mysqli) {
 // Função para testar uma chave específica
 function testarChave($chave) {
     $ch = curl_init();
+    if (!$ch) {
+        return ['success' => false, 'error' => 'Falha ao inicializar cURL'];
+    }
     curl_setopt($ch, CURLOPT_URL, ASAAS_API_URL . '/customers?limit=1');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -30,6 +39,9 @@ function testarChave($chave) {
     curl_setopt($ch, CURLOPT_USERAGENT, 'Asaas-API-Test/1.0');
     
     $result = curl_exec($ch);
+    if ($result === false) {
+        return ['success' => false, 'error' => 'Erro cURL: ' . curl_error($ch)];
+    }
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlError = curl_error($ch);
     $curlInfo = curl_getinfo($ch);

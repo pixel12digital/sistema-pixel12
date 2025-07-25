@@ -6,7 +6,7 @@
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 
-require_once '../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once '../db.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -78,7 +78,7 @@ try {
     }
     
     // Chave é válida, agora vamos atualizá-la no arquivo de configuração
-    $config_file = dirname(__FILE__) . '/../config.php';
+    $config_file = __DIR__ . '/../../config.php';
     $config_content = file_get_contents($config_file);
     
     if (!$config_content) {
