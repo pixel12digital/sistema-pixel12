@@ -131,5 +131,5 @@ deploy.sh
 # Arquivos específicos de desenvolvimento local
 painel/db.local.php
 config.local.json
-config.php
-painel/config.php
+# config.php
+# painel/config.php
