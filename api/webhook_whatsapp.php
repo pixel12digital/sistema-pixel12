@@ -105,7 +105,7 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     
     error_log("[WEBHOOK WHATSAPP] 📊 Conversa recente: $total_mensagens mensagens, $respostas_automaticas respostas automáticas nas últimas 24h");
     
-    // Salvar mensagem recebida
+    // Salvar mensagem recebida COM numero_whatsapp
     $texto_escaped = $mysqli->real_escape_string($texto);
     $tipo_escaped = $mysqli->real_escape_string($tipo);
     
@@ -171,25 +171,45 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     }
     
     if ($enviar_resposta) {
-        if ($cliente_id) {
-            // Cliente encontrado - usar contact_name ou nome
-            $nome_cliente = $cliente['contact_name'] ?: $cliente['nome'];
-            $resposta_automatica = "Olá $nome_cliente! 👋\n\n";
-            $resposta_automatica .= "Recebemos sua mensagem no canal financeiro da *Pixel12Digital*.\n\n";
-            $resposta_automatica .= "Como posso ajudá-lo hoje?";
+        // Usar IA para gerar resposta inteligente
+        try {
+            $payload_ia = [
+                'from' => $numero,
+                'message' => $texto,
+                'type' => $tipo
+            ];
             
-            error_log("[WEBHOOK WHATSAPP] 👤 Resposta para cliente conhecido: $nome_cliente");
-        } else {
-            // Cliente não encontrado - mensagem padrão do canal financeiro
-            $resposta_automatica = "Olá! 👋\n\n";
-            $resposta_automatica .= "Este é o canal da *Pixel12Digital* exclusivo para tratar de assuntos financeiros.\n\n";
-            $resposta_automatica .= "📞 *Para atendimento comercial ou suporte técnico:*\n";
-            $resposta_automatica .= "Entre em contato através do número: *47 997309525*\n\n";
-            $resposta_automatica .= "📋 *Para informações sobre seu plano, faturas, etc.:*\n";
-            $resposta_automatica .= "Por favor, digite seu *CPF* para localizar seu cadastro.\n\n";
-            $resposta_automatica .= "Aguardo seu retorno! 😊";
+            // Chamar endpoint da IA
+            $ch_ia = curl_init(($is_local ? 'http://localhost:8080/loja-virtual-revenda' : '') . '/painel/api/processar_mensagem_ia.php');
+            curl_setopt($ch_ia, CURLOPT_POST, true);
+            curl_setopt($ch_ia, CURLOPT_POSTFIELDS, json_encode($payload_ia));
+            curl_setopt($ch_ia, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
+            curl_setopt($ch_ia, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch_ia, CURLOPT_TIMEOUT, 15);
             
-            error_log("[WEBHOOK WHATSAPP] 🆕 Resposta para cliente não encontrado");
+            $resposta_ia = curl_exec($ch_ia);
+            $http_code_ia = curl_getinfo($ch_ia, CURLINFO_HTTP_CODE);
+            curl_close($ch_ia);
+            
+            if ($resposta_ia && $http_code_ia === 200) {
+                $resultado_ia = json_decode($resposta_ia, true);
+                if ($resultado_ia && $resultado_ia['success'] && isset($resultado_ia['resposta'])) {
+                    $resposta_automatica = $resultado_ia['resposta'];
+                    error_log("[WEBHOOK WHATSAPP] 🤖 Resposta IA gerada - Intenção: {$resultado_ia['intencao']}");
+                } else {
+                    error_log("[WEBHOOK WHATSAPP] ❌ Erro na resposta IA: " . $resposta_ia);
+                    // Fallback para resposta padrão
+                    $resposta_automatica = gerarRespostaPadrao($cliente_id, $cliente);
+                }
+            } else {
+                error_log("[WEBHOOK WHATSAPP] ❌ Falha na comunicação com IA: HTTP $http_code_ia");
+                // Fallback para resposta padrão
+                $resposta_automatica = gerarRespostaPadrao($cliente_id, $cliente);
+            }
+        } catch (Exception $e) {
+            error_log("[WEBHOOK WHATSAPP] ❌ Exceção ao processar IA: " . $e->getMessage());
+            // Fallback para resposta padrão
+            $resposta_automatica = gerarRespostaPadrao($cliente_id, $cliente);
         }
     }
     
@@ -221,7 +241,7 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
                 if ($api_result && isset($api_result["success"]) && $api_result["success"]) {
                     error_log("[WEBHOOK WHATSAPP] ✅ Resposta automática enviada com sucesso");
                     
-                    // Salvar resposta enviada
+                    // Salvar resposta enviada COM numero_whatsapp
                     $resposta_escaped = $mysqli->real_escape_string($resposta_automatica);
                     $sql_resposta = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status, numero_whatsapp) 
                                     VALUES ($canal_id, " . ($cliente_id ? $cliente_id : "NULL") . ", \"$resposta_escaped\", \"texto\", \"$data_hora\", \"enviado\", \"enviado\", \"$numero_escaped\")";
@@ -249,7 +269,8 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         'resposta_enviada' => $enviar_resposta,
         'tem_conversa_recente' => $tem_conversa_recente,
         'total_mensagens_24h' => $total_mensagens,
-        'respostas_automaticas_24h' => $respostas_automaticas
+        'respostas_automaticas_24h' => $respostas_automaticas,
+        'numero_whatsapp' => $numero
     ]);
 } else {
     // Responder erro
@@ -258,5 +279,29 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         'success' => false,
         'message' => 'Evento inválido ou dados incompletos'
     ]);
+}
+
+/**
+ * Gera resposta padrão quando a IA falha
+ */
+function gerarRespostaPadrao($cliente_id, $cliente) {
+    if ($cliente_id) {
+        // Cliente encontrado - usar contact_name ou nome
+        $nome_cliente = $cliente['contact_name'] ?: $cliente['nome'];
+        $resposta = "Olá $nome_cliente! 👋\n\n";
+        $resposta .= "Recebemos sua mensagem no canal financeiro da *Pixel12Digital*.\n\n";
+        $resposta .= "Como posso ajudá-lo hoje?";
+    } else {
+        // Cliente não encontrado - mensagem padrão do canal financeiro
+        $resposta = "Olá! 👋\n\n";
+        $resposta .= "Este é o canal da *Pixel12Digital* exclusivo para tratar de assuntos financeiros.\n\n";
+        $resposta .= "📞 *Para atendimento comercial ou suporte técnico:*\n";
+        $resposta .= "Entre em contato através do número: *47 997309525*\n\n";
+        $resposta .= "📋 *Para informações sobre seu plano, faturas, etc.:*\n";
+        $resposta .= "Por favor, digite seu *CPF* para localizar seu cadastro.\n\n";
+        $resposta .= "Aguardo seu retorno! 😊";
+    }
+    
+    return $resposta;
 }
 ?> 
