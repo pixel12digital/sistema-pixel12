@@ -360,7 +360,7 @@ function toggleMonitor() {
         atualizarMonitor();
         
         // Atualiza a cada 5 segundos
-        monitorInterval = setInterval(atualizarMonitor, 5000);
+        monitorInterval = setInterval(atualizarMonitor, 60000); // Aumentado para 60s
     } else {
         // Para monitor
         monitorAtivo = false;

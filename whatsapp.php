@@ -698,7 +698,7 @@ header('Expires: 0');
             carregarQRCode();
             
             // Monitorar conexão a cada 3 segundos
-            monitorTimer = setInterval(monitorarConexaoWhatsApp, 3000);
+            monitorTimer = setInterval(monitorarConexaoWhatsApp, 30000); // Aumentado para 30s
         }
         
         function carregarQRCode() {

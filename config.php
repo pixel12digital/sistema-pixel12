@@ -91,6 +91,28 @@ define('CACHE_MAX_SIZE', '100MB');
 define('WHATSAPP_ROBOT_URL', 'http://212.85.11.238:3000');
 define('WHATSAPP_TIMEOUT', 10);
 
+/* ===== CONFIGURAÇÕES OTIMIZADAS PARA REDUZIR CONEXÕES ===== */
+// Configurações de polling otimizadas
+define("POLLING_CONFIGURACOES", 60000);    // 60 segundos
+define("POLLING_WHATSAPP", 30000);         // 30 segundos
+define("POLLING_MONITORAMENTO", 60000);    // 60 segundos
+define("POLLING_CHAT", 60000);             // 60 segundos
+define("POLLING_COMUNICACAO", 120000);     // 2 minutos
+
+// Configurações de cache
+define("CACHE_ENABLED", true);
+define("CACHE_TTL", 300);                  // 5 minutos
+
+// Configurações de conexão otimizadas
+define("DB_PERSISTENT", true);
+define("DB_TIMEOUT", 10);
+define("DB_MAX_RETRIES", 3);
+
+// Configurações de rate limiting
+define("RATE_LIMIT_ENABLED", true);
+define("RATE_LIMIT_MAX_REQUESTS", 100);    // 100 requisições por hora
+define("RATE_LIMIT_WINDOW", 3600);         // 1 hora
+
 /* ===== Log para debug ===== */
 if (DEBUG_MODE) {
     $env_info = $is_local ? 'DESENVOLVIMENTO' : 'PRODUÇÃO';

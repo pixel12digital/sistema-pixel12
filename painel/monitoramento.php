@@ -24,7 +24,7 @@ function render_content() {
         function atualizarRelogioNavegador() {
           document.getElementById('hora-navegador').innerText = new Date().toLocaleString('pt-BR');
         }
-        setInterval(atualizarRelogioNavegador, 1000);
+        setInterval(atualizarRelogioNavegador, 60000); // Aumentado para 60s
         atualizarRelogioNavegador();
       </script>
     </div>
