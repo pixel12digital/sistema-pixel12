@@ -2169,7 +2169,17 @@ document.addEventListener('DOMContentLoaded', function() {
       
       setTimeout(() => {
         btn.textContent = originalText;
+        btn.disabled = false;
       }, 2000);
+    }
+  };
+  
+  window.abrirTesteCobrancas = function() {
+    const clienteId = new URLSearchParams(window.location.search).get('cliente_id');
+    if (clienteId) {
+      window.open(`teste_cobrancas.php?cliente_id=${clienteId}`, '_blank');
+    } else {
+      alert('Cliente não selecionado');
     }
   };
 });

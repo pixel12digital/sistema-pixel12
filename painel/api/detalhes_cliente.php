@@ -16,9 +16,6 @@ if (!$cliente_id) {
     exit;
 }
 
-// Debug: Log do cliente_id recebido
-error_log("Detalhes cliente - Cliente ID: $cliente_id, Modo edição: " . ($modo_edicao ? 'sim' : 'não') . ", Forçar atualização: " . ($forcar_atualizacao ? 'sim' : 'não'));
-
 // Incluir o arquivo JavaScript com as funções de edição e exclusão
 echo '<script src="../assets/chat-functions.js"></script>';
 
@@ -27,7 +24,6 @@ if ($modo_edicao || $forcar_atualizacao) {
     // Invalidar cache se forçar atualização
     if ($forcar_atualizacao) {
         cache_forget("detalhes_cliente_{$cliente_id}");
-        error_log("Cache invalidado para cliente $cliente_id");
     }
     render_cliente_ficha($cliente_id, $modo_edicao);
 } else {

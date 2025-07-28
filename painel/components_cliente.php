@@ -1,5 +1,99 @@
 <?php
 // Componente reutilizável: renderiza o bloco completo de detalhes do cliente (com abas, cards, etc.)
+
+// Função auxiliar para formatar campos
+function formatar_campo($campo, $valor) {
+  if ($valor === null || $valor === '' || $valor === '0-0-0' || $valor === '0000-00-00') return '—';
+  $labels = [
+    'nome' => 'Nome', 'contact_name' => 'Contato Principal', 'cpf_cnpj' => 'CPF/CNPJ', 'razao_social' => 'Razão Social',
+    'data_criacao' => 'Data de Criação', 'data_atualizacao' => 'Data de Atualização', 'asaas_id' => 'ID Asaas',
+    'referencia_externa' => 'Referência Externa', 'criado_em_asaas' => 'Criado no Asaas', 'email' => 'E-mail',
+    'emails_adicionais' => 'E-mails Adicionais', 'telefone' => 'Telefone', 'celular' => 'Celular', 'cep' => 'CEP',
+    'rua' => 'Rua', 'numero' => 'Número', 'complemento' => 'Complemento', 'bairro' => 'Bairro', 'cidade' => 'Cidade',
+    'estado' => 'Estado', 'pais' => 'País', 'id' => 'ID', 'observacoes' => 'Observações', 'plano' => 'Plano', 'status' => 'Status',
+    'notificacao_desativada' => 'Notificações Desativadas'
+  ];
+  $label = $labels[$campo] ?? ucfirst(str_replace('_', ' ', $campo));
+  
+  // Datas
+  if (preg_match('/^\d{4}-\d{2}-\d{2}/', $valor)) {
+    $data = substr($valor, 0, 10);
+    $partes = explode('-', $data);
+    if (count($partes) === 3) return "$label: {$partes[2]}/{$partes[1]}/{$partes[0]}";
+  }
+  
+  // CPF/CNPJ
+  if ($campo === 'cpf_cnpj' && preg_match('/^\d{11,14}$/', $valor)) {
+    if (strlen($valor) === 11) {
+      return "$label: " . preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $valor);
+    } else {
+      return "$label: " . preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $valor);
+    }
+  }
+  
+  // Telefone/Celular
+  if (($campo === 'telefone' || $campo === 'celular') && preg_match('/^\d{10,11}$/', $valor)) {
+    return "$label: (" . substr($valor,0,2) . ") " . substr($valor,-9,-4) . '-' . substr($valor,-4);
+  }
+  
+  // Notificação desativada (boolean)
+  if ($campo === 'notificacao_desativada') {
+    return "$label: " . ($valor ? 'Sim' : 'Não');
+  }
+  
+  // Label padrão
+  return "$label: $valor";
+}
+
+// Função para renderizar campo editável
+function render_campo_editavel($campo, $valor, $cliente_id, $cliente) {
+  $valor_exibicao = $valor;
+  if ($valor === null || $valor === '' || $valor === '0-0-0' || $valor === '0000-00-00') {
+    $valor_exibicao = '—';
+  }
+  
+  // Campos que não devem ser editáveis
+  $campos_nao_editaveis = ['id', 'data_criacao', 'data_atualizacao'];
+  
+  if (in_array($campo, $campos_nao_editaveis)) {
+    // Campo somente leitura
+    if ($campo === 'id') {
+      return '<span style="font-family:monospace; background:#f3f4f6; padding:4px 8px; border-radius:6px; color:#7c2ae8;">' . htmlspecialchars($valor_exibicao) . '</span>';
+    } elseif (in_array($campo, ['data_criacao', 'data_atualizacao'])) {
+      return '<span style="color:#64748b; font-size:0.9em;">' . htmlspecialchars($valor_exibicao) . '</span>';
+    }
+  }
+  
+  // Campo editável
+  $valor_original = $valor ?? '';
+  $placeholder = '';
+  
+  // Placeholders específicos
+  if ($campo === 'contact_name') $placeholder = 'Ex: João Silva';
+  elseif ($campo === 'email') $placeholder = 'exemplo@email.com';
+  elseif ($campo === 'telefone') $placeholder = '(11) 99999-9999';
+  elseif ($campo === 'celular') $placeholder = '(11) 99999-9999';
+  elseif ($campo === 'cpf_cnpj') $placeholder = '123.456.789-00';
+  elseif ($campo === 'cep') $placeholder = '12345-678';
+  
+  // Caso especial para celular com link WhatsApp
+  if ($campo === 'celular' && !empty($valor)) {
+    $celularLimpo = preg_replace('/\D/', '', $valor);
+    if (strlen($celularLimpo) === 11 && strpos($celularLimpo, '55') !== 0) {
+      $celularLimpo = '55' . $celularLimpo;
+    }
+    if (preg_match('/^55\d{11}$/', $celularLimpo)) {
+      return '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($valor_original) . '" data-placeholder="' . $placeholder . '">
+        <a href="#" class="abrir-whats-url" style="color:#25D366;text-decoration:underline;" title="Abrir chat interno" data-numero="' . $celularLimpo . '" data-cliente-id="' . intval($cliente['id']) . '">' . htmlspecialchars($valor_exibicao) . '</a>
+      </span>';
+    }
+  }
+  
+  return '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($valor_original) . '" data-placeholder="' . $placeholder . '">
+    ' . htmlspecialchars($valor_exibicao) . '
+  </span>';
+}
+
 function render_cliente_ficha($cliente_id, $modo_edicao = false) {
   global $mysqli;
   if (!$cliente_id) return;
@@ -26,101 +120,6 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
   $configuracoes = [
     'notificacao_desativada', 'referencia_externa', 'observacoes'
   ];
-  
-  // Função auxiliar para formatar campos
-  if (!function_exists('formatar_campo')) {
-    function formatar_campo($campo, $valor) {
-      if ($valor === null || $valor === '' || $valor === '0-0-0' || $valor === '0000-00-00') return '—';
-      $labels = [
-        'nome' => 'Nome', 'contact_name' => 'Contato Principal', 'cpf_cnpj' => 'CPF/CNPJ', 'razao_social' => 'Razão Social',
-        'data_criacao' => 'Data de Criação', 'data_atualizacao' => 'Data de Atualização', 'asaas_id' => 'ID Asaas',
-        'referencia_externa' => 'Referência Externa', 'criado_em_asaas' => 'Criado no Asaas', 'email' => 'E-mail',
-        'emails_adicionais' => 'E-mails Adicionais', 'telefone' => 'Telefone', 'celular' => 'Celular', 'cep' => 'CEP',
-        'rua' => 'Rua', 'numero' => 'Número', 'complemento' => 'Complemento', 'bairro' => 'Bairro', 'cidade' => 'Cidade',
-        'estado' => 'Estado', 'pais' => 'País', 'id' => 'ID', 'observacoes' => 'Observações', 'plano' => 'Plano', 'status' => 'Status',
-        'notificacao_desativada' => 'Notificações Desativadas'
-      ];
-      $label = $labels[$campo] ?? ucfirst(str_replace('_', ' ', $campo));
-      
-      // Datas
-      if (preg_match('/^\d{4}-\d{2}-\d{2}/', $valor)) {
-        $data = substr($valor, 0, 10);
-        $partes = explode('-', $data);
-        if (count($partes) === 3) return "$label: {$partes[2]}/{$partes[1]}/{$partes[0]}";
-      }
-      
-      // CPF/CNPJ
-      if ($campo === 'cpf_cnpj' && preg_match('/^\d{11,14}$/', $valor)) {
-        if (strlen($valor) === 11) {
-          return "$label: " . preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $valor);
-        } else {
-          return "$label: " . preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $valor);
-        }
-      }
-      
-      // Telefone/Celular
-      if (($campo === 'telefone' || $campo === 'celular') && preg_match('/^\d{10,11}$/', $valor)) {
-        return "$label: (" . substr($valor,0,2) . ") " . substr($valor,-9,-4) . '-' . substr($valor,-4);
-      }
-      
-      // Notificação desativada (boolean)
-      if ($campo === 'notificacao_desativada') {
-        return "$label: " . ($valor ? 'Sim' : 'Não');
-      }
-      
-      // Label padrão
-      return "$label: $valor";
-    }
-  }
-  
-  // Função para renderizar campo editável
-  function render_campo_editavel($campo, $valor, $cliente_id, $cliente) {
-    $valor_exibicao = $valor;
-    if ($valor === null || $valor === '' || $valor === '0-0-0' || $valor === '0000-00-00') {
-      $valor_exibicao = '—';
-    }
-    
-    // Campos que não devem ser editáveis
-    $campos_nao_editaveis = ['id', 'data_criacao', 'data_atualizacao'];
-    
-    if (in_array($campo, $campos_nao_editaveis)) {
-      // Campo somente leitura
-      if ($campo === 'id') {
-        return '<span style="font-family:monospace; background:#f3f4f6; padding:4px 8px; border-radius:6px; color:#7c2ae8;">' . htmlspecialchars($valor_exibicao) . '</span>';
-      } elseif (in_array($campo, ['data_criacao', 'data_atualizacao'])) {
-        return '<span style="color:#64748b; font-size:0.9em;">' . htmlspecialchars($valor_exibicao) . '</span>';
-      }
-    }
-    
-    // Campo editável
-    $valor_original = $valor ?? '';
-    $placeholder = '';
-    
-    // Placeholders específicos
-    if ($campo === 'contact_name') $placeholder = 'Ex: João Silva';
-    elseif ($campo === 'email') $placeholder = 'exemplo@email.com';
-    elseif ($campo === 'telefone') $placeholder = '(11) 99999-9999';
-    elseif ($campo === 'celular') $placeholder = '(11) 99999-9999';
-    elseif ($campo === 'cpf_cnpj') $placeholder = '123.456.789-00';
-    elseif ($campo === 'cep') $placeholder = '12345-678';
-    
-    // Caso especial para celular com link WhatsApp
-    if ($campo === 'celular' && !empty($valor)) {
-      $celularLimpo = preg_replace('/\D/', '', $valor);
-      if (strlen($celularLimpo) === 11 && strpos($celularLimpo, '55') !== 0) {
-        $celularLimpo = '55' . $celularLimpo;
-      }
-      if (preg_match('/^55\d{11}$/', $celularLimpo)) {
-        return '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($valor_original) . '" data-placeholder="' . $placeholder . '">
-          <a href="#" class="abrir-whats-url" style="color:#25D366;text-decoration:underline;" title="Abrir chat interno" data-numero="' . $celularLimpo . '" data-cliente-id="' . intval($cliente['id']) . '">' . htmlspecialchars($valor_exibicao) . '</a>
-        </span>';
-      }
-    }
-    
-    return '<span class="campo-editavel" data-campo="' . $campo . '" data-valor="' . htmlspecialchars($valor_original) . '" data-placeholder="' . $placeholder . '">
-      ' . htmlspecialchars($valor_exibicao) . '
-    </span>';
-  }
   
   echo '<style>
 .painel-container { max-width: 900px !important; margin: 40px auto !important; background: #f3f4f6 !important; border-radius: 18px !important; box-shadow: 0 6px 32px #7c2ae820, 0 2px 12px #0003 !important; padding: 32px 24px !important; }
