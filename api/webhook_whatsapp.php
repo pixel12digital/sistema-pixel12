@@ -41,7 +41,7 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         substr($numero_limpo, -11),                       // Últimos 11 dígitos
         substr($numero_limpo, -10),                       // Últimos 10 dígitos
         substr($numero_limpo, -9),                        // Últimos 9 dígitos (sem DDD)
-        substr($numero_limpo, 2, 2) . '9' . substr($numero_limpo, 4), // Sem código + 9 (4796164699)
+        substr($numero_limpo, 2, 2) . '9' . substr($numero_limpo, 4), // Sem código + 9
     ];
     
     $cliente_id = null;
@@ -84,12 +84,33 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         error_log("[WEBHOOK WHATSAPP] 🆕 Canal financeiro criado - ID: $canal_id");
     }
     
+    // Verificar se já existe conversa recente para este número específico (últimas 24 horas)
+    $numero_escaped = $mysqli->real_escape_string($numero);
+    
+    // Buscar conversa por número WhatsApp (mais preciso)
+    $sql_conversa_recente = "SELECT COUNT(*) as total_mensagens, 
+                                   MAX(data_hora) as ultima_mensagem,
+                                   MIN(data_hora) as primeira_mensagem,
+                                   COUNT(CASE WHEN direcao = 'enviado' AND mensagem LIKE '%Olá%Recebemos sua mensagem%' THEN 1 END) as respostas_automaticas
+                            FROM mensagens_comunicacao 
+                            WHERE canal_id = $canal_id 
+                            AND numero_whatsapp = '$numero_escaped'
+                            AND data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)";
+    
+    $result_conversa = $mysqli->query($sql_conversa_recente);
+    $conversa_info = $result_conversa->fetch_assoc();
+    $total_mensagens = $conversa_info['total_mensagens'];
+    $respostas_automaticas = $conversa_info['respostas_automaticas'];
+    $tem_conversa_recente = $total_mensagens > 0;
+    
+    error_log("[WEBHOOK WHATSAPP] 📊 Conversa recente: $total_mensagens mensagens, $respostas_automaticas respostas automáticas nas últimas 24h");
+    
     // Salvar mensagem recebida
     $texto_escaped = $mysqli->real_escape_string($texto);
     $tipo_escaped = $mysqli->real_escape_string($tipo);
     
-    $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) 
-            VALUES ($canal_id, " . ($cliente_id ? $cliente_id : 'NULL') . ", '$texto_escaped', '$tipo_escaped', '$data_hora', 'recebido', 'recebido')";
+    $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status, numero_whatsapp) 
+            VALUES ($canal_id, " . ($cliente_id ? $cliente_id : 'NULL') . ", '$texto_escaped', '$tipo_escaped', '$data_hora', 'recebido', 'recebido', '$numero_escaped')";
     
     if ($mysqli->query($sql)) {
         $mensagem_id = $mysqli->insert_id;
@@ -111,30 +132,69 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     
     // Preparar resposta automática baseada na situação
     $resposta_automatica = '';
+    $enviar_resposta = false;
     
-    if ($cliente_id) {
-        // Cliente encontrado - usar contact_name ou nome
-        $nome_cliente = $cliente['contact_name'] ?: $cliente['nome'];
-        $resposta_automatica = "Olá $nome_cliente! 👋\n\n";
-        $resposta_automatica .= "Recebemos sua mensagem no canal financeiro da *Pixel12Digital*.\n\n";
-        $resposta_automatica .= "Como posso ajudá-lo hoje?";
-        
-        error_log("[WEBHOOK WHATSAPP] 👤 Resposta para cliente conhecido: $nome_cliente");
+    // Lógica para evitar duplicidade e garantir conversa única:
+    // 1. Se é a primeira mensagem da conversa (sem conversa recente)
+    // 2. Se a última mensagem foi há mais de 2 horas (nova sessão)
+    // 3. Se ainda não foi enviada resposta automática hoje
+    
+    if (!$tem_conversa_recente) {
+        // Primeira mensagem da conversa - sempre enviar resposta
+        $enviar_resposta = true;
+        error_log("[WEBHOOK WHATSAPP] 🆕 Primeira mensagem da conversa - enviando resposta");
     } else {
-        // Cliente não encontrado - mensagem padrão do canal financeiro
-        $resposta_automatica = "Olá! 👋\n\n";
-        $resposta_automatica .= "Este é o canal da *Pixel12Digital* exclusivo para tratar de assuntos financeiros.\n\n";
-        $resposta_automatica .= "📞 *Para atendimento comercial ou suporte técnico:*\n";
-        $resposta_automatica .= "Entre em contato através do número: *47 997309525*\n\n";
-        $resposta_automatica .= "📋 *Para informações sobre seu plano, faturas, etc.:*\n";
-        $resposta_automatica .= "Por favor, digite seu *CPF* para localizar seu cadastro.\n\n";
-        $resposta_automatica .= "Aguardo seu retorno! 😊";
+        // Verificar se a última mensagem foi há mais de 2 horas
+        $ultima_mensagem = $conversa_info['ultima_mensagem'];
+        $tempo_desde_ultima = time() - strtotime($ultima_mensagem);
         
-        error_log("[WEBHOOK WHATSAPP] 🆕 Resposta para cliente não encontrado");
+        if ($tempo_desde_ultima > 7200) { // Mais de 2 horas
+            $enviar_resposta = true;
+            error_log("[WEBHOOK WHATSAPP] ⏰ Conversa retomada após " . round($tempo_desde_ultima/60) . " minutos - enviando resposta");
+        } else {
+            // Verificar se já foi enviada resposta automática hoje
+            if ($respostas_automaticas == 0) {
+                // Verificar se é uma mensagem que requer resposta específica
+                $texto_lower = strtolower(trim($texto));
+                $palavras_chave = ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'hello', 'hi'];
+                
+                if (in_array($texto_lower, $palavras_chave)) {
+                    $enviar_resposta = true;
+                    error_log("[WEBHOOK WHATSAPP] 👋 Saudação detectada - enviando resposta");
+                } else {
+                    error_log("[WEBHOOK WHATSAPP] 🔇 Conversa em andamento - não enviando resposta automática");
+                }
+            } else {
+                error_log("[WEBHOOK WHATSAPP] 🔇 Resposta automática já enviada hoje - não enviando novamente");
+            }
+        }
+    }
+    
+    if ($enviar_resposta) {
+        if ($cliente_id) {
+            // Cliente encontrado - usar contact_name ou nome
+            $nome_cliente = $cliente['contact_name'] ?: $cliente['nome'];
+            $resposta_automatica = "Olá $nome_cliente! 👋\n\n";
+            $resposta_automatica .= "Recebemos sua mensagem no canal financeiro da *Pixel12Digital*.\n\n";
+            $resposta_automatica .= "Como posso ajudá-lo hoje?";
+            
+            error_log("[WEBHOOK WHATSAPP] 👤 Resposta para cliente conhecido: $nome_cliente");
+        } else {
+            // Cliente não encontrado - mensagem padrão do canal financeiro
+            $resposta_automatica = "Olá! 👋\n\n";
+            $resposta_automatica .= "Este é o canal da *Pixel12Digital* exclusivo para tratar de assuntos financeiros.\n\n";
+            $resposta_automatica .= "📞 *Para atendimento comercial ou suporte técnico:*\n";
+            $resposta_automatica .= "Entre em contato através do número: *47 997309525*\n\n";
+            $resposta_automatica .= "📋 *Para informações sobre seu plano, faturas, etc.:*\n";
+            $resposta_automatica .= "Por favor, digite seu *CPF* para localizar seu cadastro.\n\n";
+            $resposta_automatica .= "Aguardo seu retorno! 😊";
+            
+            error_log("[WEBHOOK WHATSAPP] 🆕 Resposta para cliente não encontrado");
+        }
     }
     
     // Enviar resposta automática via WhatsApp
-    if ($resposta_automatica) {
+    if ($resposta_automatica && $enviar_resposta) {
         try {
             // Usar URL do WhatsApp configurada no config.php
             $api_url = WHATSAPP_ROBOT_URL . "/send/text";
@@ -163,8 +223,8 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
                     
                     // Salvar resposta enviada
                     $resposta_escaped = $mysqli->real_escape_string($resposta_automatica);
-                    $sql_resposta = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) 
-                                    VALUES ($canal_id, " . ($cliente_id ? $cliente_id : "NULL") . ", \"$resposta_escaped\", \"texto\", \"$data_hora\", \"enviado\", \"enviado\")";
+                    $sql_resposta = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status, numero_whatsapp) 
+                                    VALUES ($canal_id, " . ($cliente_id ? $cliente_id : "NULL") . ", \"$resposta_escaped\", \"texto\", \"$data_hora\", \"enviado\", \"enviado\", \"$numero_escaped\")";
                     $mysqli->query($sql_resposta);
                 } else {
                     error_log("[WEBHOOK WHATSAPP] ❌ Erro ao enviar resposta automática: " . $api_response);
@@ -186,7 +246,10 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         'formato_encontrado' => $formato_encontrado,
         'canal_id' => $canal_id,
         'mensagem_id' => $mensagem_id ?? null,
-        'resposta_enviada' => !empty($resposta_automatica)
+        'resposta_enviada' => $enviar_resposta,
+        'tem_conversa_recente' => $tem_conversa_recente,
+        'total_mensagens_24h' => $total_mensagens,
+        'respostas_automaticas_24h' => $respostas_automaticas
     ]);
 } else {
     // Responder erro
