@@ -839,6 +839,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (primeiraAba) {
                   trocarAba(primeiraAba);
                 }
+                
+                // Inicializar edição inline após o modal ser carregado
+                inicializarEdicaoInlineModal();
               }, 100);
             })
             .catch(() => { modalBody.innerHTML = '<span style="color:#e11d48;">Erro ao carregar dados do cliente.</span>'; });
@@ -906,4 +909,146 @@ function exibirModalConfirmacaoLiberarEnvio(clienteId, vencimento) {
       btn.disabled = false;
     });
   };
+} 
+
+// Função para inicializar edição inline no modal de cliente
+function inicializarEdicaoInlineModal() {
+  console.log('Inicializando edição inline no modal...');
+  
+  function initEdicaoInline() {
+    const modalBody = document.getElementById('modal-cliente-detalhes-body');
+    if (!modalBody) return;
+    
+    const campos = modalBody.querySelectorAll('.campo-editavel');
+    console.log('Campos encontrados no modal:', campos.length);
+    
+    campos.forEach(function(campo) {
+      campo.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (this.classList.contains('editando')) return;
+        
+        const valorOriginal = this.getAttribute('data-valor') || '';
+        const nomeCampo = this.getAttribute('data-campo');
+        const clienteId = this.closest('.painel-container')?.getAttribute('data-cliente-id');
+        
+        console.log('Editando no modal:', nomeCampo, valorOriginal, 'Cliente ID:', clienteId);
+        
+        if (!clienteId) {
+          console.error('Cliente ID não encontrado');
+          return;
+        }
+        
+        // Criar input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = valorOriginal;
+        input.style.cssText = 'border:none;outline:none;background:transparent;font-size:inherit;font-family:inherit;color:inherit;width:100%;min-width:200px;padding:0;margin:0;';
+        
+        // Substituir conteúdo
+        this.innerHTML = '';
+        this.appendChild(input);
+        this.classList.add('editando');
+        
+        // Focar no input
+        setTimeout(function() {
+          input.focus();
+          input.select();
+        }, 10);
+        
+        // Função para salvar
+        function salvar() {
+          const novoValor = input.value.trim();
+          
+          if (novoValor === valorOriginal) {
+            cancelar();
+            return;
+          }
+          
+          // Mostrar salvando
+          campo.innerHTML = '<span style="color: #7c2ae8;">Salvando...</span>';
+          campo.classList.add('salvando');
+          
+          // Enviar para servidor
+          const formData = new FormData();
+          formData.append('id', clienteId);
+          formData.append(nomeCampo, novoValor);
+          
+          fetch('api/editar_cliente.php', {
+            method: 'POST',
+            body: formData
+          })
+          .then(function(response) {
+            return response.json();
+          })
+          .then(function(data) {
+            if (data.success) {
+              // Sucesso
+              campo.classList.remove('salvando', 'editando');
+              campo.classList.add('sucesso');
+              campo.innerHTML = novoValor || '—';
+              campo.setAttribute('data-valor', novoValor);
+              
+              setTimeout(function() {
+                campo.classList.remove('sucesso');
+              }, 2000);
+            } else {
+              // Erro
+              campo.classList.remove('salvando');
+              campo.classList.add('erro');
+              campo.innerHTML = '<span style="color: #ef4444;">Erro ao salvar</span>';
+              
+              setTimeout(function() {
+                campo.classList.remove('erro');
+                campo.innerHTML = valorOriginal || '—';
+              }, 3000);
+            }
+          })
+          .catch(function(error) {
+            // Erro de rede
+            campo.classList.remove('salvando');
+            campo.classList.add('erro');
+            campo.innerHTML = '<span style="color: #ef4444;">Erro de conexão</span>';
+            
+            setTimeout(function() {
+              campo.classList.remove('erro');
+              campo.innerHTML = valorOriginal || '—';
+            }, 3000);
+          });
+        }
+        
+        // Função para cancelar
+        function cancelar() {
+          campo.classList.remove('editando');
+          campo.innerHTML = valorOriginal || '—';
+        }
+        
+        // Event listeners
+        input.onkeydown = function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            salvar();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelar();
+          }
+        };
+        
+        input.onblur = function() {
+          setTimeout(function() {
+            if (campo.classList.contains('editando')) {
+              salvar();
+            }
+          }, 100);
+        };
+      };
+    });
+  }
+  
+  // Inicializar
+  initEdicaoInline();
+  
+  // Reinicializar após um delay
+  setTimeout(initEdicaoInline, 1000);
 } 

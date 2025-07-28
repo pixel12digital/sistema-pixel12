@@ -43,29 +43,11 @@ function formatar_campo($campo, $valor, $cliente_id = null) {
   
   // Se o campo é editável e temos o ID do cliente
   if (in_array($campo, $campos_editaveis) && $cliente_id) {
-    $valor_original = $valor;
-    $valor_exibicao = $valor;
-    
-    // Formatação específica para exibição
-    if ($campo === 'cpf_cnpj' && preg_match('/^\d{11,14}$/', $valor)) {
-      if (strlen($valor) === 11) {
-        $valor_exibicao = preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $valor);
-      } else {
-        $valor_exibicao = preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $valor);
-      }
-    }
-    
-    if (($campo === 'telefone' || $campo === 'celular') && preg_match('/^\d{10,11}$/', $valor)) {
-      $valor_exibicao = "(" . substr($valor,0,2) . ") " . substr($valor,-9,-4) . '-' . substr($valor,-4);
-    }
-    
     return sprintf(
-      '<span class="campo-editavel" data-campo="%s" data-valor="%s" data-cliente-id="%d" title="Clique para editar">%s: %s</span>',
+      '<span class="campo-editavel" data-campo="%s" data-valor="%s">%s</span>',
       htmlspecialchars($campo),
-      htmlspecialchars($valor_original),
-      $cliente_id,
-      htmlspecialchars($label),
-      htmlspecialchars($valor_exibicao)
+      htmlspecialchars($valor),
+      htmlspecialchars($valor)
     );
   }
   
@@ -435,18 +417,12 @@ $total_vencido = $total_vencido ?? 0.0;
 }
 </style>
 
-<div class="painel-container">
+<div class="painel-container" data-cliente-id="<?= $cliente_id ?>">
   <div class="painel-header">
-    <div class="painel-avatar"><?= strtoupper(substr($cliente['nome'] ?? '?', 0, 1)) ?></div>
+    <div class="painel-avatar"><?= strtoupper(substr($cliente['nome'] ?? 'C', 0, 1)) ?></div>
     <div>
-      <div class="painel-nome"><?= htmlspecialchars($cliente['nome'] ?? 'Cliente não encontrado') ?></div>
-      <?php if (!empty($cliente['status'])): ?>
-        <span class="painel-badge" style="background:#d1fae5;color:#065f46;">Status: <?= htmlspecialchars($cliente['status']) ?></span>
-      <?php endif; ?>
-      <?php if (!empty($cliente['plano'])): ?>
-        <span class="painel-badge">Plano: <?= htmlspecialchars($cliente['plano']) ?></span>
-      <?php endif; ?>
-      <div class="text-gray-500 text-sm">ID: <?= htmlspecialchars($cliente['id'] ?? '-') ?> | Asaas: <?= htmlspecialchars($cliente['asaas_id'] ?? '-') ?></div>
+      <h2 class="painel-nome"><?= htmlspecialchars($cliente['nome'] ?? 'Cliente') ?></h2>
+      <p class="painel-info">ID: <?= $cliente_id ?> | Asaas: <?= htmlspecialchars($cliente['asaas_id'] ?? '—') ?></p>
     </div>
   </div>
   
@@ -761,275 +737,135 @@ document.addEventListener("DOMContentLoaded", function() {
 
 // Função para inicializar a edição inline
 function inicializarEdicaoInline() {
-  // Adicionar event listeners para campos editáveis
-  document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('campo-editavel')) {
-      iniciarEdicao(e.target);
-    }
-  });
+  console.log('Inicializando edição inline no modal...');
   
-  // Adicionar event listeners para teclas
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && e.target.classList.contains('campo-editavel-input')) {
-      e.preventDefault();
-      salvarEdicao(e.target);
-    } else if (e.key === 'Escape' && e.target.classList.contains('campo-editavel-input')) {
-      e.preventDefault();
-      cancelarEdicao(e.target);
-    }
-  });
-  
-  // Adicionar event listeners para perder foco
-  document.addEventListener('blur', function(e) {
-    if (e.target.classList.contains('campo-editavel-input')) {
-      setTimeout(() => {
-        if (!e.target.parentElement.contains(document.activeElement)) {
-          salvarEdicao(e.target);
+  function initEdicaoInline() {
+    const campos = document.querySelectorAll('.campo-editavel');
+    console.log('Campos encontrados no modal:', campos.length);
+    
+    campos.forEach(function(campo) {
+      campo.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (this.classList.contains('editando')) return;
+        
+        const valorOriginal = this.getAttribute('data-valor') || '';
+        const nomeCampo = this.getAttribute('data-campo');
+        
+        console.log('Editando no modal:', nomeCampo, valorOriginal);
+        
+        // Criar input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = valorOriginal;
+        input.style.cssText = 'border:none;outline:none;background:transparent;font-size:inherit;font-family:inherit;color:inherit;width:100%;min-width:200px;padding:0;margin:0;';
+        
+        // Substituir conteúdo
+        this.innerHTML = '';
+        this.appendChild(input);
+        this.classList.add('editando');
+        
+        // Focar no input
+        setTimeout(function() {
+          input.focus();
+          input.select();
+        }, 10);
+        
+        // Função para salvar
+        function salvar() {
+          const novoValor = input.value.trim();
+          
+          if (novoValor === valorOriginal) {
+            cancelar();
+            return;
+          }
+          
+          // Mostrar salvando
+          campo.innerHTML = '<span style="color: #7c2ae8;">Salvando...</span>';
+          campo.classList.add('salvando');
+          
+          // Enviar para servidor
+          const formData = new FormData();
+          formData.append('id', <?= json_encode($cliente_id) ?>);
+          formData.append(nomeCampo, novoValor);
+          
+          fetch('api/editar_cliente.php', {
+            method: 'POST',
+            body: formData
+          })
+          .then(function(response) {
+            return response.json();
+          })
+          .then(function(data) {
+            if (data.success) {
+              // Sucesso
+              campo.classList.remove('salvando', 'editando');
+              campo.classList.add('sucesso');
+              campo.innerHTML = novoValor || '—';
+              campo.setAttribute('data-valor', novoValor);
+              
+              setTimeout(function() {
+                campo.classList.remove('sucesso');
+              }, 2000);
+            } else {
+              // Erro
+              campo.classList.remove('salvando');
+              campo.classList.add('erro');
+              campo.innerHTML = '<span style="color: #ef4444;">Erro ao salvar</span>';
+              
+              setTimeout(function() {
+                campo.classList.remove('erro');
+                campo.innerHTML = valorOriginal || '—';
+              }, 3000);
+            }
+          })
+          .catch(function(error) {
+            // Erro de rede
+            campo.classList.remove('salvando');
+            campo.classList.add('erro');
+            campo.innerHTML = '<span style="color: #ef4444;">Erro de conexão</span>';
+            
+            setTimeout(function() {
+              campo.classList.remove('erro');
+              campo.innerHTML = valorOriginal || '—';
+            }, 3000);
+          });
         }
-      }, 100);
-    }
-  }, true);
-}
-
-// Função para iniciar edição
-function iniciarEdicao(elemento) {
-  if (elemento.classList.contains('editando') || elemento.classList.contains('salvando')) {
-    return;
+        
+        // Função para cancelar
+        function cancelar() {
+          campo.classList.remove('editando');
+          campo.innerHTML = valorOriginal || '—';
+        }
+        
+        // Event listeners
+        input.onkeydown = function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            salvar();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelar();
+          }
+        };
+        
+        input.onblur = function() {
+          setTimeout(function() {
+            if (campo.classList.contains('editando')) {
+              salvar();
+            }
+          }, 100);
+        };
+      };
+    });
   }
   
-  const campo = elemento.getAttribute('data-campo');
-  const valorOriginal = elemento.getAttribute('data-valor');
-  const clienteId = elemento.getAttribute('data-cliente-id');
+  // Inicializar
+  initEdicaoInline();
   
-  // Extrair apenas o valor (sem o label)
-  const textoCompleto = elemento.textContent;
-  const partes = textoCompleto.split(': ');
-  const valor = partes.length > 1 ? partes.slice(1).join(': ') : valorOriginal;
-  
-  // Criar input
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'campo-editavel-input';
-  input.value = valorOriginal || valor;
-  input.setAttribute('data-campo-original', campo);
-  input.setAttribute('data-valor-original', valorOriginal || valor);
-  input.setAttribute('data-cliente-id', clienteId);
-  
-  // Limpar elemento e adicionar input
-  elemento.innerHTML = '';
-  elemento.appendChild(input);
-  elemento.classList.add('editando');
-  
-  // Focar no input
-  setTimeout(() => {
-    input.focus();
-    input.select();
-  }, 10);
-}
-
-// Função para salvar edição
-function salvarEdicao(input) {
-  const elemento = input.parentElement;
-  const campo = input.getAttribute('data-campo-original');
-  const valorOriginal = input.getAttribute('data-valor-original');
-  const valorNovo = input.value.trim();
-  const clienteId = input.getAttribute('data-cliente-id');
-  
-  // Se o valor não mudou, apenas cancelar
-  if (valorNovo === valorOriginal) {
-    cancelarEdicao(input);
-    return;
-  }
-  
-  // Validar campos específicos
-  if (!validarCampo(campo, valorNovo)) {
-    return;
-  }
-  
-  // Marcar como salvando
-  elemento.classList.remove('editando');
-  elemento.classList.add('salvando');
-  
-  // Enviar para o servidor
-  fetch('api/atualizar_campo_cliente.php', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      cliente_id: clienteId,
-      campo: campo,
-      valor: valorNovo
-    })
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      // Atualizar elemento com novo valor
-      atualizarElementoCampo(elemento, campo, valorNovo, clienteId);
-      elemento.classList.add('sucesso');
-      setTimeout(() => {
-        elemento.classList.remove('sucesso');
-      }, 2000);
-    } else {
-      throw new Error(data.error || 'Erro ao salvar');
-    }
-  })
-  .catch(error => {
-    console.error('Erro:', error);
-    elemento.classList.add('erro');
-    setTimeout(() => {
-      elemento.classList.remove('erro');
-      cancelarEdicao(input);
-    }, 2000);
-  })
-  .finally(() => {
-    elemento.classList.remove('salvando');
-  });
-}
-
-// Função para cancelar edição
-function cancelarEdicao(input) {
-  const elemento = input.parentElement;
-  const campo = input.getAttribute('data-campo-original');
-  const valorOriginal = input.getAttribute('data-valor-original');
-  const clienteId = input.getAttribute('data-cliente-id');
-  
-  // Restaurar elemento original
-  atualizarElementoCampo(elemento, campo, valorOriginal, clienteId);
-  elemento.classList.remove('editando', 'salvando', 'erro');
-}
-
-// Função para atualizar elemento do campo
-function atualizarElementoCampo(elemento, campo, valor, clienteId) {
-  const labels = {
-    'nome': 'Nome', 'contact_name': 'Contato', 'cpf_cnpj': 'CPF/CNPJ', 'razao_social': 'Razão Social',
-    'email': 'E-mail', 'telefone': 'Telefone', 'celular': 'Celular', 'cep': 'CEP',
-    'rua': 'Rua', 'numero': 'Número', 'complemento': 'Complemento', 'bairro': 'Bairro', 'observacoes': 'Observações'
-  };
-  
-  const label = labels[campo] || campo;
-  let valorExibicao = valor;
-  
-  // Formatação específica para exibição
-  if (campo === 'cpf_cnpj' && /^\d{11,14}$/.test(valor)) {
-    if (valor.length === 11) {
-      valorExibicao = valor.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    } else {
-      valorExibicao = valor.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-    }
-  }
-  
-  if ((campo === 'telefone' || campo === 'celular') && /^\d{10,11}$/.test(valor)) {
-    valorExibicao = `(${valor.substring(0,2)}) ${valor.substring(2,7)}-${valor.substring(7)}`;
-  }
-  
-  elemento.innerHTML = `${label}: ${valorExibicao}`;
-  elemento.setAttribute('data-valor', valor);
-  elemento.setAttribute('data-campo', campo);
-  elemento.setAttribute('data-cliente-id', clienteId);
-}
-
-// Função para validar campos
-function validarCampo(campo, valor) {
-  // CPF/CNPJ
-  if (campo === 'cpf_cnpj') {
-    const apenasNumeros = valor.replace(/\D/g, '');
-    if (apenasNumeros.length !== 11 && apenasNumeros.length !== 14) {
-      alert('CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos');
-      return false;
-    }
-    
-    // Validação básica de CPF (11 dígitos)
-    if (apenasNumeros.length === 11) {
-      // Verificar se todos os dígitos são iguais
-      if (/^(\d)\1{10}$/.test(apenasNumeros)) {
-        alert('CPF inválido: todos os dígitos são iguais');
-        return false;
-      }
-      
-      // Validação dos dígitos verificadores do CPF
-      let soma = 0;
-      for (let i = 0; i < 9; i++) {
-        soma += parseInt(apenasNumeros.charAt(i)) * (10 - i);
-      }
-      let resto = 11 - (soma % 11);
-      let dv1 = resto < 2 ? 0 : resto;
-      
-      soma = 0;
-      for (let i = 0; i < 10; i++) {
-        soma += parseInt(apenasNumeros.charAt(i)) * (11 - i);
-      }
-      resto = 11 - (soma % 11);
-      let dv2 = resto < 2 ? 0 : resto;
-      
-      if (parseInt(apenasNumeros.charAt(9)) !== dv1 || parseInt(apenasNumeros.charAt(10)) !== dv2) {
-        alert('CPF inválido: dígitos verificadores incorretos');
-        return false;
-      }
-    }
-    
-    // Validação básica de CNPJ (14 dígitos)
-    if (apenasNumeros.length === 14) {
-      // Verificar se todos os dígitos são iguais
-      if (/^(\d)\1{13}$/.test(apenasNumeros)) {
-        alert('CNPJ inválido: todos os dígitos são iguais');
-        return false;
-      }
-      
-      // Validação dos dígitos verificadores do CNPJ
-      const pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-      const pesos2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-      
-      let soma = 0;
-      for (let i = 0; i < 12; i++) {
-        soma += parseInt(apenasNumeros.charAt(i)) * pesos1[i];
-      }
-      let resto = soma % 11;
-      let dv1 = resto < 2 ? 0 : 11 - resto;
-      
-      soma = 0;
-      for (let i = 0; i < 13; i++) {
-        soma += parseInt(apenasNumeros.charAt(i)) * pesos2[i];
-      }
-      resto = soma % 11;
-      let dv2 = resto < 2 ? 0 : 11 - resto;
-      
-      if (parseInt(apenasNumeros.charAt(12)) !== dv1 || parseInt(apenasNumeros.charAt(13)) !== dv2) {
-        alert('CNPJ inválido: dígitos verificadores incorretos');
-        return false;
-      }
-    }
-  }
-  
-  // Telefone/Celular
-  if (campo === 'telefone' || campo === 'celular') {
-    const apenasNumeros = valor.replace(/\D/g, '');
-    if (apenasNumeros.length < 10 || apenasNumeros.length > 11) {
-      alert('Telefone deve ter 10 ou 11 dígitos');
-      return false;
-    }
-  }
-  
-  // Email
-  if (campo === 'email' && valor) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(valor)) {
-      alert('Email inválido');
-      return false;
-    }
-  }
-  
-  // CEP
-  if (campo === 'cep') {
-    const apenasNumeros = valor.replace(/\D/g, '');
-    if (apenasNumeros.length !== 8) {
-      alert('CEP deve ter 8 dígitos');
-      return false;
-    }
-  }
-  
-  return true;
+  // Reinicializar após um delay
+  setTimeout(initEdicaoInline, 1000);
 }
 
 function excluirCobranca(asaasPaymentId, cobrancaId) {
