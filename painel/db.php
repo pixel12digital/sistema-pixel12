@@ -1,4 +1,7 @@
 <?php
+// Incluir configurações globais
+require_once __DIR__ . '/../config.php';
+
 // Conexão MySQL com pooling para evitar limite de conexões
 static $mysqli = null;
 
