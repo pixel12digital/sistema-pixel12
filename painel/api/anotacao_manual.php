@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../config.php';
-require_once '../db.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../db.php';
 header('Content-Type: application/json');
 
 $cliente_id = isset($_POST['cliente_id']) ? intval($_POST['cliente_id']) : 0;

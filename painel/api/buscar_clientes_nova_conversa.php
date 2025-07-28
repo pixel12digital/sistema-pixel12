@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../config.php';
-require_once '../db.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../db.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: private, max-age=60'); // Cache de 1 minuto

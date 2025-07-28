@@ -2,8 +2,10 @@
 file_put_contents(__DIR__ . '/debug_webhook.log', date('Y-m-d H:i:s') . " - Teste de escrita\n", FILE_APPEND);
 error_log("[WEBHOOK] Teste de escrita executado", 0);
 header('Content-Type: application/json');
-require_once __DIR__ . '/../config.php';
-require_once '../db.php';
+set_time_limit(30);
+
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../db.php';
 
 $input = file_get_contents('php://input');
 $data = json_decode($input, true);

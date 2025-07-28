@@ -5,8 +5,8 @@
  */
 
 header('Content-Type: application/json');
-require_once '../config.php';
-require_once '../db.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../db.php';
 
 // Receber dados da mensagem
 $input = json_decode(file_get_contents('php://input'), true);

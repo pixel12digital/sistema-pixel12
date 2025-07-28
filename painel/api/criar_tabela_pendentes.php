@@ -2,8 +2,8 @@
 /**
  * Script para criar tabela de clientes pendentes
  */
-require_once '../config.php';
-require_once '../db.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../db.php';
 
 // Criar tabela de clientes pendentes
 $sql = "CREATE TABLE IF NOT EXISTS clientes_pendentes (

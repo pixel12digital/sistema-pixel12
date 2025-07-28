@@ -5,9 +5,11 @@
 
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
+set_time_limit(30);
 
+// Configurações
 require_once __DIR__ . '/../../config.php';
-require_once '../db.php';
+require_once __DIR__ . '/../db.php';
 
 // Debug: Verificar conexão com o banco
 if (!$mysqli || $mysqli->connect_errno) {

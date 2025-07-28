@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
-require_once '../config.php';
-require_once '../db.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../db.php';
 
 try {
     // Buscar configurações do monitoramento
@@ -142,6 +142,12 @@ try {
             $mensagem .= "🔗 Link para pagamento: $link_pagamento\n\n";
             $mensagem .= "Para consultar todas as suas faturas, responda \"faturas\" ou \"consulta\".\n\n";
             $mensagem .= "Atenciosamente,\nEquipe Financeira Pixel12 Digital";
+
+            // Verificar se é horário adequado para envio
+            if (!ehHorarioAdequadoParaEnvio()) {
+                $log_detalhado[] = "⏰ Horário inadequado para envio - {$nome} será agendado para horário comercial";
+                continue; // Pular este cliente e agendar para horário adequado
+            }
 
             // Enviar mensagem via VPS
             $numero_limpo = preg_replace('/\D/', '', $row['cliente_celular']);
@@ -284,5 +290,100 @@ function verificarStatusAsaas($cliente_id) {
     }
     
     return $atualizacoes > 0;
+}
+
+/**
+ * Verifica se é horário adequado para envio de mensagens
+ */
+function ehHorarioAdequadoParaEnvio() {
+    $hora_atual = (int) date('H');
+    $minuto_atual = (int) date('i');
+    $data_atual = new DateTime();
+
+    // Verificar se é final de semana
+    $dia_semana = $data_atual->format('N'); // 1=Segunda, 7=Domingo
+    if ($dia_semana >= 6) { // Sábado ou Domingo
+        return false;
+    }
+
+    // Verificar se é feriado
+    if (ehFeriado($data_atual)) {
+        return false;
+    }
+
+    // Verificar horário comercial (8h às 18h)
+    if ($hora_atual < 8 || $hora_atual >= 18) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Verifica se uma data é feriado (lista básica de feriados brasileiros)
+ */
+function ehFeriado($data) {
+    $mes = $data->format('n');
+    $dia = $data->format('j');
+    $ano = $data->format('Y');
+    
+    // Feriados fixos
+    $feriados_fixos = [
+        '1-1' => 'Ano Novo',
+        '4-21' => 'Tiradentes',
+        '5-1' => 'Dia do Trabalho',
+        '9-7' => 'Independência do Brasil',
+        '10-12' => 'Nossa Senhora Aparecida',
+        '11-2' => 'Finados',
+        '11-15' => 'Proclamação da República',
+        '12-25' => 'Natal'
+    ];
+    
+    $chave = $mes . '-' . $dia;
+    if (isset($feriados_fixos[$chave])) {
+        return true;
+    }
+    
+    // Feriados móveis (Páscoa, Carnaval, etc.)
+    $pascoa = calcularPascoa($ano);
+    $carnaval = clone $pascoa;
+    $carnaval->sub(new DateInterval('P47D')); // 47 dias antes da Páscoa
+    $corpus_christi = clone $pascoa;
+    $corpus_christi->add(new DateInterval('P60D')); // 60 dias após a Páscoa
+    
+    $feriados_moveis = [
+        $carnaval->format('Y-m-d') => 'Carnaval',
+        $pascoa->format('Y-m-d') => 'Páscoa',
+        $corpus_christi->format('Y-m-d') => 'Corpus Christi'
+    ];
+    
+    $data_str = $data->format('Y-m-d');
+    if (isset($feriados_moveis[$data_str])) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Calcula a data da Páscoa para um ano específico (Algoritmo de Meeus/Jones/Butcher)
+ */
+function calcularPascoa($ano) {
+    $a = $ano % 19;
+    $b = floor($ano / 100);
+    $c = $ano % 100;
+    $d = floor($b / 4);
+    $e = $b % 4;
+    $f = floor(($b + 8) / 25);
+    $g = floor(($b - $f + 1) / 3);
+    $h = (19 * $a + $b - $d - $g + 15) % 30;
+    $i = floor($c / 4);
+    $k = $c % 4;
+    $l = (32 + 2 * $e + 2 * $i - $h - $k) % 7;
+    $m = floor(($a + 11 * $h + 22 * $l) / 451);
+    $mes = floor(($h + $l - 7 * $m + 114) / 31);
+    $dia = (($h + $l - 7 * $m + 114) % 31) + 1;
+    
+    return new DateTime("$ano-$mes-$dia");
 }
 ?> 

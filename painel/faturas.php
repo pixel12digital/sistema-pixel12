@@ -426,7 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
     syncProgressLabel.textContent = '0%';
     statusIcon.textContent = '⏳';
     statusIcon.style.background = '#3b82f6';
-    statusTitle.textContent = 'Iniciando sincronização...';
+    statusTitle.textContent = 'Iniciando sincronização corrigida...';
     statusDescription.textContent = 'Preparando conexão com Asaas';
     syncErrorSummary.style.display = 'none';
     syncErrorMessage.textContent = '';
@@ -448,6 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
     div.textContent = msg;
     if (tipo === 'error') div.style.color = '#dc2626';
     if (tipo === 'success') div.style.color = '#059669';
+    if (tipo === 'warn') div.style.color = '#d97706';
     syncLogsArea.appendChild(div);
     syncLogsArea.scrollTop = syncLogsArea.scrollHeight;
   }
@@ -679,79 +680,163 @@ document.addEventListener('DOMContentLoaded', function() {
     btnSync.addEventListener('click', function() {
       btnSync.disabled = true;
       abrirModalSync();
-      adicionarLog('Iniciando sincronização...', '');
-      atualizarStatus('⏳', 'Iniciando sincronização...', 'Preparando conexão com Asaas', '#3b82f6');
+      adicionarLog('🚀 Iniciando sincronização CORRIGIDA...', '');
+      adicionarLog('📋 Versão: sincroniza_asaas_melhorado.php', '');
+      atualizarStatus('⏳', 'Iniciando sincronização corrigida...', 'Preparando conexão com Asaas', '#3b82f6');
+      
       fetch('sincronizar_asaas_ajax.php')
         .then(r => r.json())
         .then(resp => {
           if (resp.success) {
-            adicionarLog('Sincronização concluída com sucesso!', 'success');
-            atualizarStatus('✅', 'Sincronização concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
+            adicionarLog('✅ Sincronização CORRIGIDA concluída com sucesso!', 'success');
+            adicionarLog('📊 ' + (resp.message || 'Todos os dados foram atualizados'), 'success');
+            atualizarStatus('✅', 'Sincronização corrigida concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
             atualizarProgresso(100);
           } else {
+            adicionarLog('❌ Erro na sincronização corrigida: ' + (resp.error || 'Erro desconhecido'), 'error');
             mostrarErroSync(resp.error || 'Erro desconhecido ao sincronizar.');
           }
+          
+          // Mostrar output da sincronização se disponível
+          if (resp.output) {
+            adicionarLog('📄 Log da sincronização:', '');
+            const linhas = resp.output.split('\n');
+            linhas.forEach(linha => {
+              if (linha.trim()) {
+                const tipo = linha.toLowerCase().includes('erro') ? 'error' : 
+                           (linha.toLowerCase().includes('sucesso') || linha.toLowerCase().includes('concluída')) ? 'success' : '';
+                adicionarLog('  ' + linha, tipo);
+              }
+            });
+          }
         })
-        .catch(() => {
+        .catch((error) => {
+          adicionarLog('❌ Erro ao conectar ao servidor: ' + error.message, 'error');
           mostrarErroSync('Erro ao conectar ao servidor!');
         })
         .finally(() => {
           btnSync.disabled = false;
         });
-      // Atualizar logs em tempo real
+      
+      // Atualizar logs em tempo real da versão corrigida
       let progresso = 0;
+      let contadorProcessados = 0;
+      let contadorAtualizados = 0;
+      let contadorErros = 0;
+      
       syncInterval = setInterval(() => {
-        fetch('api/sync_status.php')
-          .then(r => r.json())
+        // Primeiro verificar logs da versão corrigida
+        fetch('api/sync_status.php?log=sincronizacao_melhorada.log')
+          .then(r => {
+            if (!r.ok) {
+              throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            }
+            return r.json();
+          })
           .then(data => {
+            // Verificar se há erro na resposta
+            if (data.error) {
+              console.error('Erro na API:', data.message);
+              return;
+            }
+            
             // Limpar área de logs
             syncLogsArea.innerHTML = '';
             
-            // Processar logs
+            // Adicionar cabeçalho da versão corrigida
+            adicionarLog('🔄 Sincronização CORRIGIDA em andamento...', '');
+            adicionarLog('📋 Logs da versão melhorada:', '');
+            
+            // Processar logs da versão corrigida
             if (data.lines && Array.isArray(data.lines)) {
               data.lines.forEach(line => {
-                const tipo = line.toLowerCase().includes('erro') && !line.toLowerCase().includes('0 erros') ? 'error' : 
-                           (line.toLowerCase().includes('sucesso') || line.toLowerCase().includes('concluída')) ? 'success' : '';
+                const tipo = line.toLowerCase().includes('[error]') ? 'error' : 
+                           (line.toLowerCase().includes('[success]') || line.toLowerCase().includes('concluída')) ? 'success' : 
+                           line.toLowerCase().includes('[warn]') ? 'warn' : '';
                 adicionarLog(line, tipo);
               });
             }
             
-            // Atualizar estatísticas se disponíveis
-            if (data.processed !== undefined) {
-              const statsProcessed = document.getElementById('stats-processed');
-              const statsUpdated = document.getElementById('stats-updated');
-              const statsErrors = document.getElementById('stats-errors');
-              
-              if (statsProcessed) statsProcessed.textContent = data.processed;
-              if (statsUpdated) statsUpdated.textContent = data.updated;
-              if (statsErrors) statsErrors.textContent = data.errors;
+            // Atualizar contadores baseado nos logs
+            contadorProcessados = 0;
+            contadorAtualizados = 0;
+            contadorErros = 0;
+            
+            if (data.lines && Array.isArray(data.lines)) {
+              data.lines.forEach(line => {
+                const lineLower = line.toLowerCase();
+                if (lineLower.includes('cliente processado com sucesso') || 
+                    lineLower.includes('cobrança processada com sucesso')) {
+                  contadorProcessados++;
+                  contadorAtualizados++;
+                } else if (lineLower.includes('[error]') || 
+                          lineLower.includes('erro ao processar')) {
+                  contadorErros++;
+                }
+              });
+            }
+            
+            // Atualizar contadores na interface
+            const statsProcessed = document.getElementById('stats-processed');
+            const statsUpdated = document.getElementById('stats-updated');
+            const statsErrors = document.getElementById('stats-errors');
+            
+            if (statsProcessed) statsProcessed.textContent = contadorProcessados;
+            if (statsUpdated) statsUpdated.textContent = contadorAtualizados;
+            if (statsErrors) statsErrors.textContent = contadorErros;
+            
+            // Se não houver logs da versão corrigida, verificar logs antigos
+            if (!data.lines || data.lines.length === 0) {
+              fetch('api/sync_status.php')
+                .then(r => r.json())
+                .then(dataOld => {
+                  if (dataOld.lines && Array.isArray(dataOld.lines)) {
+                    dataOld.lines.forEach(line => {
+                      const tipo = line.toLowerCase().includes('erro') && !line.toLowerCase().includes('0 erros') ? 'error' : 
+                                 (line.toLowerCase().includes('sucesso') || line.toLowerCase().includes('concluída')) ? 'success' : '';
+                      adicionarLog(line, tipo);
+                    });
+                  }
+                })
+                .catch(error => {
+                  console.error('Erro ao carregar logs antigos:', error);
+                });
             }
             
             // Atualizar progresso baseado no status real
-            if (data.progress !== undefined) {
+            if (data.progress !== undefined && data.progress !== null && data.progress !== 0) {
               atualizarProgresso(data.progress);
+            } else if (data.total_expected && data.total_expected > 0) {
+              // Calcular progresso real usando o total esperado do backend
+              const progressoReal = Math.min(99, Math.round((contadorProcessados / data.total_expected) * 100));
+              atualizarProgresso(progressoReal);
+            } else {
+              // Calcular progresso baseado nos contadores (fallback)
+              const totalEsperado = Math.max(contadorProcessados, 1);
+              const progressoCalculado = Math.min(95, (contadorProcessados / totalEsperado) * 100);
+              atualizarProgresso(progressoCalculado);
             }
             
             // Atualizar status baseado na análise inteligente
             if (data.status) {
               switch (data.status) {
                 case 'success':
-                  atualizarStatus('✅', 'Sincronização concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
-                  syncErrorSummary.style.display = 'none'; // Esconder erro se houver sucesso
+                  atualizarStatus('✅', 'Sincronização corrigida concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
+                  atualizarProgresso(100);
+                  syncErrorSummary.style.display = 'none';
                   if (syncInterval) clearInterval(syncInterval);
                   break;
                 case 'error':
-                  mostrarErroSync(data.last_message || 'Erro durante a sincronização');
+                  mostrarErroSync(data.last_message || 'Erro durante a sincronização corrigida');
                   if (syncInterval) clearInterval(syncInterval);
                   break;
                 case 'processing':
-                  atualizarStatus('🔄', 'Sincronizando...', 'Processando dados do Asaas', '#3b82f6');
+                  atualizarStatus('🔄', 'Sincronizando (versão corrigida)...', 'Processando dados do Asaas', '#3b82f6');
                   break;
                 case 'starting':
-                  atualizarStatus('⏳', 'Iniciando sincronização...', 'Preparando conexão com Asaas', '#3b82f6');
+                  atualizarStatus('⏳', 'Iniciando sincronização corrigida...', 'Preparando conexão com Asaas', '#3b82f6');
                   break;
                 default:
-                  // Manter status atual se não houver mudança
                   break;
               }
             }
@@ -759,33 +844,43 @@ document.addEventListener('DOMContentLoaded', function() {
             // Fallback para detecção manual se não houver status
             if (!data.status && data.lines && data.lines.length > 0) {
               const ultima = data.lines[data.lines.length - 1].toLowerCase();
-              if (ultima.includes('buscando clientes')) {
-                atualizarStatus('👥', 'Sincronizando clientes...', 'Buscando clientes no Asaas', '#3b82f6');
+              if (ultima.includes('sincronizando clientes')) {
+                atualizarStatus('👥', 'Sincronizando clientes (corrigido)...', 'Buscando clientes no Asaas', '#3b82f6');
               } else if (ultima.includes('clientes sincronizados')) {
-                atualizarStatus('💾', 'Clientes sincronizados!', 'Avançando para cobranças...', '#3b82f6');
-              } else if (ultima.includes('buscando cobran')) {
-                atualizarStatus('💸', 'Sincronizando cobranças...', 'Buscando cobranças no Asaas', '#3b82f6');
+                atualizarStatus('💾', 'Clientes sincronizados (corrigido)!', 'Avançando para cobranças...', '#3b82f6');
+              } else if (ultima.includes('sincronizando cobranças')) {
+                atualizarStatus('💸', 'Sincronizando cobranças (corrigido)...', 'Buscando cobranças no Asaas', '#3b82f6');
               } else if (ultima.includes('cobranças sincronizadas')) {
-                atualizarStatus('💾', 'Cobranças sincronizadas!', 'Finalizando...', '#3b82f6');
-              } else if (ultima.includes('sincronização concluída') || ultima.includes('concluída com sucesso')) {
-                atualizarStatus('✅', 'Sincronização concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
+                atualizarStatus('💾', 'Cobranças sincronizadas (corrigido)!', 'Finalizando...', '#3b82f6');
+              } else if (ultima.includes('sincronização melhorada concluída com sucesso')) {
+                atualizarStatus('✅', 'Sincronização corrigida concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
                 atualizarProgresso(100);
-                syncErrorSummary.style.display = 'none';
                 if (syncInterval) clearInterval(syncInterval);
               }
             }
-            
-            // Progresso estimado apenas se não houver progresso real
-            if (data.progress === undefined && !data.lines?.some(l => l.toLowerCase().includes('sincronização concluída') || l.toLowerCase().includes('concluída com sucesso'))) {
-              progresso = Math.min(95, progresso + 5);
-              atualizarProgresso(progresso);
-            }
           })
           .catch(error => {
-            console.error('Erro ao buscar status:', error);
-            adicionarLog('Erro ao conectar ao servidor de status', 'error');
+            console.error('Erro ao carregar logs:', error);
+            // Em caso de erro, tentar carregar logs antigos como fallback
+            fetch('api/sync_status.php')
+              .then(r => r.json())
+              .then(dataOld => {
+                if (dataOld.lines && Array.isArray(dataOld.lines)) {
+                  syncLogsArea.innerHTML = '';
+                  adicionarLog('⚠️ Erro ao carregar logs da versão corrigida, mostrando logs antigos...', 'warn');
+                  dataOld.lines.forEach(line => {
+                    const tipo = line.toLowerCase().includes('erro') && !line.toLowerCase().includes('0 erros') ? 'error' : 
+                               (line.toLowerCase().includes('sucesso') || line.toLowerCase().includes('concluída')) ? 'success' : '';
+                    adicionarLog(line, tipo);
+                  });
+                }
+              })
+              .catch(fallbackError => {
+                console.error('Erro no fallback também:', fallbackError);
+                adicionarLog('❌ Erro ao carregar logs: ' + error.message, 'error');
+              });
           });
-      }, 1500);
+      }, 1000);
     });
   }
 
@@ -935,7 +1030,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Verificando status inicial da API do Asaas...');
     
     try {
-      const response = await fetch('verificador_automatico_chave_otimizado.php?action=status');
+      const response = await fetch('api/verificar_status_asaas.php');
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);

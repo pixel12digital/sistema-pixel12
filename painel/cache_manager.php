@@ -340,4 +340,4 @@ function cache_status_canais($mysqli) {
     file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_status_canais] canais usados: " . var_export($canais, true) . "\n", FILE_APPEND);
     return $canais;
 }
-?> 
+?>

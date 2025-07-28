@@ -135,6 +135,9 @@ try {
                 file_put_contents('../logs/monitoramento_clientes.log', $log_email, FILE_APPEND);
             }
         }
+        
+        // AGENDAR MENSAGENS AUTOMATICAMENTE PARA FATURAS VENCIDAS
+        agendarMensagensFaturasVencidas($cliente_id, $mysqli);
     }
 
     echo json_encode([
@@ -150,5 +153,269 @@ try {
         'success' => false,
         'error' => $e->getMessage()
     ]);
+}
+
+/**
+ * Agenda mensagens automaticamente para faturas vencidas do cliente
+ */
+function agendarMensagensFaturasVencidas($cliente_id, $mysqli) {
+    try {
+        // Buscar faturas vencidas do cliente
+        $sql = "SELECT 
+                    cob.id,
+                    cob.valor,
+                    cob.vencimento,
+                    cob.url_fatura,
+                    cob.status,
+                    c.nome as cliente_nome,
+                    c.celular,
+                    c.contact_name,
+                    DATEDIFF(CURDATE(), cob.vencimento) as dias_vencido
+                FROM cobrancas cob
+                JOIN clientes c ON cob.cliente_id = c.id
+                WHERE cob.cliente_id = $cliente_id
+                AND cob.status IN ('PENDING', 'OVERDUE')
+                AND cob.vencimento < CURDATE()
+                ORDER BY cob.vencimento ASC";
+        
+        $result = $mysqli->query($sql);
+        
+        if (!$result || $result->num_rows === 0) {
+            // Não há faturas vencidas para agendar
+            return;
+        }
+        
+        $faturas = [];
+        while ($row = $result->fetch_assoc()) {
+            $faturas[] = $row;
+        }
+        
+        // Agrupar faturas por estratégia de envio
+        $faturas_vencidas_recentes = []; // Até 7 dias vencidas
+        $faturas_vencidas_medias = [];   // 8-30 dias vencidas
+        $faturas_vencidas_antigas = [];  // Mais de 30 dias vencidas
+        
+        foreach ($faturas as $fatura) {
+            $dias_vencida = intval($fatura['dias_vencido']);
+            
+            if ($dias_vencida <= 7) {
+                $faturas_vencidas_recentes[] = $fatura;
+            } elseif ($dias_vencida <= 30) {
+                $faturas_vencidas_medias[] = $fatura;
+            } else {
+                $faturas_vencidas_antigas[] = $fatura;
+            }
+        }
+        
+        // Agendar mensagens com diferentes estratégias
+        $mensagens_agendadas = 0;
+        
+        // 1. Faturas vencidas recentes (até 7 dias) - enviar nos próximos 2 dias
+        if (!empty($faturas_vencidas_recentes)) {
+            $mensagem = montarMensagemCobrancaVencida($faturas_vencidas_recentes, $faturas[0]);
+            $horario_envio = calcularHorarioAdequado('+1 day 10:00:00'); // Amanhã às 10h
+            
+            if (agendarMensagem($cliente_id, $mensagem, $horario_envio, 'alta', $mysqli)) {
+                $mensagens_agendadas++;
+            }
+        }
+        
+        // 2. Faturas vencidas médias (8-30 dias) - enviar em 3 dias
+        if (!empty($faturas_vencidas_medias)) {
+            $mensagem = montarMensagemCobrancaVencida($faturas_vencidas_medias, $faturas[0]);
+            $horario_envio = calcularHorarioAdequado('+3 days 14:00:00'); // Em 3 dias às 14h
+            
+            if (agendarMensagem($cliente_id, $mensagem, $horario_envio, 'normal', $mysqli)) {
+                $mensagens_agendadas++;
+            }
+        }
+        
+        // 3. Faturas vencidas antigas (mais de 30 dias) - enviar em 7 dias
+        if (!empty($faturas_vencidas_antigas)) {
+            $mensagem = montarMensagemCobrancaVencida($faturas_vencidas_antigas, $faturas[0]);
+            $horario_envio = calcularHorarioAdequado('+7 days 16:00:00'); // Em 7 dias às 16h
+            
+            if (agendarMensagem($cliente_id, $mensagem, $horario_envio, 'baixa', $mysqli)) {
+                $mensagens_agendadas++;
+            }
+        }
+        
+        // Log do agendamento
+        $log_data = date('Y-m-d H:i:s') . " - Agendadas $mensagens_agendadas mensagens para cliente $cliente_id com " . count($faturas) . " faturas vencidas\n";
+        file_put_contents('../logs/agendamento_mensagens.log', $log_data, FILE_APPEND);
+        
+    } catch (Exception $e) {
+        error_log("Erro ao agendar mensagens para cliente $cliente_id: " . $e->getMessage());
+    }
+}
+
+/**
+ * Calcula horário adequado para envio, respeitando horários comerciais e evitando feriados/finais de semana
+ */
+function calcularHorarioAdequado($horario_proposto) {
+    $data_proposta = new DateTime($horario_proposto);
+    
+    // Verificar se é final de semana
+    $dia_semana = $data_proposta->format('N'); // 1=Segunda, 7=Domingo
+    if ($dia_semana >= 6) { // Sábado ou Domingo
+        // Mover para próxima segunda-feira
+        $dias_para_adicionar = $dia_semana == 6 ? 2 : 1; // Sábado: +2 dias, Domingo: +1 dia
+        $data_proposta->add(new DateInterval("P{$dias_para_adicionar}D"));
+        $data_proposta->setTime(10, 0, 0); // Definir para 10h da manhã
+    }
+    
+    // Verificar se é feriado (lista básica de feriados brasileiros)
+    if (ehFeriado($data_proposta)) {
+        // Mover para próximo dia útil
+        $data_proposta->add(new DateInterval('P1D'));
+        $data_proposta->setTime(10, 0, 0);
+        
+        // Verificar novamente se não caiu em final de semana
+        $dia_semana = $data_proposta->format('N');
+        if ($dia_semana >= 6) {
+            $dias_para_adicionar = $dia_semana == 6 ? 2 : 1;
+            $data_proposta->add(new DateInterval("P{$dias_para_adicionar}D"));
+            $data_proposta->setTime(10, 0, 0);
+        }
+    }
+    
+    // Verificar horário comercial (8h às 20h)
+    $hora = (int)$data_proposta->format('H');
+    if ($hora < 8 || $hora >= 20) {
+        // Se for antes das 8h, definir para 10h
+        // Se for após 20h, mover para próximo dia às 10h
+        if ($hora >= 20) {
+            $data_proposta->add(new DateInterval('P1D'));
+            
+            // Verificar se não caiu em final de semana
+            $dia_semana = $data_proposta->format('N');
+            if ($dia_semana >= 6) {
+                $dias_para_adicionar = $dia_semana == 6 ? 2 : 1;
+                $data_proposta->add(new DateInterval("P{$dias_para_adicionar}D"));
+            }
+        }
+        $data_proposta->setTime(10, 0, 0);
+    }
+    
+    return $data_proposta->format('Y-m-d H:i:s');
+}
+
+/**
+ * Verifica se uma data é feriado (lista básica de feriados brasileiros)
+ */
+function ehFeriado($data) {
+    $mes = $data->format('n');
+    $dia = $data->format('j');
+    $ano = $data->format('Y');
+    
+    // Feriados fixos
+    $feriados_fixos = [
+        '1-1' => 'Ano Novo',
+        '4-21' => 'Tiradentes',
+        '5-1' => 'Dia do Trabalho',
+        '9-7' => 'Independência do Brasil',
+        '10-12' => 'Nossa Senhora Aparecida',
+        '11-2' => 'Finados',
+        '11-15' => 'Proclamação da República',
+        '12-25' => 'Natal'
+    ];
+    
+    $chave = $mes . '-' . $dia;
+    if (isset($feriados_fixos[$chave])) {
+        return true;
+    }
+    
+    // Feriados móveis (Páscoa, Carnaval, etc.)
+    $pascoa = calcularPascoa($ano);
+    $carnaval = clone $pascoa;
+    $carnaval->sub(new DateInterval('P47D')); // 47 dias antes da Páscoa
+    $corpus_christi = clone $pascoa;
+    $corpus_christi->add(new DateInterval('P60D')); // 60 dias após a Páscoa
+    
+    $feriados_moveis = [
+        $carnaval->format('Y-m-d') => 'Carnaval',
+        $pascoa->format('Y-m-d') => 'Páscoa',
+        $corpus_christi->format('Y-m-d') => 'Corpus Christi'
+    ];
+    
+    $data_str = $data->format('Y-m-d');
+    if (isset($feriados_moveis[$data_str])) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Calcula a data da Páscoa para um ano específico (Algoritmo de Meeus/Jones/Butcher)
+ */
+function calcularPascoa($ano) {
+    $a = $ano % 19;
+    $b = floor($ano / 100);
+    $c = $ano % 100;
+    $d = floor($b / 4);
+    $e = $b % 4;
+    $f = floor(($b + 8) / 25);
+    $g = floor(($b - $f + 1) / 3);
+    $h = (19 * $a + $b - $d - $g + 15) % 30;
+    $i = floor($c / 4);
+    $k = $c % 4;
+    $l = (32 + 2 * $e + 2 * $i - $h - $k) % 7;
+    $m = floor(($a + 11 * $h + 22 * $l) / 451);
+    $mes = floor(($h + $l - 7 * $m + 114) / 31);
+    $dia = (($h + $l - 7 * $m + 114) % 31) + 1;
+    
+    return new DateTime("$ano-$mes-$dia");
+}
+
+/**
+ * Monta mensagem de cobrança vencida
+ */
+function montarMensagemCobrancaVencida($faturas, $cliente_info) {
+    $nome = $cliente_info['contact_name'] ?: $cliente_info['cliente_nome'];
+    
+    $mensagem = "Olá {$nome}! \n\n";
+    $mensagem .= "⚠️ Você possui faturas em aberto:\n\n";
+    
+    $valor_total = 0;
+    foreach ($faturas as $fatura) {
+        $valor = number_format($fatura['valor'], 2, ',', '.');
+        $vencimento = date('d/m/Y', strtotime($fatura['vencimento']));
+        $dias_vencida = intval($fatura['dias_vencido']);
+        
+        $mensagem .= "• Fatura #{$fatura['id']} - R$ $valor - Venceu em $vencimento ({$dias_vencida} dias vencida)\n";
+        $valor_total += floatval($fatura['valor']);
+    }
+    
+    $mensagem .= "\n💰 Valor total em aberto: R$ " . number_format($valor_total, 2, ',', '.') . "\n";
+    $mensagem .= "🔗 Link para pagamento: {$faturas[0]['url_fatura']}\n\n";
+    $mensagem .= "Para consultar todas as suas faturas, responda \"faturas\" ou \"consulta\".\n\n";
+    $mensagem .= "Atenciosamente,\nEquipe Financeira Pixel12 Digital";
+    
+    return $mensagem;
+}
+
+/**
+ * Agenda uma mensagem específica
+ */
+function agendarMensagem($cliente_id, $mensagem, $horario_envio, $prioridade, $mysqli) {
+    try {
+        $mensagem_escaped = $mysqli->real_escape_string($mensagem);
+        $horario_escaped = $mysqli->real_escape_string($horario_envio);
+        $prioridade_escaped = $mysqli->real_escape_string($prioridade);
+        
+        $sql = "INSERT INTO mensagens_agendadas (cliente_id, mensagem, tipo, prioridade, data_agendada, status, data_criacao) 
+                VALUES ($cliente_id, '$mensagem_escaped', 'cobranca_vencida', '$prioridade_escaped', '$horario_escaped', 'agendada', NOW())";
+        
+        if ($mysqli->query($sql)) {
+            return true;
+        } else {
+            error_log("Erro ao agendar mensagem: " . $mysqli->error);
+            return false;
+        }
+    } catch (Exception $e) {
+        error_log("Erro ao agendar mensagem: " . $e->getMessage());
+        return false;
+    }
 }
 ?> 

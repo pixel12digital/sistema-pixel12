@@ -23,7 +23,6 @@ if (!isset($mysqli) || !$mysqli || $mysqli->connect_errno) {
 }
 
 // Buscar chave da API do Asaas
-require_once 'db.php';
 $config = $mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();
 $api_key = $config ? $config['valor'] : '';
 
@@ -80,7 +79,7 @@ function getAsaas($endpoint) {
 }
 
 try {
-    printAndLog('==== INÍCIO DA SINCRONIZAÇÃO ====');
+    printAndLog('==== INÍCIO DA SINCRONIZAÇÃO MELHORADA ====');
     printAndLog('Iniciando sincronização com Asaas...');
 
     // 1. Sincronizar clientes
@@ -116,7 +115,7 @@ try {
                 $bairro = $cli['province'] ?? '';
                 $cidade = $cli['city'] ?? '';
                 $estado = $cli['state'] ?? '';
-                $pais = $cli['country'] ?? '';
+                $pais = $cli['country'] ?? 'Brasil';
                 $notificacao_desativada = isset($cli['notificationDisabled']) ? (int)$cli['notificationDisabled'] : 0;
                 $emails_adicionais = $cli['additionalEmails'] ?? '';
                 $referencia_externa = $cli['externalReference'] ?? '';
@@ -232,6 +231,7 @@ try {
                 $cobrancas[] = $cob;
                 $cobranca_id = $cob['id'] ?? null;
                 printAndLog('Processando cobrança: ' . $cobranca_id);
+                
                 // Buscar o id local do cliente a partir do asaas_id
                 $cliente_id = null;
                 $asaas_id = $cob['customer'];
@@ -241,99 +241,13 @@ try {
                 $stmt_cliente->bind_result($cliente_id);
                 $stmt_cliente->fetch();
                 $stmt_cliente->close();
+                
                 if (!$cliente_id) {
-                    // Buscar cliente na API do Asaas
-                    $cli = getAsaas("/customers/" . $asaas_id);
-                    if ($cli && isset($cli['id'])) {
-                        // Inserir cliente no banco local (evita duplicidade pelo asaas_id UNIQUE)
-                        $asaas_id_cli = $cli['id'] ?? null;
-                        $nome = $cli['name'] ?? null;
-                        $email = $cli['email'] ?? null;
-                        $telefone = $cli['phone'] ?? null;
-                        $celular = $cli['mobilePhone'] ?? null;
-                        $cep = $cli['postalCode'] ?? null;
-                        $rua = $cli['address'] ?? null;
-                        $numero = $cli['addressNumber'] ?? null;
-                        $complemento = $cli['complement'] ?? null;
-                        $bairro = $cli['province'] ?? null;
-                        $cidade = $cli['city'] ?? null;
-                        $estado = $cli['state'] ?? null;
-                        $pais = $cli['country'] ?? null;
-                        $notificacao_desativada = isset($cli['notificationDisabled']) ? (int)$cli['notificationDisabled'] : null;
-                        $emails_adicionais = $cli['additionalEmails'] ?? null;
-                        $referencia_externa = $cli['externalReference'] ?? null;
-                        $observacoes = $cli['observations'] ?? null;
-                        $razao_social = $cli['company'] ?? null;
-                        $criado_em_asaas = isset($cli['createdAt']) ? date('Y-m-d H:i:s', strtotime($cli['createdAt'])) : null;
-                        $cpf_cnpj = $cli['cpfCnpj'] ?? null;
-                        $data_criacao = date('Y-m-d H:i:s');
-                        $data_atualizacao = date('Y-m-d H:i:s');
-                        $stmt_ins = $mysqli->prepare("INSERT INTO clientes (
-                            asaas_id, nome, email, telefone, celular, cep, rua, numero, complemento, bairro, cidade, estado, pais, notificacao_desativada, emails_adicionais, referencia_externa, observacoes, razao_social, criado_em_asaas, cpf_cnpj, data_criacao, data_atualizacao
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
-                        ON DUPLICATE KEY UPDATE 
-                            nome = VALUES(nome),
-                            email = VALUES(email),
-                            telefone = VALUES(telefone),
-                            celular = VALUES(celular),
-                            cep = VALUES(cep),
-                            rua = VALUES(rua),
-                            numero = VALUES(numero),
-                            complemento = VALUES(complemento),
-                            bairro = VALUES(bairro),
-                            cidade = VALUES(cidade),
-                            estado = VALUES(estado),
-                            pais = VALUES(pais),
-                            notificacao_desativada = VALUES(notificacao_desativada),
-                            emails_adicionais = VALUES(emails_adicionais),
-                            referencia_externa = VALUES(referencia_externa),
-                            observacoes = VALUES(observacoes),
-                            razao_social = VALUES(razao_social),
-                            criado_em_asaas = VALUES(criado_em_asaas),
-                            cpf_cnpj = VALUES(cpf_cnpj),
-                            data_atualizacao = VALUES(data_atualizacao)");
-                        $stmt_ins->bind_param(
-                            'ssssssssssssisssssssss',
-                            $asaas_id_cli,
-                            $nome,
-                            $email,
-                            $telefone,
-                            $celular,
-                            $cep,
-                            $rua,
-                            $numero,
-                            $complemento,
-                            $bairro,
-                            $cidade,
-                            $estado,
-                            $pais,
-                            $notificacao_desativada,
-                            $emails_adicionais,
-                            $referencia_externa,
-                            $observacoes,
-                            $razao_social,
-                            $criado_em_asaas,
-                            $cpf_cnpj,
-                            $data_criacao,
-                            $data_atualizacao
-                        );
-                        $stmt_ins->execute();
-                        $stmt_ins->close();
-                        // Buscar novamente o id do cliente
-                        $stmt_cliente = $mysqli->prepare("SELECT id FROM clientes WHERE asaas_id = ? LIMIT 1");
-                        $stmt_cliente->bind_param('s', $asaas_id);
-                        $stmt_cliente->execute();
-                        $stmt_cliente->bind_result($cliente_id);
-                        $stmt_cliente->fetch();
-                        $stmt_cliente->close();
-                        printAndLog("Cliente $asaas_id importado automaticamente para cobrança {$cob['id']}");
-                    }
-                }
-                if (!$cliente_id) {
-                    printAndLog("ERRO: cobrança {$cob['id']} ignorada, cliente não encontrado nem após tentativa de importação (asaas_id: $asaas_id)");
+                    printAndLog("ERRO: cobrança {$cob['id']} ignorada, cliente não encontrado (asaas_id: $asaas_id)");
                     continue;
                 }
-                // Upsert cobrança no banco local
+                
+                // Upsert cobrança no banco local usando INSERT ON DUPLICATE KEY UPDATE
                 $data_pagamento = isset($cob['paymentDate']) && $cob['paymentDate'] ? date('Y-m-d', strtotime($cob['paymentDate'])) : null;
                 $data_criacao_raw = $cob['dateCreated'] ?? null;
                 if ($data_criacao_raw) {
@@ -345,9 +259,33 @@ try {
                 } else {
                     $data_criacao = date('Y-m-d H:i:s');
                 }
+                
                 try {
-                    $stmt = $mysqli->prepare("REPLACE INTO cobrancas (asaas_payment_id, cliente_id, valor, status, vencimento, descricao, tipo, tipo_pagamento, url_fatura, parcela, assinatura_id, data_criacao, data_pagamento) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->bind_param('sidssssssssss',
+                    printAndLog('Preparando statement para cobrança: ' . $cobranca_id);
+                    $stmt = $mysqli->prepare("INSERT INTO cobrancas (
+                        asaas_payment_id, cliente_id, valor, status, vencimento, descricao, tipo, tipo_pagamento, url_fatura, parcela, assinatura_id, data_criacao, data_pagamento, data_atualizacao
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+                    ON DUPLICATE KEY UPDATE 
+                        cliente_id = VALUES(cliente_id),
+                        valor = VALUES(valor),
+                        status = VALUES(status),
+                        vencimento = VALUES(vencimento),
+                        descricao = VALUES(descricao),
+                        tipo = VALUES(tipo),
+                        tipo_pagamento = VALUES(tipo_pagamento),
+                        url_fatura = VALUES(url_fatura),
+                        parcela = VALUES(parcela),
+                        assinatura_id = VALUES(assinatura_id),
+                        data_pagamento = VALUES(data_pagamento),
+                        data_atualizacao = VALUES(data_atualizacao)");
+                    
+                    if (!$stmt) {
+                        printAndLog('ERRO ao preparar statement para cobrança: ' . $mysqli->error . ' | Cobrança: ' . json_encode($cob));
+                        continue;
+                    }
+                    
+                    $data_atualizacao = date('Y-m-d H:i:s');
+                    $stmt->bind_param('sidsssssssssss',
                         $cob['id'],
                         $cliente_id,
                         $cob['value'],
@@ -360,9 +298,15 @@ try {
                         $cob['installmentNumber'],
                         $cob['subscription'],
                         $data_criacao,
-                        $data_pagamento
+                        $data_pagamento,
+                        $data_atualizacao
                     );
-                    if (!$stmt->execute()) {
+                    
+                    printAndLog('Executando statement para cobrança: ' . $cobranca_id);
+                    $result = $stmt->execute();
+                    printAndLog('Resultado do execute: ' . var_export($result, true) . ' | MySQL error: ' . $stmt->error);
+                    
+                    if (!$result) {
                         printAndLog('ERRO SQL ao inserir cobrança: ' . $stmt->error . ' | Cobrança: ' . json_encode($cob));
                     }
                     $stmt->close();
@@ -379,33 +323,8 @@ try {
     printAndLog('Cobranças sincronizadas: ' . count($cobrancas));
     printAndLog('--- FIM ETAPA 2 ---');
 
-    // Após sincronizar cobranças, excluir do banco local as que não existem mais no Asaas
-    printAndLog('--- ETAPA 3: Excluindo cobranças locais que não existem mais no Asaas ---');
-    if (!empty($cobrancas)) {
-        try {
-            $ids_asaas = array_map(function($cob) { return $cob['id']; }, $cobrancas);
-            $ids_asaas_str = "'" . implode("','", array_map('addslashes', $ids_asaas)) . "'";
-            printAndLog('Total de IDs de cobranças do Asaas: ' . count($ids_asaas));
-            printAndLog('Primeiros 5 IDs: ' . implode(', ', array_slice($ids_asaas, 0, 5)));
-            printAndLog('Últimos 5 IDs: ' . implode(', ', array_slice($ids_asaas, -5)));
-            $sql_del = "DELETE FROM cobrancas WHERE asaas_payment_id NOT IN ($ids_asaas_str)";
-            printAndLog('Comando SQL de exclusão: ' . $sql_del);
-            if (!$mysqli->query($sql_del)) {
-                printAndLog('ERRO SQL ao excluir cobranças: ' . $mysqli->error);
-                printAndLog('Sincronização finalizada com erro.');
-                exit(1);
-            }
-            printAndLog('Cobranças locais excluídas (não existem mais no Asaas): ' . $mysqli->affected_rows);
-        } catch (Exception $e) {
-            printAndLog('ERRO ao excluir cobranças locais: ' . $e->getMessage());
-            printAndLog('Sincronização finalizada com erro.');
-            exit(1);
-        }
-    }
-    printAndLog('--- FIM ETAPA 3 ---');
-
     // 3. Registrar data/hora da última sincronização
-    printAndLog('--- ETAPA 4: Registrando data/hora da última sincronização ---');
+    printAndLog('--- ETAPA 3: Registrando data/hora da última sincronização ---');
     $ultima_sync_path = __DIR__ . '/../logs/ultima_sincronizacao.log';
     if (@file_put_contents($ultima_sync_path, date('Y-m-d H:i:s')) === false) {
         printAndLog('ERRO ao gravar arquivo de última sincronização: ' . $ultima_sync_path);
@@ -414,12 +333,13 @@ try {
     } else {
         printAndLog('Arquivo de última sincronização gravado com sucesso: ' . $ultima_sync_path);
     }
-    printAndLog('--- FIM ETAPA 4 ---');
-    printAndLog('==== FIM DA SINCRONIZAÇÃO ====');
+    printAndLog('--- FIM ETAPA 3 ---');
+    printAndLog('==== FIM DA SINCRONIZAÇÃO MELHORADA ====');
     printAndLog('Sincronização concluída com sucesso!');
     exit(0);
 } catch (Throwable $e) {
     printAndLog('ERRO FATAL: ' . $e->getMessage() . ' | Arquivo: ' . $e->getFile() . ' | Linha: ' . $e->getLine());
     printAndLog('Sincronização finalizada com erro inesperado.');
     exit(1);
-} 
+}
+?> 

@@ -11,16 +11,34 @@ try {
     // Log do debug
     file_put_contents(__DIR__ . '/../logs/sync_web_debug.log', date('Y-m-d H:i:s') . " - Debug output: $debugOutput\n", FILE_APPEND);
     
-    // Agora executar a sincronização
+    // Agora executar a sincronização CORRIGIDA
     ob_start();
-    passthru('php ' . escapeshellarg(__DIR__ . '/sincroniza_asaas.php') . ' 2>&1', $exitCode);
+    passthru('php ' . escapeshellarg(__DIR__ . '/sincroniza_asaas_melhorado.php') . ' 2>&1', $exitCode);
     $output = ob_get_clean();
     
+    // Log da sincronização corrigida
+    file_put_contents(__DIR__ . '/../logs/sincronizacao_melhorada.log', date('Y-m-d H:i:s') . " - Sincronização via AJAX executada\n", FILE_APPEND);
+    
     if ($exitCode === 0) {
-        echo json_encode(['success' => true, 'output' => $output, 'debug' => $debugOutput]);
+        echo json_encode([
+            'success' => true, 
+            'output' => $output, 
+            'debug' => $debugOutput,
+            'message' => 'Sincronização corrigida executada com sucesso!'
+        ]);
     } else {
-        echo json_encode(['success' => false, 'error' => 'Erro ao sincronizar', 'output' => $output, 'debug' => $debugOutput]);
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Erro ao sincronizar', 
+            'output' => $output, 
+            'debug' => $debugOutput,
+            'message' => 'Erro na sincronização corrigida'
+        ]);
     }
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false, 
+        'error' => $e->getMessage(),
+        'message' => 'Exceção na sincronização corrigida'
+    ]);
 } 

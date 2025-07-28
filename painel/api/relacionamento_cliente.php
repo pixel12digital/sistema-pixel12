@@ -1,6 +1,6 @@
 <?php
-require_once '../config.php';
-require_once '../db.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../db.php';
 header('Content-Type: text/html; charset=utf-8');
 $cliente_id = isset($_GET['cliente_id']) ? intval($_GET['cliente_id']) : 0;
 global $mysqli;

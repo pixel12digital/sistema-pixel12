@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 require_once(__DIR__ . '/../../config.php');
-require_once '../db.php';
+require_once __DIR__ . '/../db.php';
 
 // Receber cliente_id
 $cliente_id = isset($_GET['cliente_id']) ? intval($_GET['cliente_id']) : 0;

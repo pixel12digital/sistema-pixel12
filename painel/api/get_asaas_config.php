@@ -7,7 +7,7 @@ header('Content-Type: application/json');
 header('Cache-Control: no-cache, must-revalidate');
 
 require_once __DIR__ . '/../../config.php';
-require_once '../db.php';
+require_once __DIR__ . '/../db.php';
 
 try {
     $config = $mysqli->query("SELECT valor FROM configuracoes WHERE chave = 'asaas_api_key' LIMIT 1")->fetch_assoc();

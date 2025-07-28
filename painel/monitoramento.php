@@ -1,7 +1,7 @@
 <?php
 $page = 'monitoramento.php';
 $page_title = 'Monitoramento de Clientes';
-$custom_header = '<button type="button" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md flex items-center gap-2" id="btn-executar-monitoramento"><span>🔄 Executar Monitoramento</span></button> <button type="button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2" id="btn-configuracoes"><span>⚙️ Configurações</span></button>';
+$custom_header = '<button type="button" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md flex items-center gap-2" id="btn-executar-monitoramento"><span>🔄 Executar Monitoramento</span></button> <button type="button" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md flex items-center gap-2" id="btn-agendar-pendentes"><span>📅 Agendar Pendentes</span></button> <button type="button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2" id="btn-configuracoes"><span>⚙️ Configurações</span></button>';
 
 function render_content() {
 ?>
@@ -165,11 +165,11 @@ function render_content() {
 </section>
 
 <!-- Modal de Detalhes do Cliente Monitorado -->
-<div id="modal-detalhes-monitoramento" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+<div id="modal-detalhes-monitoramento" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50" style="display: none;">
   <div class="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold">👁️ Detalhes do Monitoramento</h3>
-      <button id="btn-fechar-modal-detalhes" class="text-gray-500 hover:text-gray-700">&times;</button>
+      <button id="btn-fechar-modal-detalhes" class="text-gray-500 hover:text-gray-700 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">&times;</button>
     </div>
     <div id="detalhes-monitoramento-content">
       <!-- Conteúdo dinâmico via JS -->
@@ -251,12 +251,34 @@ function render_content() {
   </div>
 </div>
 
+<!-- Modal de Mensagem Agendada -->
+<div id="modal-mensagem-agendada" class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50" style="display: none;">
+  <div class="bg-white rounded-lg p-6 w-full max-w-3xl mx-4 max-h-[80vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-semibold">💬 Mensagem Agendada</h3>
+      <button id="btn-fechar-modal-mensagem" class="text-gray-500 hover:text-gray-700 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">&times;</button>
+    </div>
+    
+    <div id="mensagem-agendada-content">
+      <!-- Conteúdo dinâmico via JS -->
+    </div>
+  </div>
+</div>
+
 <script src="assets/monitoramento_dashboard.js"></script>
+<script src="assets/traducoes.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   // Inicializar dashboard
   if (typeof MonitoramentoDashboard !== 'undefined') {
     window.monitoramentoDashboard = new MonitoramentoDashboard();
+  }
+  
+  // Aplicar traduções após carregar o dashboard
+  if (typeof traducoes !== 'undefined') {
+    setTimeout(() => {
+      traducoes.traduzirPagina();
+    }, 1000); // Aguardar 1 segundo para garantir que o conteúdo dinâmico foi carregado
   }
 });
 </script>
