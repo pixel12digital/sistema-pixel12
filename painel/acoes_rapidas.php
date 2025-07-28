@@ -6,6 +6,9 @@ if (!isset($_SESSION['logado']) || !$_SESSION['logado']) {
     exit;
 }
 
+// Incluir configurações globais
+require_once '../config.php';
+
 header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -94,7 +97,7 @@ function testarWebhook() {
     if ($http_code === 200) {
         // Verifica se a mensagem foi salva no banco
         $mysqli = conectarDB();
-        $sql = "SELECT COUNT(*) as total FROM mensagens_comunicacao WHERE texto LIKE '%Teste de webhook%' AND data_hora >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)";
+        $sql = "SELECT COUNT(*) as total FROM mensagens_comunicacao WHERE mensagem LIKE '%Teste de webhook%' AND data_hora >= DATE_SUB(NOW(), INTERVAL 1 MINUTE)";
         $result = $mysqli->query($sql);
         $row = $result->fetch_assoc();
         
@@ -131,11 +134,11 @@ function verificarStatus() {
     $status['mensagens_hoje'] = $row['total'];
     
     // Verifica última mensagem
-    $sql = "SELECT texto, data_hora FROM mensagens_comunicacao ORDER BY data_hora DESC LIMIT 1";
+    $sql = "SELECT mensagem, data_hora FROM mensagens_comunicacao ORDER BY data_hora DESC LIMIT 1";
     $result = $mysqli->query($sql);
     if ($result->num_rows > 0) {
         $row = $result->fetch_assoc();
-        $status['ultima_mensagem'] = $row['texto'] . ' (' . date('H:i', strtotime($row['data_hora'])) . ')';
+        $status['ultima_mensagem'] = $row['mensagem'] . ' (' . date('H:i', strtotime($row['data_hora'])) . ')';
     } else {
         $status['ultima_mensagem'] = 'Nenhuma mensagem';
     }
@@ -253,7 +256,7 @@ function otimizarSistema() {
     $sql = "DELETE m1 FROM mensagens_comunicacao m1 
             INNER JOIN mensagens_comunicacao m2 
             WHERE m1.id > m2.id 
-            AND m1.texto = m2.texto 
+            AND m1.mensagem = m2.mensagem 
             AND m1.numero_whatsapp = m2.numero_whatsapp 
             AND ABS(TIMESTAMPDIFF(MINUTE, m1.data_hora, m2.data_hora)) < 1";
     $mysqli->query($sql);
@@ -351,11 +354,11 @@ function monitorTempoReal() {
     $mensagens_hoje = $result->fetch_assoc()['total'];
     
     // Última mensagem
-    $sql = "SELECT texto, data_hora FROM mensagens_comunicacao ORDER BY data_hora DESC LIMIT 1";
+    $sql = "SELECT mensagem, data_hora FROM mensagens_comunicacao ORDER BY data_hora DESC LIMIT 1";
     $result = $mysqli->query($sql);
     if ($result->num_rows > 0) {
         $row = $result->fetch_assoc();
-        $ultima_mensagem = substr($row['texto'], 0, 30) . '... (' . date('H:i', strtotime($row['data_hora'])) . ')';
+        $ultima_mensagem = substr($row['mensagem'], 0, 30) . '... (' . date('H:i', strtotime($row['data_hora'])) . ')';
     } else {
         $ultima_mensagem = 'Nenhuma';
     }
@@ -392,12 +395,7 @@ function monitorTempoReal() {
 }
 
 function conectarDB() {
-    $host = 'localhost';
-    $username = 'u342734079_revendaweb';
-    $password = 'Revenda@2024';
-    $database = 'u342734079_revendaweb';
-    
-    $mysqli = new mysqli($host, $username, $password, $database);
+    $mysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
     
     if ($mysqli->connect_error) {
         throw new Exception('Erro na conexão com o banco: ' . $mysqli->connect_error);

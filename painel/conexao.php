@@ -1,4 +1,7 @@
 <?php
+// Incluir configurações globais
+require_once '../config.php';
+
 // Função para conectar ao banco de dados de um cliente
 function conectarCliente($host, $usuario, $senha, $banco) {
     $conn = new mysqli($host, $usuario, $senha, $banco);

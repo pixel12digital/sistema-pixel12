@@ -4,6 +4,9 @@
  * Resolve problemas de "max_connections_per_hour" excedido
  */
 
+// Incluir configurações globais
+require_once '../config.php';
+
 header('Content-Type: text/plain; charset=utf-8');
 echo "=== OTIMIZAÇÃO DE CONEXÕES DO BANCO ===\n";
 echo "Data/Hora: " . date('Y-m-d H:i:s') . "\n\n";
@@ -15,13 +18,11 @@ echo "1. CONFIGURANDO OTIMIZAÇÕES:\n";
 $db_content = '<?php
 // Conexão otimizada com MySQL - Reduz uso de conexões
 if (!isset($mysqli) || !$mysqli instanceof mysqli) {
-    $host = "localhost";
-    $username = "u342734079_revendaweb"; 
-    $password = "Loja2024@";
-    $database = "u342734079_revendaweb";
+    // Incluir configurações globais
+    require_once __DIR__ . \'/../config.php\';
     
     // Configurar opções de conexão para reduzir uso
-    $mysqli = new mysqli($host, $username, $password, $database);
+    $mysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
     
     if ($mysqli->connect_error) {
         error_log("Conexão falhada: " . $mysqli->connect_error);
