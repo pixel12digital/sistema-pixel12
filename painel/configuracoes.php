@@ -1,4 +1,9 @@
 <?php
+// Headers para evitar cache
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
 session_start();
 if (!isset($_SESSION['logado']) || !$_SESSION['logado']) {
     header('Location: index.php');
@@ -9,8 +14,11 @@ if (!isset($_SESSION['logado']) || !$_SESSION['logado']) {
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Painel - Configurações</title>
-    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="assets/style.css?v=<?php echo time(); ?>">
     <style>
         .acoes-rapidas {
             display: grid;
