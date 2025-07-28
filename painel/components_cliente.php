@@ -553,15 +553,25 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
   echo '<div class="painel-tab painel-tab-financeiro" style="display:none;">
     <div class="painel-card">
       <h4>💸 Financeiro</h4>';
+  
   $cobrancas = [];
   $total_pago = $total_aberto = $total_vencido = 0.0;
-  $res_cob = $mysqli->query("SELECT * FROM cobrancas WHERE cliente_id = $cliente_id ORDER BY vencimento DESC");
-  while ($cob = $res_cob && $res_cob->num_rows ? $res_cob->fetch_assoc() : null) {
-    $cobrancas[] = $cob;
-    $valor = floatval($cob['valor']);
-    if ($cob['status'] === 'RECEIVED' || $cob['status'] === 'PAID') $total_pago += $valor;
-    elseif ($cob['status'] === 'PENDING' && strtotime($cob['vencimento']) < time()) $total_vencido += $valor;
-    elseif ($cob['status'] === 'PENDING') $total_aberto += $valor;
+  
+  // Verificar se a tabela cobrancas existe
+  $check_table = $mysqli->query("SHOW TABLES LIKE 'cobrancas'");
+  if ($check_table && $check_table->num_rows > 0) {
+    // Tabela existe, fazer a consulta
+    $res_cob = $mysqli->query("SELECT * FROM cobrancas WHERE cliente_id = $cliente_id ORDER BY vencimento DESC");
+    
+    if ($res_cob) {
+      while ($cob = $res_cob->fetch_assoc()) {
+        $cobrancas[] = $cob;
+        $valor = floatval($cob['valor']);
+        if ($cob['status'] === 'RECEIVED' || $cob['status'] === 'PAID') $total_pago += $valor;
+        elseif ($cob['status'] === 'PENDING' && strtotime($cob['vencimento']) < time()) $total_vencido += $valor;
+        elseif ($cob['status'] === 'PENDING') $total_aberto += $valor;
+      }
+    }
   }
   
   // Resumo financeiro melhorado

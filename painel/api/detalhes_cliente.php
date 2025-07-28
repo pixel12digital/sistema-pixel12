@@ -9,18 +9,27 @@ header('Cache-Control: private, max-age=30'); // Cache HTTP de 30 segundos
 
 $cliente_id = isset($_GET['cliente_id']) ? intval($_GET['cliente_id']) : 0;
 $modo_edicao = isset($_GET['editar']) && $_GET['editar'] == '1';
+$forcar_atualizacao = isset($_GET['atualizar']) && $_GET['atualizar'] == '1';
 
 if (!$cliente_id) {
     echo '<div class="text-center text-gray-400">Cliente não encontrado.</div>';
     exit;
 }
 
+// Debug: Log do cliente_id recebido
+error_log("Detalhes cliente - Cliente ID: $cliente_id, Modo edição: " . ($modo_edicao ? 'sim' : 'não') . ", Forçar atualização: " . ($forcar_atualizacao ? 'sim' : 'não'));
+
 // Incluir o arquivo JavaScript com as funções de edição e exclusão
 echo '<script src="../assets/chat-functions.js"></script>';
 
-// Não usar cache se estiver em modo edição
-if ($modo_edicao) {
-    render_cliente_ficha($cliente_id, true);
+// Não usar cache se estiver em modo edição ou se forçar atualização
+if ($modo_edicao || $forcar_atualizacao) {
+    // Invalidar cache se forçar atualização
+    if ($forcar_atualizacao) {
+        cache_forget("detalhes_cliente_{$cliente_id}");
+        error_log("Cache invalidado para cliente $cliente_id");
+    }
+    render_cliente_ficha($cliente_id, $modo_edicao);
 } else {
     // Usar cache para detalhes do cliente
     $output = cache_remember("detalhes_cliente_{$cliente_id}", function() use ($cliente_id) {

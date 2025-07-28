@@ -140,11 +140,16 @@ function render_content() {
       <?php if ($cliente_selecionado): ?>
         <div class="client-details-header">
           <h2>👤 Detalhes do Cliente</h2>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button onclick="forcarAtualizacaoCache()" style="background: #7c3aed; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8em; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">🔄 Atualizar</button>
+            <button onclick="abrirTesteCobrancas()" style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8em; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">🔍 Testar Cobranças</button>
+          </div>
           </div>
         <div class="client-details-full">
           <iframe src="api/detalhes_cliente.php?cliente_id=<?= $cliente_selecionado['id'] ?>" 
                   frameborder="0" 
-                  style="width: 100%; height: calc(100vh - 130px); border: none;">
+                  style="width: 100%; height: calc(100vh - 130px); border: none;"
+                  id="iframe-detalhes-cliente">
           </iframe>
           </div>
       <?php else: ?>
@@ -2143,5 +2148,29 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     } catch (err) {}
   });
+  
+  // ===== FUNÇÕES DE DEBUG =====
+  
+  window.forcarAtualizacaoCache = function() {
+    const iframe = document.getElementById('iframe-detalhes-cliente');
+    if (iframe) {
+      const currentSrc = iframe.src;
+      const newSrc = currentSrc.includes('?') ? 
+        currentSrc + '&atualizar=1' : 
+        currentSrc + '?atualizar=1';
+      
+      iframe.src = newSrc;
+      
+      // Mostrar feedback
+      const btn = event.target;
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ Atualizando...';
+      btn.disabled = true;
+      
+      setTimeout(() => {
+        btn.textContent = originalText;
+      }, 2000);
+    }
+  };
 });
 </script>
