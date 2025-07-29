@@ -181,8 +181,13 @@ function formatarNumeroWhatsapp(numero) {
     numero = numero.slice(2);
   }
   
-  // Verificar se tem pelo menos DDD (2 dígitos) + número (8 dígitos)
-  if (numero.length < 10) {
+  // Para números muito longos, pegar apenas os últimos 11 dígitos (DDD + telefone)
+  if (numero.length > 11) {
+    numero = numero.slice(-11);
+  }
+  
+  // Verificar se tem pelo menos DDD (2 dígitos) + número (mínimo 7 dígitos)
+  if (numero.length < 9) {
     return null; // Número muito curto
   }
   
@@ -190,8 +195,26 @@ function formatarNumeroWhatsapp(numero) {
   const ddd = numero.slice(0, 2);
   const telefone = numero.slice(2);
   
+  // Regras de formatação:
+  // 1. Se tem 9 dígitos e começa com 9, manter como está (celular com 9)
+  if (telefone.length === 9 && telefone.startsWith('9')) {
+    // Manter como está - é um celular válido
+  }
+  // 2. Se tem 8 dígitos, adicionar 9 no início (celular sem 9)
+  else if (telefone.length === 8) {
+    telefone = '9' + telefone;
+  }
+  // 3. Se tem 7 dígitos, adicionar 9 no início (telefone fixo convertido para celular)
+  else if (telefone.length === 7) {
+    telefone = '9' + telefone;
+  }
+  
+  // Verificar se o número final é válido (deve ter 8 ou 9 dígitos)
+  if (telefone.length < 8 || telefone.length > 9) {
+    return null; // Número inválido
+  }
+  
   // Retornar no formato: 55 + DDD + número + @c.us
-  // Deixar o número como está (você gerencia as regras no cadastro)
   return '55' + ddd + telefone + '@c.us';
 }
 

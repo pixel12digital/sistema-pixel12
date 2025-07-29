@@ -1,24 +1,22 @@
 <?php
 /**
  * CONFIGURAÇÃO OTIMIZADA PARA REDUZIR CONEXÕES
+ * 
+ * Configurações de emergência para resolver problema de conexões excessivas
  */
 
-// Configurações de polling otimizadas
-define("POLLING_CONFIGURACOES", 60000);    // 60 segundos
-define("POLLING_WHATSAPP", 30000);         // 30 segundos
-define("POLLING_MONITORAMENTO", 60000);    // 60 segundos
-define("POLLING_CHAT", 60000);             // 60 segundos
-define("POLLING_COMUNICACAO", 120000);     // 2 minutos
+// Reduzir drasticamente o polling
+if (!defined("POLLING_CONFIGURACOES")) define("POLLING_CONFIGURACOES", 300000);   // 5 minutos
+if (!defined("POLLING_WHATSAPP")) define("POLLING_WHATSAPP", 300000);             // 5 minutos  
+if (!defined("POLLING_MONITORAMENTO")) define("POLLING_MONITORAMENTO", 600000);   // 10 minutos
+if (!defined("POLLING_CHAT")) define("POLLING_CHAT", 300000);                     // 5 minutos
+if (!defined("POLLING_COMUNICACAO")) define("POLLING_COMUNICACAO", 600000);       // 10 minutos
 
-// Configurações de cache
-define("CACHE_ENABLED", true);
-define("CACHE_TTL", 300);                  // 5 minutos
-define("CACHE_MAX_SIZE", "50MB");
+// Configurações de cache agressivo
+if (!defined("CACHE_TTL_DEFAULT")) define("CACHE_TTL_DEFAULT", 1800); // 30 minutos
+if (!defined("ENABLE_CACHE")) define("ENABLE_CACHE", true);
 
-// Configurações de conexão
-define("DB_PERSISTENT", true);
-define("DB_TIMEOUT", 10);
-define("DB_MAX_RETRIES", 3);
-
-echo "✅ Configuração otimizada carregada\n";
+// Timeout de conexão reduzido
+if (!defined("DB_CONNECT_TIMEOUT")) define("DB_CONNECT_TIMEOUT", 5);
+if (!defined("DB_READ_TIMEOUT")) define("DB_READ_TIMEOUT", 10);
 ?>

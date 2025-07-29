@@ -1,4 +1,7 @@
 <?php
+// Incluir configuração de emergência primeiro
+require_once __DIR__ . '/../config_emergencia.php';
+
 // Incluir configurações globais
 require_once __DIR__ . '/../config.php';
 
