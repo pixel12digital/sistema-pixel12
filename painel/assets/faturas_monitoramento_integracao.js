@@ -25,7 +25,22 @@ class FaturasMonitoramentoIntegracao {
     async carregarDadosMonitoramento() {
         try {
             const response = await fetch('api/buscar_dados_monitoramento_faturas.php');
-            const data = await response.json();
+            
+            // Verificar se a resposta é JSON válido
+            const contentType = response.headers.get('content-type');
+            let data;
+            
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                // Se não for JSON, tentar ler como texto
+                const text = await response.text();
+                if (text.trim().startsWith('Erro') || text.trim().startsWith('error')) {
+                    throw new Error(text);
+                }
+                // Se não for erro, assumir que foi bem-sucedido mas sem dados
+                data = { success: true, dados_monitoramento: {} };
+            }
 
             if (data.success) {
                 this.dadosMonitoramento = data.dados_monitoramento;

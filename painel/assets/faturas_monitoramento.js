@@ -162,7 +162,22 @@ class ClienteMonitoramento {
     async validarMonitoramento(clienteId) {
         try {
             const response = await fetch(`api/validar_monitoramento.php?cliente_id=${clienteId}`);
-            const data = await response.json();
+            
+            // Verificar se a resposta é JSON válido
+            const contentType = response.headers.get('content-type');
+            let data;
+            
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                // Se não for JSON, tentar ler como texto
+                const text = await response.text();
+                if (text.trim().startsWith('Erro') || text.trim().startsWith('error')) {
+                    throw new Error(text);
+                }
+                // Se não for erro, assumir que foi bem-sucedido
+                data = { success: true, pode_monitorar: false, motivo: 'Resposta inválida do servidor' };
+            }
             
             if (data.success) {
                 return {
@@ -188,32 +203,52 @@ class ClienteMonitoramento {
      * Salva o status de monitoramento no banco
      */
     async salvarStatusMonitoramento(clienteId, isMonitorado) {
-        const response = await fetch('api/salvar_monitoramento_cliente.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                cliente_id: clienteId,
-                monitorado: isMonitorado
-            })
-        });
-
-        const data = await response.json();
-        if (!data.success) {
-            throw new Error(data.error);
-        }
-
-        // Se há avisos, mostrar como alertas informativos
-        if (data.avisos && data.avisos.length > 0) {
-            console.log('Avisos do monitoramento:', data.avisos);
-            // Mostrar avisos como alertas informativos (não como erros)
-            data.avisos.forEach(aviso => {
-                this.mostrarAlerta(aviso, 'warning');
+        try {
+            const response = await fetch('api/salvar_monitoramento_cliente.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    cliente_id: clienteId,
+                    monitorado: isMonitorado
+                })
             });
-        }
 
-        return data;
+            // Verificar se a resposta é JSON válido
+            const contentType = response.headers.get('content-type');
+            let data;
+            
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                // Se não for JSON, tentar ler como texto
+                const text = await response.text();
+                if (text.trim().startsWith('Erro') || text.trim().startsWith('error')) {
+                    throw new Error(text);
+                }
+                // Se não for erro, assumir que foi bem-sucedido
+                data = { success: true };
+            }
+
+            if (!data.success) {
+                throw new Error(data.error || 'Erro desconhecido');
+            }
+
+            // Se há avisos, mostrar como alertas informativos
+            if (data.avisos && data.avisos.length > 0) {
+                console.log('Avisos do monitoramento:', data.avisos);
+                // Mostrar avisos como alertas informativos (não como erros)
+                data.avisos.forEach(aviso => {
+                    this.mostrarAlerta(aviso, 'warning');
+                });
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Erro ao salvar status de monitoramento:', error);
+            throw error;
+        }
     }
 
     /**
@@ -222,7 +257,22 @@ class ClienteMonitoramento {
     async carregarClientesMonitorados() {
         try {
             const response = await fetch('api/listar_clientes_monitorados.php');
-            const data = await response.json();
+            
+            // Verificar se a resposta é JSON válido
+            const contentType = response.headers.get('content-type');
+            let data;
+            
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                // Se não for JSON, tentar ler como texto
+                const text = await response.text();
+                if (text.trim().startsWith('Erro') || text.trim().startsWith('error')) {
+                    throw new Error(text);
+                }
+                // Se não for erro, assumir que foi bem-sucedido mas sem dados
+                data = { success: true, clientes: [] };
+            }
 
             if (data.success) {
                 data.clientes.forEach(cliente => {

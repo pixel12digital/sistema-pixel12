@@ -107,82 +107,99 @@ try {
     if ($monitorado) {
         try {
             // Buscar dados do cliente
-            $res_cli = $mysqli->query("SELECT nome, celular, email FROM clientes WHERE id = $cliente_id LIMIT 1");
+            $res_cli = $mysqli->query("SELECT nome, contact_name, celular, email FROM clientes WHERE id = $cliente_id LIMIT 1");
             $cli = $res_cli ? $res_cli->fetch_assoc() : null;
             
             if ($cli && $cli['celular']) {
-                $mensagem = "Olá {$cli['nome']}!\n\nSeu cadastro foi ativado para monitoramento automático de cobranças. Você receberá lembretes de vencimento e notificações importantes por WhatsApp e e-mail (se cadastrado).\n\nAtenciosamente,\nEquipe Financeira Pixel12 Digital";
+                $nome = $cli['contact_name'] ?: $cli['nome'];
+                $mensagem = "Olá {$nome}!\n\nSeu cadastro foi ativado para monitoramento automático de cobranças. Você receberá lembretes de vencimento e notificações importantes por WhatsApp e e-mail (se cadastrado).\n\nPara consultar suas faturas, responda \"faturas\" ou \"consulta\".\n\nAtenciosamente,\nEquipe Financeira Pixel12 Digital";
                 
-                // Enviar WhatsApp (sem bloquear em caso de erro)
-                try {
-                    $numero_limpo = preg_replace('/\D/', '', $cli['celular']);
-                    $numero_formatado = '55' . $numero_limpo . '@c.us';
-                    $payload = json_encode([
-                        'sessionName' => 'default',
-                        'number' => $numero_formatado,
-                        'message' => $mensagem
-                    ]);
-                    
-                    $ch = curl_init("http://212.85.11.238:3000/send/text");
-                    curl_setopt($ch, CURLOPT_POST, 1);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-                    $response_whatsapp = curl_exec($ch);
-                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    $error = curl_error($ch);
-                    curl_close($ch);
-                    
-                    $log_envio = date('Y-m-d H:i:s') . " - WhatsApp monitoramento para cliente $cliente_id ({$cli['nome']}): ";
-                    if ($error) {
-                        $log_envio .= "ERRO: $error\n";
-                        $response['avisos'][] = "WhatsApp: Erro de conexão ($error)";
-                    } else {
-                        $status = ($http_code === 200 ? 'ENVIADO' : 'FALHA');
-                        $log_envio .= $status . "\n";
-                        if ($http_code !== 200) {
-                            $response['avisos'][] = "WhatsApp: Falha no envio (HTTP $http_code)";
-                        }
-                    }
-                    file_put_contents('../logs/monitoramento_clientes.log', $log_envio, FILE_APPEND);
-                    
-                } catch (Exception $e) {
-                    $log_erro = date('Y-m-d H:i:s') . " - Erro WhatsApp monitoramento cliente $cliente_id: " . $e->getMessage() . "\n";
-                    file_put_contents('../logs/monitoramento_clientes.log', $log_erro, FILE_APPEND);
-                    $response['avisos'][] = "WhatsApp: " . $e->getMessage();
-                }
+                // TEMPORÁRIO: Removida verificação de duplicação para teste
+                // Verificar se já foi enviada mensagem de ativação hoje para este cliente
+                // $hoje = date('Y-m-d');
+                // $sql_check = "SELECT COUNT(*) as total FROM mensagens_comunicacao 
+                //              WHERE cliente_id = $cliente_id 
+                //              AND tipo = 'ativacao_monitoramento' 
+                //              AND DATE(data_hora) = '$hoje'";
+                // $check_result = $mysqli->query($sql_check);
+                // $check_data = $check_result->fetch_assoc();
                 
-                // Enviar e-mail se houver (sem bloquear em caso de erro)
-                if ($cli['email'] && filter_var($cli['email'], FILTER_VALIDATE_EMAIL)) {
+                // if ($check_data['total'] > 0) {
+                //     // Já foi enviada mensagem de ativação hoje
+                //     $response['avisos'][] = "Mensagem de ativação já enviada hoje";
+                // } else {
+                    // Enviar WhatsApp (sem bloquear em caso de erro)
                     try {
-                        $assunto = 'Ativação de Monitoramento - Pixel12 Digital';
-                        $headers = "From: Pixel12 Digital <nao-responder@pixel12digital.com.br>\r\n";
-                        $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
-                        $enviado_email = mail($cli['email'], $assunto, $mensagem, $headers);
+                        $numero_limpo = preg_replace('/\D/', '', $cli['celular']);
+                        $numero_formatado = '55' . $numero_limpo . '@c.us';
+                        $payload = json_encode([
+                            'sessionName' => 'default',
+                            'number' => $numero_formatado,
+                            'message' => $mensagem
+                        ]);
                         
-                        $log_email = date('Y-m-d H:i:s') . " - Email monitoramento para $cliente_id ({$cli['email']}): " . ($enviado_email ? 'ENVIADO' : 'FALHA') . "\n";
-                        file_put_contents('../logs/monitoramento_clientes.log', $log_email, FILE_APPEND);
+                        $ch = curl_init("http://212.85.11.238:3000/send/text");
+                        curl_setopt($ch, CURLOPT_POST, 1);
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                        $response_whatsapp = curl_exec($ch);
+                        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        $error = curl_error($ch);
+                        curl_close($ch);
                         
-                        if (!$enviado_email) {
-                            $response['avisos'][] = "Email: Falha no envio";
+                        $log_envio = date('Y-m-d H:i:s') . " - WhatsApp monitoramento para cliente $cliente_id ({$nome}): ";
+                        if ($error) {
+                            $log_envio .= "ERRO: $error\n";
+                            $response['avisos'][] = "WhatsApp: Erro de conexão ($error)";
+                        } else {
+                            $status = ($http_code === 200 ? 'ENVIADO' : 'FALHA');
+                            $log_envio .= $status . "\n";
+                            if ($http_code !== 200) {
+                                $response['avisos'][] = "WhatsApp: Falha no envio (HTTP $http_code)";
+                            }
                         }
+                        file_put_contents('../logs/monitoramento_clientes.log', $log_envio, FILE_APPEND);
+                        
+                        // Salvar mensagem no banco de dados
+                        $mensagem_escaped = $mysqli->real_escape_string($mensagem);
+                        $data_hora = date('Y-m-d H:i:s');
+                        $sql_save = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) 
+                                    VALUES (1, $cliente_id, '$mensagem_escaped', 'ativacao_monitoramento', '$data_hora', 'enviado', 'enviado')";
+                        $mysqli->query($sql_save);
+                        
                     } catch (Exception $e) {
-                        $log_erro = date('Y-m-d H:i:s') . " - Erro Email monitoramento cliente $cliente_id: " . $e->getMessage() . "\n";
+                        $log_erro = date('Y-m-d H:i:s') . " - Erro WhatsApp monitoramento cliente $cliente_id: " . $e->getMessage() . "\n";
                         file_put_contents('../logs/monitoramento_clientes.log', $log_erro, FILE_APPEND);
-                        $response['avisos'][] = "Email: " . $e->getMessage();
+                        $response['avisos'][] = "WhatsApp: " . $e->getMessage();
                     }
-                }
+                    
+                    // Enviar e-mail se houver (sem bloquear em caso de erro)
+                    if ($cli['email'] && filter_var($cli['email'], FILTER_VALIDATE_EMAIL)) {
+                        try {
+                            $assunto = 'Ativação de Monitoramento - Pixel12 Digital';
+                            $headers = "From: Pixel12 Digital <nao-responder@pixel12digital.com.br>\r\n";
+                            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+                            $enviado_email = mail($cli['email'], $assunto, $mensagem, $headers);
+                            
+                            $log_email = date('Y-m-d H:i:s') . " - Email monitoramento para $cliente_id ({$cli['email']}): " . ($enviado_email ? 'ENVIADO' : 'FALHA') . "\n";
+                            file_put_contents('../logs/monitoramento_clientes.log', $log_email, FILE_APPEND);
+                            
+                            if (!$enviado_email) {
+                                $response['avisos'][] = "Email: Falha no envio";
+                            }
+                        } catch (Exception $e) {
+                            $log_erro = date('Y-m-d H:i:s') . " - Erro Email monitoramento cliente $cliente_id: " . $e->getMessage() . "\n";
+                            file_put_contents('../logs/monitoramento_clientes.log', $log_erro, FILE_APPEND);
+                            $response['avisos'][] = "Email: " . $e->getMessage();
+                        }
+                    }
+                // }
             }
             
-            // AGENDAR MENSAGENS AUTOMATICAMENTE PARA FATURAS VENCIDAS (sem bloquear em caso de erro)
-            try {
-                agendarMensagensFaturasVencidas($cliente_id, $mysqli);
-            } catch (Exception $e) {
-                $log_erro = date('Y-m-d H:i:s') . " - Erro agendamento mensagens cliente $cliente_id: " . $e->getMessage() . "\n";
-                file_put_contents('../logs/monitoramento_clientes.log', $log_erro, FILE_APPEND);
-                $response['avisos'][] = "Agendamento: " . $e->getMessage();
-            }
+            // REMOVIDO: AGENDAR MENSAGENS AUTOMATICAMENTE PARA FATURAS VENCIDAS
+            // Isso estava causando duplicação de mensagens. O agendamento será feito apenas pelo cron automático.
             
         } catch (Exception $e) {
             // Log do erro geral, mas não falhar o salvamento
@@ -425,6 +442,22 @@ function montarMensagemCobrancaVencida($faturas, $cliente_info) {
  */
 function agendarMensagem($cliente_id, $mensagem, $horario_envio, $prioridade, $mysqli) {
     try {
+        // Verificar se já existe uma mensagem agendada similar para este cliente
+        $mensagem_hash = md5($mensagem);
+        $sql_check = "SELECT COUNT(*) as total FROM mensagens_agendadas 
+                     WHERE cliente_id = $cliente_id 
+                     AND tipo = 'cobranca_vencida' 
+                     AND status = 'agendada' 
+                     AND DATE(data_agendada) = DATE('$horario_envio')";
+        
+        $check_result = $mysqli->query($sql_check);
+        $check_data = $check_result->fetch_assoc();
+        
+        if ($check_data['total'] > 0) {
+            // Já existe mensagem agendada para este cliente na mesma data
+            return false;
+        }
+        
         $mensagem_escaped = $mysqli->real_escape_string($mensagem);
         $horario_escaped = $mysqli->real_escape_string($horario_envio);
         $prioridade_escaped = $mysqli->real_escape_string($prioridade);

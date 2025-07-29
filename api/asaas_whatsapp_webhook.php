@@ -52,8 +52,9 @@ try {
         case 'PAYMENT_RECEIVED':
             // Pagamento recebido - enviar confirmação
             if ($cliente && $cobranca) {
+                $nome = $cliente['contact_name'] ?: $cliente['nome'];
                 $mensagem = "✅ *Pagamento Confirmado!*\n\n";
-                $mensagem .= "Olá {$cliente['nome']}!\n\n";
+                $mensagem .= "Olá {$nome}!\n\n";
                 $mensagem .= "Recebemos seu pagamento de *R$ " . number_format($payment['value'], 2, ',', '.') . "*\n";
                 $mensagem .= "Referente à cobrança #{$cobranca['id']}\n\n";
                 $mensagem .= "Obrigado pela confiança! 🙏\n";
@@ -69,8 +70,9 @@ try {
         case 'PAYMENT_OVERDUE':
             // Pagamento em atraso - enviar lembrete
             if ($cliente && $cobranca) {
+                $nome = $cliente['contact_name'] ?: $cliente['nome'];
                 $mensagem = "⚠️ *Pagamento em Atraso*\n\n";
-                $mensagem .= "Olá {$cliente['nome']}!\n\n";
+                $mensagem .= "Olá {$nome}!\n\n";
                 $mensagem .= "Sua cobrança de *R$ " . number_format($payment['value'], 2, ',', '.') . "* está em atraso.\n";
                 $mensagem .= "Vencimento: " . date('d/m/Y', strtotime($payment['dueDate'])) . "\n\n";
                 $mensagem .= "🔗 *Link para pagamento:*\n";
@@ -87,8 +89,9 @@ try {
         case 'PAYMENT_DELETED':
             // Pagamento cancelado
             if ($cliente && $cobranca) {
+                $nome = $cliente['contact_name'] ?: $cliente['nome'];
                 $mensagem = "❌ *Cobrança Cancelada*\n\n";
-                $mensagem .= "Olá {$cliente['nome']}!\n\n";
+                $mensagem .= "Olá {$nome}!\n\n";
                 $mensagem .= "Sua cobrança de *R$ " . number_format($payment['value'], 2, ',', '.') . "* foi cancelada.\n\n";
                 $mensagem .= "Entre em contato conosco para mais informações.";
                 
@@ -102,8 +105,9 @@ try {
         case 'PAYMENT_UPDATED':
             // Pagamento atualizado
             if ($cliente && $cobranca) {
+                $nome = $cliente['contact_name'] ?: $cliente['nome'];
                 $mensagem = "📝 *Cobrança Atualizada*\n\n";
-                $mensagem .= "Olá {$cliente['nome']}!\n\n";
+                $mensagem .= "Olá {$nome}!\n\n";
                 $mensagem .= "Sua cobrança foi atualizada para *R$ " . number_format($payment['value'], 2, ',', '.') . "*\n";
                 $mensagem .= "Novo vencimento: " . date('d/m/Y', strtotime($payment['dueDate'])) . "\n\n";
                 $mensagem .= "🔗 *Link para pagamento:*\n";

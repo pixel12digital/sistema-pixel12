@@ -46,9 +46,10 @@ if (!$rows) { echo '<div>Nenhuma cobrança encontrada.</div>'; exit; }
 echo '<table class="com-table"><thead><tr><th>Nome</th><th>Critério</th><th>Vencimento</th><th>Valor</th><th>Link</th><th>Mensagem</th><th>Enviar</th><th>Status</th></tr></thead><tbody>';
 foreach ($rows as $i => $r) {
   $msg = $msgs[$r['criterio']] ?? '';
-  $msg_final = str_replace(['{nome}','{link}'], [$r['nome'], $r['link']], $msg);
+  $nome = isset($r['contact_name']) && $r['contact_name'] ? $r['contact_name'] : $r['nome'];
+  $msg_final = str_replace(['{nome}','{link}'], [$nome, $r['link']], $msg);
   echo '<tr>';
-  echo '<td>' . htmlspecialchars($r['nome']) . '</td>';
+  echo '<td>' . htmlspecialchars($nome) . '</td>';
   echo '<td>' . htmlspecialchars($criterios[$r['criterio']]) . '</td>';
   echo '<td>' . htmlspecialchars(date('d/m/Y', strtotime($r['vencimento']))) . '</td>';
   echo '<td>R$ ' . number_format($r['valor'],2,',','.') . '</td>';

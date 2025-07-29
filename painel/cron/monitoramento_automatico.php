@@ -53,6 +53,7 @@ try {
                 c.id as cliente_id,
                 c.nome as cliente_nome,
                 c.celular as cliente_celular,
+                c.contact_name,
                 GROUP_CONCAT(
                     CONCAT(
                         cob.id, '|',
@@ -71,7 +72,7 @@ try {
             AND cob.vencimento <= CURDATE()
             AND c.celular IS NOT NULL
             AND c.celular != ''
-            GROUP BY c.id, c.nome, c.celular
+            GROUP BY c.id, c.nome, c.celular, c.contact_name
             ORDER BY cob.vencimento ASC";
     
     $result = $mysqli->query($sql);
@@ -143,7 +144,8 @@ try {
             if (empty($todas_faturas)) continue;
 
             // Montar mensagem
-            $mensagem = "Olá {$row['cliente_nome']}! \n\n";
+            $nome = $row['contact_name'] ?: $row['cliente_nome'];
+            $mensagem = "Olá {$nome}! \n\n";
             $mensagem .= "⚠️ Você possui faturas em aberto:\n\n";
             foreach ($todas_faturas as $fatura) {
                 $valor = number_format($fatura['valor'], 2, ',', '.');
@@ -190,12 +192,14 @@ try {
                 error_log("Erro ao salvar mensagem automática: " . $mysqli->error);
             }
             $mensagens_enviadas++;
-            $log_envio = date('Y-m-d H:i:s') . " - Mensagem de cobrança enviada para {$row['cliente_nome']} (ID: {$row['cliente_id']})\n";
+            $nome = $row['contact_name'] ?: $row['cliente_nome'];
+            $log_envio = date('Y-m-d H:i:s') . " - Mensagem de cobrança enviada para {$nome} (ID: {$row['cliente_id']})\n";
             file_put_contents('../logs/monitoramento_automatico.log', $log_envio, FILE_APPEND);
             sleep(2);
         } catch (Exception $e) {
             $erros++;
-            $log_erro = date('Y-m-d H:i:s') . " - Erro ao processar cliente {$row['cliente_nome']}: " . $e->getMessage() . "\n";
+            $nome = $row['contact_name'] ?: $row['cliente_nome'];
+            $log_erro = date('Y-m-d H:i:s') . " - Erro ao processar cliente {$nome}: " . $e->getMessage() . "\n";
             file_put_contents('../logs/monitoramento_automatico.log', $log_erro, FILE_APPEND);
         }
     }

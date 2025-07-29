@@ -42,7 +42,7 @@ if ($http_code_status === 200) {
 echo "<h3>2. Testando envio de mensagem de monitoramento...</h3>";
 
 // Teste 2: Enviar mensagem de monitoramento
-$mensagem = "Olá {$cliente_nome}!\n\nSeu cadastro foi ativado para monitoramento automático de cobranças. Você receberá lembretes de vencimento e notificações importantes por WhatsApp e e-mail (se cadastrado).\n\nAtenciosamente,\nEquipe Financeira Pixel12 Digital";
+$mensagem = "Olá {$cliente_nome}!\n\nSeu cadastro foi ativado para monitoramento automático de cobranças. Você receberá lembretes de vencimento e notificações importantes por WhatsApp e e-mail (se cadastrado).\n\nPara consultar suas faturas, responda \"faturas\" ou \"consulta\".\n\nAtenciosamente,\nEquipe Financeira Pixel12 Digital";
 
 $numero_limpo = preg_replace('/\D/', '', $numero_teste);
 $numero_formatado = '55' . $numero_limpo . '@c.us';

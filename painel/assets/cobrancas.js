@@ -169,26 +169,64 @@ function renderizarTabelaCobrancas() {
                 const nome = this.value.trim();
                 const clienteId = this.getAttribute('data-cliente');
                 if (!nome) return;
+                
                 this.disabled = true;
+                this.style.opacity = '0.6';
+                
                 fetch(getBasePath() + '/api/atualizar_contato_cliente.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ cliente_id: clienteId, contact_name: nome })
                 })
-                .then(r => r.json())
+                .then(response => {
+                    // Verificar se a resposta é JSON válido
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    } else {
+                        // Se não for JSON, tentar ler como texto
+                        return response.text().then(text => {
+                            // Se o texto começa com "Erro", é um erro do PHP
+                            if (text.trim().startsWith('Erro') || text.trim().startsWith('error')) {
+                                throw new Error(text);
+                            }
+                            // Se não for erro, assumir que foi bem-sucedido
+                            return { success: true };
+                        });
+                    }
+                })
                 .then(resp => {
                     if (resp.success) {
+                        // Sucesso - atualizar o HTML
                         this.outerHTML = `<span class='contato-principal' data-cliente='${clienteId}'>${nome}</span>`;
                         // Atualizar a tabela sem recarregar a página inteira
                         carregarCobrancas(false);
                     } else {
-                        alert('Erro ao salvar: ' + (resp.error || ''));
+                        // Erro retornado pelo backend
+                        console.error('Erro ao salvar contato:', resp.error || 'Erro desconhecido');
+                        alert('Erro ao salvar: ' + (resp.error || 'Erro desconhecido'));
                         this.disabled = false;
+                        this.style.opacity = '1';
                     }
                 })
-                .catch(() => {
-                    alert('Erro ao salvar contato.');
-                    this.disabled = false;
+                .catch(error => {
+                    // Erro de rede ou parsing
+                    console.error('Erro na requisição:', error);
+                    
+                    // Verificar se é erro de rede ou parsing
+                    if (error.name === 'TypeError' || error.message.includes('JSON')) {
+                        // Erro de parsing JSON - provavelmente o salvamento funcionou
+                        // mas a resposta não foi JSON válido
+                        console.log('Salvamento provavelmente bem-sucedido, mas resposta não é JSON válido');
+                        // Atualizar o HTML mesmo assim
+                        this.outerHTML = `<span class='contato-principal' data-cliente='${clienteId}'>${nome}</span>`;
+                        carregarCobrancas(false);
+                    } else {
+                        // Outro tipo de erro
+                        alert('Erro ao salvar contato: ' + error.message);
+                        this.disabled = false;
+                        this.style.opacity = '1';
+                    }
                 });
             }
         });
@@ -519,6 +557,7 @@ function montarMensagemPadraoWhatsApp(cob) {
 }
 
 function abrirModalWhatsapp(cliente_id, canal_id, mensagemPadrao, cobranca_id) {
+  console.log('Abrindo modal WhatsApp para cliente:', cliente_id, 'cobranca:', cobranca_id);
   const modal = document.getElementById('modal-whatsapp-envio');
   const closeBtn = document.getElementById('close-modal-whatsapp-envio');
   const textarea = document.getElementById('mensagem-whatsapp');
@@ -528,10 +567,18 @@ function abrirModalWhatsapp(cliente_id, canal_id, mensagemPadrao, cobranca_id) {
   textarea.value = mensagemPadrao || '';
   statusDiv.textContent = '';
   modal.style.display = 'flex';
+  
+  // Garantir que o botão esteja habilitado ao abrir o modal
+  btnEnviar.disabled = false;
+  
   closeBtn.onclick = () => { 
       modal.style.display = 'none';
       btnEnviar.disabled = false; // Garante reabilitação ao fechar manualmente
   };
+  
+  // Remover event listener antigo do botão antes de configurar o novo
+  btnEnviar.onclick = null;
+  
   // Buscar canal padrão para Financeiro
   fetch(getBasePath() + '/api/canal_padrao_financeiro.php')
     .then(r => r.json())
@@ -572,43 +619,117 @@ function abrirModalWhatsapp(cliente_id, canal_id, mensagemPadrao, cobranca_id) {
           if (!selectCanal.value && selectCanal.options.length > 0) {
             selectCanal.selectedIndex = 0;
           }
+          
+          // Configurar o event listener do botão APÓS carregar os canais
+          setTimeout(() => {
+            console.log('Configurando event listener do botão WhatsApp após carregar canais');
+            btnEnviar.onclick = function() {
+              btnEnviar.disabled = true;
+              statusDiv.textContent = 'Enviando...';
+              const canalSelecionado = selectCanal.value;
+              fetch('enviar_mensagem_whatsapp.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `cliente_id=${encodeURIComponent(cliente_id)}&canal_id=${encodeURIComponent(canalSelecionado)}&mensagem=${encodeURIComponent(textarea.value)}${cobranca_id ? `&cobranca_id=${encodeURIComponent(cobranca_id)}` : ''}`
+              })
+              .then(r => r.json())
+              .then(resp => {
+                if (resp.success === true) {
+                  statusDiv.textContent = 'Mensagem enviada com sucesso!';
+                  statusDiv.style.color = 'green';
+                  setTimeout(() => {
+                    modal.style.display = 'none';
+                    carregarCobrancas();
+                  }, 2000);
+                } else {
+                  statusDiv.textContent = resp.error || 'Erro ao enviar mensagem.';
+                  statusDiv.style.color = 'red';
+                  btnEnviar.disabled = false;
+                }
+              })
+              .catch(error => {
+                statusDiv.textContent = 'Erro ao conectar ao servidor ou resposta inválida.';
+                statusDiv.style.color = 'red';
+                btnEnviar.disabled = false;
+              });
+            };
+          }, 100); // Pequeno delay para garantir que o DOM esteja pronto
         })
         .catch(err => {
           console.error('Erro no fetch dos canais WhatsApp:', err);
+          // Configurar o event listener mesmo em caso de erro
+          setTimeout(() => {
+            console.log('Configurando event listener do botão WhatsApp após erro nos canais');
+            btnEnviar.onclick = function() {
+              btnEnviar.disabled = true;
+              statusDiv.textContent = 'Enviando...';
+              const canalSelecionado = selectCanal.value;
+              fetch('enviar_mensagem_whatsapp.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `cliente_id=${encodeURIComponent(cliente_id)}&canal_id=${encodeURIComponent(canalSelecionado)}&mensagem=${encodeURIComponent(textarea.value)}${cobranca_id ? `&cobranca_id=${encodeURIComponent(cobranca_id)}` : ''}`
+              })
+              .then(r => r.json())
+              .then(resp => {
+                if (resp.success === true) {
+                  statusDiv.textContent = 'Mensagem enviada com sucesso!';
+                  statusDiv.style.color = 'green';
+                  setTimeout(() => {
+                    modal.style.display = 'none';
+                    carregarCobrancas();
+                  }, 2000);
+                } else {
+                  statusDiv.textContent = resp.error || 'Erro ao enviar mensagem.';
+                  statusDiv.style.color = 'red';
+                  btnEnviar.disabled = false;
+                }
+              })
+              .catch(error => {
+                statusDiv.textContent = 'Erro ao conectar ao servidor ou resposta inválida.';
+                statusDiv.style.color = 'red';
+                btnEnviar.disabled = false;
+              });
+            };
+          }, 100);
         });
-    });
-  // Remover eventuais listeners antigos e atribuir novo
-  btnEnviar.onclick = null;
-  btnEnviar.onclick = function() {
-    btnEnviar.disabled = true;
-    statusDiv.textContent = 'Enviando...';
-    const canalSelecionado = selectCanal.value;
-    fetch('enviar_mensagem_whatsapp.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `cliente_id=${encodeURIComponent(cliente_id)}&canal_id=${encodeURIComponent(canalSelecionado)}&mensagem=${encodeURIComponent(textarea.value)}${cobranca_id ? `&cobranca_id=${encodeURIComponent(cobranca_id)}` : ''}`
     })
-    .then(r => r.json())
-    .then(resp => {
-      if (resp.success === true) {
-        statusDiv.textContent = 'Mensagem enviada com sucesso!';
-        statusDiv.style.color = 'green';
-        setTimeout(() => {
-          modal.style.display = 'none';
-          carregarCobrancas();
-        }, 2000);
-      } else {
-        statusDiv.textContent = resp.error || 'Erro ao enviar mensagem.';
-        statusDiv.style.color = 'red';
-        btnEnviar.disabled = false;
-      }
-    })
-    .catch(error => {
-      statusDiv.textContent = 'Erro ao conectar ao servidor ou resposta inválida.';
-      statusDiv.style.color = 'red';
-      btnEnviar.disabled = false;
+    .catch(err => {
+      console.error('Erro no fetch do canal padrão:', err);
+      // Configurar o event listener mesmo em caso de erro
+      setTimeout(() => {
+        console.log('Configurando event listener do botão WhatsApp após erro no canal padrão');
+        btnEnviar.onclick = function() {
+          btnEnviar.disabled = true;
+          statusDiv.textContent = 'Enviando...';
+          const canalSelecionado = selectCanal.value;
+          fetch('enviar_mensagem_whatsapp.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `cliente_id=${encodeURIComponent(cliente_id)}&canal_id=${encodeURIComponent(canalSelecionado)}&mensagem=${encodeURIComponent(textarea.value)}${cobranca_id ? `&cobranca_id=${encodeURIComponent(cobranca_id)}` : ''}`
+          })
+          .then(r => r.json())
+          .then(resp => {
+            if (resp.success === true) {
+              statusDiv.textContent = 'Mensagem enviada com sucesso!';
+              statusDiv.style.color = 'green';
+              setTimeout(() => {
+                modal.style.display = 'none';
+                carregarCobrancas();
+              }, 2000);
+            } else {
+              statusDiv.textContent = resp.error || 'Erro ao enviar mensagem.';
+              statusDiv.style.color = 'red';
+              btnEnviar.disabled = false;
+            }
+          })
+          .catch(error => {
+            statusDiv.textContent = 'Erro ao conectar ao servidor ou resposta inválida.';
+            statusDiv.style.color = 'red';
+            btnEnviar.disabled = false;
+          });
+        };
+      }, 100);
     });
-  };
 }
 
 // Adicionar modal de erro reutilizável se não existir

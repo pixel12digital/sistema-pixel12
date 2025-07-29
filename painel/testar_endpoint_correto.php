@@ -19,7 +19,7 @@ echo "<p><strong>Número formatado:</strong> $numero_formatado</p>";
 $payload = json_encode([
     'sessionName' => 'default',
     'number' => $numero_formatado,
-    'message' => "Olá {$cliente_nome}!\n\nSeu cadastro foi ativado para monitoramento automático de cobranças. Você receberá lembretes de vencimento e notificações importantes por WhatsApp e e-mail (se cadastrado).\n\nAtenciosamente,\nEquipe Financeira Pixel12 Digital"
+    'message' => "Olá {$cliente_nome}!\n\nSeu cadastro foi ativado para monitoramento automático de cobranças. Você receberá lembretes de vencimento e notificações importantes por WhatsApp e e-mail (se cadastrado).\n\nPara consultar suas faturas, responda \"faturas\" ou \"consulta\".\n\nAtenciosamente,\nEquipe Financeira Pixel12 Digital"
 ]);
 
 echo "<p><strong>Payload JSON:</strong></p>";
