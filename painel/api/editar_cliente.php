@@ -28,9 +28,19 @@ try {
         'asaas_id', 'criado_em_asaas'
     ];
     
+    // Campos que devem ser marcados como editados manualmente
+    $campos_protecao = [
+        'nome' => 'nome_editado_manual',
+        'email' => 'email_editado_manual',
+        'telefone' => 'telefone_editado_manual',
+        'celular' => 'celular_editado_manual',
+        'endereco' => 'endereco_editado_manual'
+    ];
+    
     $set = [];
     $params = [];
     $types = '';
+    $campos_alterados = [];
     
     foreach ($campos as $campo) {
         if (isset($_POST[$campo])) {
@@ -62,6 +72,7 @@ try {
             $set[] = "$campo = ?";
             $params[] = $valor;
             $types .= 's';
+            $campos_alterados[] = $campo;
             error_log("[DEBUG] editar_cliente.php - Campo $campo: $valor");
         }
     }
@@ -72,6 +83,20 @@ try {
     
     // Adicionar data_atualizacao automaticamente
     $set[] = "data_atualizacao = NOW()";
+    
+    // Marcar campos como editados manualmente se foram alterados
+    foreach ($campos_alterados as $campo_alterado) {
+        if (isset($campos_protecao[$campo_alterado])) {
+            $campo_protecao = $campos_protecao[$campo_alterado];
+            $set[] = "$campo_protecao = 1";
+            error_log("[DEBUG] editar_cliente.php - Marcando $campo_protecao = 1");
+        }
+    }
+    
+    // Adicionar data_ultima_edicao_manual se houve alterações
+    if (!empty($campos_alterados)) {
+        $set[] = "data_ultima_edicao_manual = NOW()";
+    }
     
     $sql = "UPDATE clientes SET " . implode(', ', $set) . " WHERE id = ?";
     $params[] = $id;
@@ -98,7 +123,8 @@ try {
         echo json_encode([
             'success' => true,
             'message' => 'Cliente atualizado com sucesso',
-            'affected_rows' => $stmt->affected_rows
+            'affected_rows' => $stmt->affected_rows,
+            'campos_alterados' => $campos_alterados
         ]);
     } else {
         // Limpar qualquer output anterior

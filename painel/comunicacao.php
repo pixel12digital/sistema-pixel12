@@ -122,7 +122,7 @@ function render_content() {
   . '#qr-code-area { display: flex !important; align-items: center !important; justify-content: center !important; flex-direction: column !important; }'
   . '</style>';
   
-  echo '<link rel="stylesheet" href="/public/assets/css/style.css">';
+  echo '<link rel="stylesheet" href="assets/style.css">';
   echo '<h1 class="text-2xl font-bold mb-6">Central de Comunicação</h1>';
   
   // Botão de cadastrar canal
@@ -984,7 +984,8 @@ document.addEventListener('DOMContentLoaded', function() {
     totalTestes++;
     makeWhatsAppRequest('test_connection')
       .then(data => {
-        if (!data.connection_ok) {
+        // CORREÇÃO: Usar 'success' em vez de 'connection_ok'
+        if (!data.success) {
           problemasDetectados++;
           debug('❌ Sistema: VPS inacessível', 'error');
         } else {
@@ -1028,9 +1029,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Primeiro testar se o proxy está funcionando
     makeWhatsAppRequest('test_connection')
       .then(data => {
-        debug(`📡 Teste de conexão: ${data.connection_ok ? 'OK' : 'FALHOU'}`, data.connection_ok ? 'success' : 'error');
+        // CORREÇÃO: Usar 'success' em vez de 'connection_ok'
+        debug(`📡 Teste de conexão: ${data.success ? 'OK' : 'FALHOU'}`, data.success ? 'success' : 'error');
         
-        if (data.connection_ok) {
+        if (data.success) {
           // Se conexão OK, atualizar status individual de cada canal
           document.querySelectorAll('.canal-status-area').forEach(function(td) {
             const canalId = td.getAttribute('data-canal-id');
@@ -1310,7 +1312,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     makeWhatsAppRequest('test_connection')
       .then(data => {
-        debug(`📡 VPS Connection: ${data.connection_ok ? 'OK' : 'FALHOU'}`, data.connection_ok ? 'success' : 'error');
+        // CORREÇÃO: Usar 'success' em vez de 'connection_ok'
+        debug(`📡 VPS Connection: ${data.success ? 'OK' : 'FALHOU'}`, data.success ? 'success' : 'error');
         debug(`🔍 Details: ${JSON.stringify(data, null, 2)}`, 'info');
       })
       .catch(error => {

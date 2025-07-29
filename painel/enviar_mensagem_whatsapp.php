@@ -68,16 +68,27 @@ function ajustarNumeroWhatsapp($numero) {
     $ddd = substr($numero, 0, 2);
     $telefone = substr($numero, 2);
     
-    // DDD 47 (Santa Catarina) - deve ter 8 dígitos
-    if ($ddd === '47') {
-        // Se tem 9 dígitos e começa com 9, remover o 9
-        if (strlen($telefone) === 9 && substr($telefone, 0, 1) === '9') {
-            $telefone = substr($telefone, 1);
-        }
-        // Se tem 7 dígitos, adicionar 9 no início
-        elseif (strlen($telefone) === 7) {
-            $telefone = '9' . $telefone;
-        }
+    // Regras gerais para todos os DDDs brasileiros
+    // Se tem 9 dígitos e começa com 9, manter como está (celular com 9)
+    if (strlen($telefone) === 9 && substr($telefone, 0, 1) === '9') {
+        // Manter como está - é um celular válido
+    }
+    // Se tem 8 dígitos, adicionar 9 no início (celular sem 9)
+    elseif (strlen($telefone) === 8) {
+        $telefone = '9' . $telefone;
+    }
+    // Se tem 7 dígitos, adicionar 9 no início (telefone fixo convertido para celular)
+    elseif (strlen($telefone) === 7) {
+        $telefone = '9' . $telefone;
+    }
+    // Se tem mais de 9 dígitos, pegar apenas os últimos 9
+    elseif (strlen($telefone) > 9) {
+        $telefone = substr($telefone, -9);
+    }
+    
+    // Verificar se o número final é válido
+    if (strlen($telefone) !== 9) {
+        return null; // Número inválido
     }
     
     // Retornar no formato: 55 + DDD + número
