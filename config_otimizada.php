@@ -103,7 +103,4 @@ if ($is_critical && !check_connection_count()) {
 }
 
 // Só mostrar mensagem se for via web
-if (php_sapi_name() !== 'cli') {
-    echo "✅ Configuração otimizada carregada - Conexões reduzidas!\n";
-}
 ?>

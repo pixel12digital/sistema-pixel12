@@ -56,7 +56,8 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: auto;
+  height: calc(100vh - 72px); /* Altura fixa como no WhatsApp */
+  overflow: hidden; /* Remove overflow da coluna, deixa apenas na lista */
 }
 
 /* Coluna 2: Detalhes do Cliente */
@@ -153,6 +154,8 @@ body {
   padding: 1.5rem;
   border-bottom: 1px solid var(--border-color);
   background: var(--background-white);
+  flex-shrink: 0; /* Impede que o header encolha */
+  min-height: 200px; /* Altura mínima para acomodar todos os elementos */
 }
 
 .chat-sidebar-title {
@@ -293,7 +296,10 @@ body {
 .chat-conversations {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0.5rem;
+  height: 100%; /* Garante que ocupe todo o espaço disponível */
+  max-height: calc(100vh - 272px); /* Altura máxima considerando header fixo (200px) + outros elementos (72px) */
 }
 
 .conversation-item {
@@ -697,10 +703,10 @@ body {
   100% { transform: rotate(360deg); }
 }
 
-/* Scrollbar personalizada */
+/* Scrollbar personalizada - Estilo WhatsApp */
 .chat-conversations::-webkit-scrollbar,
 .chat-messages::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .chat-conversations::-webkit-scrollbar-track,
@@ -710,14 +716,22 @@ body {
 
 .chat-conversations::-webkit-scrollbar-thumb,
 .chat-messages::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
 .chat-conversations::-webkit-scrollbar-thumb:hover,
 .chat-messages::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-} 
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Para Firefox */
+.chat-conversations,
+.chat-messages {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
 
 .client-details-panel {
   display: flex;
@@ -1134,4 +1148,17 @@ body {
 .chat-tab.active.chat-tab-unread .unread-count {
   background: rgba(255, 255, 255, 0.2);
   color: white;
+} 
+
+/* Garantir que a lista de conversas sempre tenha scroll quando necessário */
+@media (max-height: 600px) {
+  .chat-conversations {
+    max-height: calc(100vh - 250px); /* Altura menor para telas pequenas */
+  }
+}
+
+@media (max-height: 500px) {
+  .chat-conversations {
+    max-height: calc(100vh - 220px); /* Altura ainda menor para telas muito pequenas */
+  }
 } 

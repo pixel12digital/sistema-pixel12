@@ -29,9 +29,8 @@ function render_content() {
       
       // Cache para mensagens do cliente
       $mensagens = cache_remember("mensagens_{$cliente_id}", function() use ($cliente_id, $mysqli) {
-        $sql = "SELECT m.*, c.nome_exibicao as canal_nome
+        $sql = "SELECT m.*, 'WhatsApp' as canal_nome
                 FROM mensagens_comunicacao m
-                LEFT JOIN canais_comunicacao c ON m.canal_id = c.id
                 WHERE m.cliente_id = ?
                 ORDER BY m.data_hora ASC";
         
@@ -269,6 +268,68 @@ function render_content() {
     textarea.style.height = 'auto';
     textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
   }
+  
+  // Função para inicializar abas do iframe
+  function inicializarAbasIframe() {
+    const iframe = document.getElementById('iframe-detalhes-cliente');
+    if (iframe && iframe.contentDocument) {
+      try {
+        const abas = iframe.contentDocument.querySelectorAll(".painel-aba");
+        const tabs = iframe.contentDocument.querySelectorAll(".painel-tab");
+        
+        console.log("Inicializando abas no iframe:", abas.length, "abas encontradas");
+        
+        abas.forEach(function(btn) {
+          btn.addEventListener("click", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log("Aba clicada no iframe:", this.getAttribute("data-tab"));
+            
+            // Remove classe active de todas as abas
+            abas.forEach(function(b) {
+              b.classList.remove("active");
+            });
+            
+            // Esconde todos os conteúdos das abas
+            tabs.forEach(function(tab) {
+              tab.style.display = "none";
+            });
+            
+            // Adiciona classe active na aba clicada
+            this.classList.add("active");
+            
+            // Mostra o conteúdo da aba correspondente
+            const tabName = this.getAttribute("data-tab");
+            const tabContent = iframe.contentDocument.querySelector(".painel-tab-" + tabName);
+            
+            if (tabContent) {
+              tabContent.style.display = "block";
+              console.log("Tab exibida no iframe:", tabName);
+            }
+          });
+        });
+        
+        // Garante que a primeira aba esteja ativa por padrão
+        const primeiraAba = iframe.contentDocument.querySelector(".painel-aba");
+        if (primeiraAba) {
+          primeiraAba.click();
+        }
+      } catch (error) {
+        console.error("Erro ao inicializar abas no iframe:", error);
+      }
+    }
+  }
+  
+  // Inicializar abas quando o iframe carregar
+  document.addEventListener('DOMContentLoaded', function() {
+    const iframe = document.getElementById('iframe-detalhes-cliente');
+    if (iframe) {
+      iframe.addEventListener('load', function() {
+        setTimeout(inicializarAbasIframe, 100);
+      });
+    }
+  });
   
   function filtrarConversas(tipo) {
     // Remover classe active de todas as tabs
@@ -1178,6 +1239,27 @@ function render_content() {
     const clienteId = urlParams.get('cliente_id');
     console.log('Cliente ID da URL:', clienteId);
     if (clienteId) {
+      // Carregar automaticamente o cliente se houver ID na URL
+      console.log('🔄 Carregando cliente automaticamente:', clienteId);
+      
+      // Buscar o nome do cliente na lista de conversas
+      const conversationItem = document.querySelector(`[data-cliente-id="${clienteId}"]`);
+      if (conversationItem) {
+        const nomeElement = conversationItem.querySelector('.conversation-name');
+        const nomeCliente = nomeElement ? nomeElement.textContent : 'Cliente';
+        
+        // Marcar como ativo
+        document.querySelectorAll('.conversation-item').forEach(item => {
+          item.classList.remove('active');
+        });
+        conversationItem.classList.add('active');
+        
+        // Carregar dados do cliente
+        carregarCliente(clienteId, nomeCliente);
+      } else {
+        console.error('Conversa não encontrada para cliente ID:', clienteId);
+      }
+      
       startChatPolling(clienteId);
     }
     
@@ -1387,110 +1469,141 @@ function render_content() {
   let currentClientId = null;
   let clientDataCache = new Map();
   
+  // Inicializar currentClientId com o valor da URL se existir
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialClientId = urlParams.get('cliente_id');
+  if (initialClientId) {
+    currentClientId = initialClientId;
+  }
+  
+  // Função startChatPolling (simplificada)
+  function startChatPolling(clienteId) {
+    console.log('🔄 Iniciando polling para cliente:', clienteId);
+    // Por enquanto, apenas log. Pode ser expandida depois
+  }
+  
   function carregarCliente(clienteId, nomeCliente, event) {
-    // Prevenir qualquer comportamento padrão ou propagação
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
     
-    // Se já é o cliente atual, apenas focar no input
-    if (currentClientId === clienteId) {
-      const inputMensagem = document.querySelector('textarea[name="mensagem"]');
-      if (inputMensagem) {
-        inputMensagem.focus();
-      }
-      return false;
-    }
+    // Atualizar URL sem recarregar a página
+    const url = new URL(window.location);
+    url.searchParams.set('cliente_id', clienteId);
+    window.history.pushState({}, '', url);
     
-    console.log('Carregando cliente:', clienteId, nomeCliente);
-    
-    // Atualizar cliente atual
-    currentClientId = clienteId;
-    
-    // Atualizar URL sem recarregar página
-    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + "?cliente_id=" + clienteId;
-    window.history.pushState({path: newUrl}, '', newUrl);
-    
-    // Atualizar título da página
-    document.title = "Chat com " + nomeCliente + " - Chat Centralizado";
-    
-    // Remover classe active de todos os itens
+    // Remover classe active de todas as conversas
     document.querySelectorAll('.conversation-item').forEach(item => {
       item.classList.remove('active');
     });
     
-    // Adicionar classe active ao item clicado
-    const targetItem = document.querySelector('[data-cliente-id="' + clienteId + '"]');
-    if (targetItem) {
-      targetItem.classList.add('active');
+    // Adicionar classe active na conversa clicada
+    const conversationItem = document.querySelector(`[data-cliente-id="${clienteId}"]`);
+    if (conversationItem) {
+      conversationItem.classList.add('active');
     }
     
-    // Verificar cache antes de fazer requests
-    const cacheKey = `client_${clienteId}`;
-    const cachedData = clientDataCache.get(cacheKey);
-    const now = Date.now();
-    
-    if (cachedData && (now - cachedData.timestamp < 30000)) { // Cache de 30 segundos
-      console.log('📋 Usando dados do cache para cliente', clienteId);
-      updateClientInterface(cachedData.detalhesHtml, cachedData.mensagensHtml, clienteId);
-      return false;
+    // Atualizar título da conversa
+    const chatHeader = document.querySelector('.chat-messages-header h2');
+    if (chatHeader) {
+      chatHeader.textContent = `💬 Conversa com ${nomeCliente}`;
     }
     
-    // Mostrar loading nas colunas
-    mostrarLoading();
-    
-    // Carregar dados do cliente
-    Promise.all([
-      fetch('api/detalhes_cliente.php?cliente_id=' + clienteId),
-      fetch('api/mensagens_cliente.php?cliente_id=' + clienteId)
-    ])
-    .then(responses => {
-      console.log('Responses recebidas:', responses);
-      return Promise.all(responses.map(r => r.text()));
-    })
-    .then(([detalhesHtml, mensagensHtml]) => {
-      console.log('Dados carregados com sucesso');
+    // Recarregar o iframe com o novo cliente
+    const iframe = document.getElementById('iframe-detalhes-cliente');
+    if (iframe) {
+      iframe.src = `api/detalhes_cliente.php?cliente_id=${clienteId}&atualizar=1`;
       
-      // Salvar no cache
-      clientDataCache.set(cacheKey, {
-        timestamp: now,
-        detalhesHtml: detalhesHtml,
-        mensagensHtml: mensagensHtml
+      // Inicializar abas após o carregamento
+      iframe.onload = function() {
+        setTimeout(inicializarAbasIframe, 200);
+      };
+    }
+    
+    // Carregar mensagens via AJAX
+    carregarMensagensCliente(clienteId);
+  }
+  
+  // Função para forçar atualização das abas
+  function forcarAtualizacaoAbas() {
+    const iframe = document.getElementById('iframe-detalhes-cliente');
+    if (iframe && iframe.contentDocument) {
+      inicializarAbasIframe();
+    }
+  }
+  
+  // Função para carregar mensagens do cliente via AJAX
+  function carregarMensagensCliente(clienteId) {
+    const chatMessages = document.getElementById('chat-messages');
+    if (!chatMessages) return;
+    
+    // Mostrar loading
+    chatMessages.innerHTML = `
+      <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+        <div class="loading-spinner" style="margin: 0 auto 1rem;"></div>
+        Carregando mensagens...
+      </div>
+    `;
+    
+    fetch(`api/mensagens_cliente.php?cliente_id=${clienteId}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && data.mensagens) {
+          // Renderizar mensagens
+          let html = '';
+          data.mensagens.forEach(msg => {
+            const isReceived = msg.direcao === 'recebido';
+            const isUnread = isReceived && msg.status !== 'lido';
+            const time = new Date(msg.data_hora).toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+            
+            html += `
+              <div class="message ${isReceived ? 'received' : 'sent'} ${isUnread ? 'unread' : ''}" data-mensagem-id="${msg.id}">
+                <div class="message-bubble">
+                  ${msg.mensagem}
+                  <div class="message-time">
+                    ${time}
+                    ${!isReceived ? `<span class="message-status">${msg.status === 'lido' ? '✔✔' : '✔'}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+          
+          chatMessages.innerHTML = html;
+          
+          // Scroll para a última mensagem
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        } else {
+          chatMessages.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+              <p>Nenhuma mensagem encontrada</p>
+            </div>
+          `;
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao carregar mensagens:', error);
+        chatMessages.innerHTML = `
+          <div style="text-align: center; padding: 2rem; color: var(--error-color);">
+            <p>Erro ao carregar mensagens</p>
+          </div>
+        `;
       });
-      
-      // Limpar cache antigo (manter apenas últimos 3 clientes)
-      if (clientDataCache.size > 3) {
-        const oldestKey = clientDataCache.keys().next().value;
-        clientDataCache.delete(oldestKey);
-      }
-      
-      updateClientInterface(detalhesHtml, mensagensHtml, clienteId);
-    })
-    .catch(error => {
-      console.error('Erro ao carregar cliente:', error);
-      esconderLoading();
-      alert('Erro ao carregar dados do cliente. Tente novamente.');
-    });
-    
-    // Retornar false para prevenir qualquer ação padrão
-    return false;
   }
   
   function updateClientInterface(detalhesHtml, mensagensHtml, clienteId) {
     // Atualizar coluna de detalhes do cliente
     const detailsColumn = document.querySelector('.client-details-column');
-    detailsColumn.innerHTML = `
-      <div class="client-details-header">
-        <h2>👤 Detalhes do Cliente</h2>
-      </div>
-      <div class="client-details-full">
-        <iframe src="api/detalhes_cliente.php?cliente_id=${clienteId}" 
-                frameborder="0" 
-                style="width: 100%; height: calc(100vh - 130px); border: none;">
-        </iframe>
-      </div>
-    `;
+    if (detailsColumn) {
+      detailsColumn.innerHTML = detalhesHtml;
+      console.log('✅ Detalhes do cliente carregados com sucesso');
+    } else {
+      console.error('Elemento .client-details-column não encontrado!');
+    }
     
     // Atualizar coluna de mensagens
     const messagesColumn = document.querySelector('.chat-messages-column');

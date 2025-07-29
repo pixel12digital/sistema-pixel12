@@ -136,8 +136,35 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
 @media (max-width: 900px) { .painel-grid { display: block !important; } .painel-card { margin-bottom: 18px !important; } .painel-container { padding: 12px 2vw !important; } }
 .painel-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; grid-auto-rows: auto !important; gap: 24px !important; align-items: start !important; }
 .painel-abas { display: flex; gap: 0.5rem; margin-bottom: 24px; margin-top: 8px; }
-.painel-aba { background: #f3f4f6; color: #7c2ae8; border: none; outline: none; padding: 10px 22px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 1rem; cursor: pointer; transition: background 0.18s, color 0.18s; }
-.painel-aba.active, .painel-aba:hover { background: #fff; color: #a259e6; box-shadow: 0 -2px 8px #a259e610; }
+.painel-aba { 
+  background: #f3f4f6; 
+  color: #7c2ae8; 
+  border: none; 
+  outline: none; 
+  padding: 10px 22px; 
+  border-radius: 8px 8px 0 0; 
+  font-weight: 600; 
+  font-size: 1rem; 
+  cursor: pointer; 
+  transition: background 0.18s, color 0.18s, transform 0.1s; 
+  position: relative;
+  z-index: 10;
+  user-select: none;
+}
+.painel-aba:hover { 
+  background: #e5e7eb; 
+  color: #a259e6; 
+  transform: translateY(-1px);
+}
+.painel-aba.active { 
+  background: #fff; 
+  color: #a259e6; 
+  box-shadow: 0 -2px 8px #a259e610; 
+  z-index: 20;
+}
+.painel-aba:active {
+  transform: translateY(0);
+}
 .painel-tabs-content { min-height: 320px; }
 .painel-tab { display: none; }
 .painel-tab[style*="display:block"] { display: block !important; }
@@ -606,7 +633,60 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
   </script>';
   
   // JS abas
-  echo '<script>document.addEventListener("DOMContentLoaded",function(){const abas=document.querySelectorAll(".painel-aba");const tabs=document.querySelectorAll(".painel-tab");abas.forEach(btn=>{btn.addEventListener("click",function(){abas.forEach(b=>b.classList.remove("active"));this.classList.add("active");tabs.forEach(tab=>tab.style.display="none");document.querySelector(".painel-tab-"+this.dataset.tab).style.display="block";});});});</script>';
+  echo '<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    console.log("Inicializando sistema de abas...");
+    
+    const abas = document.querySelectorAll(".painel-aba");
+    const tabs = document.querySelectorAll(".painel-tab");
+    
+    console.log("Abas encontradas:", abas.length);
+    console.log("Tabs encontradas:", tabs.length);
+    
+    abas.forEach(function(btn) {
+      btn.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log("Aba clicada:", this.getAttribute("data-tab"));
+        
+        // Remove classe active de todas as abas
+        abas.forEach(function(b) {
+          b.classList.remove("active");
+        });
+        
+        // Esconde todos os conteúdos das abas
+        tabs.forEach(function(tab) {
+          tab.style.display = "none";
+        });
+        
+        // Adiciona classe active na aba clicada
+        this.classList.add("active");
+        
+        // Mostra o conteúdo da aba correspondente
+        const tabName = this.getAttribute("data-tab");
+        const tabContent = document.querySelector(".painel-tab-" + tabName);
+        
+        console.log("Procurando tab:", ".painel-tab-" + tabName);
+        console.log("Tab encontrada:", tabContent);
+        
+        if (tabContent) {
+          tabContent.style.display = "block";
+          console.log("Tab exibida:", tabName);
+        } else {
+          console.error("Tab não encontrada:", tabName);
+        }
+      });
+    });
+    
+    // Garante que a primeira aba esteja ativa por padrão
+    const primeiraAba = document.querySelector(".painel-aba");
+    if (primeiraAba) {
+      console.log("Ativando primeira aba por padrão");
+      primeiraAba.click();
+    }
+  });
+  </script>';
 ?>
 <script>
 document.addEventListener("DOMContentLoaded", function() {

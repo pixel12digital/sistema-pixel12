@@ -5,9 +5,9 @@
  */
 
 // Configurações de cache otimizadas
-define('CACHE_DIR', __DIR__ . '/../cache/');
-define('CACHE_TTL', 1800); // 30 minutos
-define('CACHE_MAX_SIZE', '50MB');
+if (!defined('CACHE_DIR')) define('CACHE_DIR', __DIR__ . '/../cache/');
+if (!defined('CACHE_TTL')) define('CACHE_TTL', 1800); // 30 minutos
+if (!defined('CACHE_MAX_SIZE')) define('CACHE_MAX_SIZE', '50MB');
 
 // Criar diretório de cache se não existir
 if (!is_dir(CACHE_DIR)) {
@@ -33,79 +33,53 @@ function cache_conversas($mysqli) {
     // Cache expirado ou inválido, buscar do banco
     $sql = "SELECT DISTINCT 
                 c.id as cliente_id,
-                c.nome as cliente_nome,
-                c.celular as cliente_celular,
-                c.cpf_cnpj as cliente_cpf_cnpj,
-                c.razao_social as cliente_razao_social,
-                c.email as cliente_email,
-                c.endereco as cliente_endereco,
-                c.cidade as cliente_cidade,
-                c.estado as cliente_estado,
-                c.cep as cliente_cep,
-                c.data_cadastro as cliente_data_cadastro,
-                c.data_atualizacao as cliente_data_atualizacao,
-                c.sistema_id as cliente_sistema_id,
-                c.contact_name as cliente_contact_name,
-                c.emails_adicionais as cliente_emails_adicionais,
-                c.telefone as cliente_telefone,
-                c.status as cliente_status,
-                c.monitorado as cliente_monitorado,
-                c.ultima_atividade as cliente_ultima_atividade,
-                c.observacoes as cliente_observacoes,
-                c.tags as cliente_tags,
-                c.prioridade as cliente_prioridade,
-                c.categoria as cliente_categoria,
-                c.origem as cliente_origem,
-                c.ultima_interacao as cliente_ultima_interacao,
-                c.frequencia_interacao as cliente_frequencia_interacao,
-                c.valor_medio as cliente_valor_medio,
-                c.ultima_compra as cliente_ultima_compra,
-                c.total_compras as cliente_total_compras,
-                c.satisfacao as cliente_satisfacao,
-                c.risco as cliente_risco,
-                c.etiquetas as cliente_etiquetas,
-                c.notas as cliente_notas,
-                c.anexos as cliente_anexos,
-                c.configuracoes as cliente_configuracoes,
-                c.metadados as cliente_metadados,
-                c.versao as cliente_versao,
-                c.ultima_mensagem_id,
-                c.ultima_mensagem_texto,
-                c.ultima_mensagem_data,
-                c.ultima_mensagem_direcao,
-                c.total_mensagens,
-                c.mensagens_nao_lidas,
-                c.status_chat,
-                c.ultima_atividade_chat,
-                c.prioridade_chat,
-                c.tags_chat,
-                c.observacoes_chat,
-                c.configuracoes_chat,
-                c.metadados_chat,
-                c.versao_chat,
-                c.ultima_mensagem_id_chat,
-                c.ultima_mensagem_texto_chat,
-                c.ultima_mensagem_data_chat,
-                c.ultima_mensagem_direcao_chat,
-                c.total_mensagens_chat,
-                c.mensagens_nao_lidas_chat,
-                c.status_chat_chat,
-                c.ultima_atividade_chat_chat,
-                c.prioridade_chat_chat,
-                c.tags_chat_chat,
-                c.observacoes_chat_chat,
-                c.configuracoes_chat_chat,
-                c.metadados_chat_chat,
-                c.versao_chat_chat
+                c.nome,
+                c.celular,
+                c.cpf_cnpj,
+                c.razao_social,
+                c.email,
+                c.endereco,
+                c.cidade,
+                c.estado,
+                c.cep,
+                c.data_criacao,
+                c.data_atualizacao,
+                c.contact_name,
+                c.emails_adicionais,
+                c.telefone,
+                c.observacoes,
+                c.asaas_id,
+                c.rua,
+                c.numero,
+                c.complemento,
+                c.bairro,
+                c.pais,
+                c.notificacao_desativada,
+                c.referencia_externa,
+                c.criado_em_asaas,
+                c.telefone_editado_manual,
+                c.celular_editado_manual,
+                c.email_editado_manual,
+                c.nome_editado_manual,
+                c.endereco_editado_manual,
+                c.data_ultima_edicao_manual,
+                'WhatsApp' as canal_nome,
+                m.ultima_mensagem,
+                m.ultima_data,
+                m.mensagens_nao_lidas
             FROM clientes c
-            WHERE c.id IN (
-                SELECT DISTINCT cliente_id 
+            INNER JOIN (
+                SELECT 
+                    cliente_id,
+                    MAX(data_hora) as ultima_data,
+                    MAX(CASE WHEN direcao = 'recebido' THEN mensagem END) as ultima_mensagem,
+                    COUNT(CASE WHEN direcao = 'recebido' AND status != 'lido' THEN 1 END) as mensagens_nao_lidas
                 FROM mensagens_comunicacao 
-                WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-                ORDER BY data_hora DESC
-            )
-            ORDER BY c.ultima_atividade DESC, c.id DESC
-            LIMIT 50";
+                WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                GROUP BY cliente_id
+            ) m ON c.id = m.cliente_id
+            ORDER BY m.ultima_data DESC, c.id DESC
+            LIMIT 100";
     
     $result = $mysqli->query($sql);
     $conversas = [];
@@ -165,6 +139,59 @@ function cache_mensagens($mysqli, $cliente_id) {
     file_put_contents($cache_file, serialize($cache_data));
     
     return $mensagens;
+}
+
+/**
+ * Função cache_remember - Executa callback se cache não existir ou expirou
+ */
+function cache_remember($key, $callback, $ttl = CACHE_TTL) {
+    $cache_file = CACHE_DIR . md5($key) . '.cache';
+    
+    // Verificar cache primeiro
+    if (file_exists($cache_file) && (time() - filemtime($cache_file)) < $ttl) {
+        $cached_data = unserialize(file_get_contents($cache_file));
+        if ($cached_data && isset($cached_data['data']) && isset($cached_data['timestamp'])) {
+            return $cached_data['data'];
+        }
+    }
+    
+    // Cache expirado ou inválido, executar callback
+    $data = $callback();
+    
+    // Salvar no cache
+    $cache_data = [
+        'data' => $data,
+        'timestamp' => time()
+    ];
+    file_put_contents($cache_file, serialize($cache_data));
+    
+    return $data;
+}
+
+/**
+ * Função cache_forget - Remove cache específico
+ */
+function cache_forget($key) {
+    $cache_file = CACHE_DIR . md5($key) . '.cache';
+    if (file_exists($cache_file)) {
+        unlink($cache_file);
+    }
+}
+
+/**
+ * Função cache_cliente - Cache para dados de cliente específico
+ */
+function cache_cliente($cliente_id, $mysqli) {
+    return cache_remember("cliente_{$cliente_id}", function() use ($cliente_id, $mysqli) {
+        $sql = "SELECT * FROM clientes WHERE id = ?";
+        $stmt = $mysqli->prepare($sql);
+        $stmt->bind_param('i', $cliente_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $cliente = $result->fetch_assoc();
+        $stmt->close();
+        return $cliente;
+    }, 300); // Cache de 5 minutos para dados do cliente
 }
 
 /**
