@@ -681,7 +681,9 @@ document.addEventListener('DOMContentLoaded', function() {
       btnSync.disabled = true;
       abrirModalSync();
       adicionarLog('🚀 Iniciando sincronização CORRIGIDA...', '');
-      adicionarLog('📋 Versão: sincroniza_asaas_melhorado.php', '');
+      adicionarLog('📋 Versão: sincroniza_asaas_corrigido.php', '');
+      adicionarLog('🛡️ Dados editados manualmente serão preservados', '');
+      adicionarLog('🔧 Timeouts do MySQL serão tratados automaticamente', '');
       atualizarStatus('⏳', 'Iniciando sincronização corrigida...', 'Preparando conexão com Asaas', '#3b82f6');
       
       fetch('sincronizar_asaas_ajax.php')
@@ -690,7 +692,9 @@ document.addEventListener('DOMContentLoaded', function() {
           if (resp.success) {
             adicionarLog('✅ Sincronização CORRIGIDA concluída com sucesso!', 'success');
             adicionarLog('📊 ' + (resp.message || 'Todos os dados foram atualizados'), 'success');
-            atualizarStatus('✅', 'Sincronização corrigida concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
+            adicionarLog('🛡️ Dados editados manualmente foram preservados', 'success');
+            adicionarLog('🔧 Timeouts do MySQL foram tratados automaticamente', 'success');
+            atualizarStatus('✅', 'Sincronização corrigida concluída!', 'Dados atualizados com proteção de dados manuais', '#059669');
             atualizarProgresso(100);
           } else {
             adicionarLog('❌ Erro na sincronização corrigida: ' + (resp.error || 'Erro desconhecido'), 'error');
@@ -704,7 +708,8 @@ document.addEventListener('DOMContentLoaded', function() {
             linhas.forEach(linha => {
               if (linha.trim()) {
                 const tipo = linha.toLowerCase().includes('erro') ? 'error' : 
-                           (linha.toLowerCase().includes('sucesso') || linha.toLowerCase().includes('concluída')) ? 'success' : '';
+                           (linha.toLowerCase().includes('sucesso') || linha.toLowerCase().includes('concluída')) ? 'success' : 
+                           linha.toLowerCase().includes('corrigida') ? 'warn' : '';
                 adicionarLog('  ' + linha, tipo);
               }
             });
@@ -725,8 +730,8 @@ document.addEventListener('DOMContentLoaded', function() {
       let contadorErros = 0;
       
       syncInterval = setInterval(() => {
-        // Primeiro verificar logs da versão corrigida
-        fetch('api/sync_status.php?log=sincronizacao_melhorada.log')
+        // Verificar logs da versão corrigida
+        fetch('api/sync_status.php?log=sincronizacao_corrigida.log')
           .then(r => {
             if (!r.ok) {
               throw new Error(`HTTP ${r.status}: ${r.statusText}`);
@@ -743,38 +748,45 @@ document.addEventListener('DOMContentLoaded', function() {
             // Limpar área de logs
             syncLogsArea.innerHTML = '';
             
+            // Verificar se a sincronização não foi iniciada
+            if (data.status === 'not_started') {
+              adicionarLog('⏳ Sincronização ainda não foi iniciada', '');
+              adicionarLog('📋 Clique em "Sincronizar com Asaas" para começar', '');
+              atualizarStatus('⏳', 'Aguardando início da sincronização...', 'Clique no botão para iniciar', '#6b7280');
+              atualizarProgresso(0);
+              
+              // Resetar contadores
+              const statsProcessed = document.getElementById('stats-processed');
+              const statsUpdated = document.getElementById('stats-updated');
+              const statsErrors = document.getElementById('stats-errors');
+              
+              if (statsProcessed) statsProcessed.textContent = '0';
+              if (statsUpdated) statsUpdated.textContent = '0';
+              if (statsErrors) statsErrors.textContent = '0';
+              return;
+            }
+            
             // Adicionar cabeçalho da versão corrigida
             adicionarLog('🔄 Sincronização CORRIGIDA em andamento...', '');
-            adicionarLog('📋 Logs da versão melhorada:', '');
+            adicionarLog('📋 Logs da versão corrigida:', '');
+            adicionarLog('🛡️ Dados editados manualmente serão preservados', '');
+            adicionarLog('🔧 Timeouts do MySQL serão tratados automaticamente', '');
             
             // Processar logs da versão corrigida
             if (data.lines && Array.isArray(data.lines)) {
               data.lines.forEach(line => {
                 const tipo = line.toLowerCase().includes('[error]') ? 'error' : 
                            (line.toLowerCase().includes('[success]') || line.toLowerCase().includes('concluída')) ? 'success' : 
-                           line.toLowerCase().includes('[warn]') ? 'warn' : '';
+                           line.toLowerCase().includes('[warn]') ? 'warn' : 
+                           line.toLowerCase().includes('corrigida') ? 'warn' : '';
                 adicionarLog(line, tipo);
               });
             }
             
-            // Atualizar contadores baseado nos logs
-            contadorProcessados = 0;
-            contadorAtualizados = 0;
-            contadorErros = 0;
-            
-            if (data.lines && Array.isArray(data.lines)) {
-              data.lines.forEach(line => {
-                const lineLower = line.toLowerCase();
-                if (lineLower.includes('cliente processado com sucesso') || 
-                    lineLower.includes('cobrança processada com sucesso')) {
-                  contadorProcessados++;
-                  contadorAtualizados++;
-                } else if (lineLower.includes('[error]') || 
-                          lineLower.includes('erro ao processar')) {
-                  contadorErros++;
-                }
-              });
-            }
+            // Atualizar contadores baseado nos logs reais
+            contadorProcessados = data.processed || 0;
+            contadorAtualizados = data.updated || 0;
+            contadorErros = data.errors || 0;
             
             // Atualizar contadores na interface
             const statsProcessed = document.getElementById('stats-processed');
@@ -785,43 +797,42 @@ document.addEventListener('DOMContentLoaded', function() {
             if (statsUpdated) statsUpdated.textContent = contadorAtualizados;
             if (statsErrors) statsErrors.textContent = contadorErros;
             
-            // Se não houver logs da versão corrigida, verificar logs antigos
-            if (!data.lines || data.lines.length === 0) {
-              fetch('api/sync_status.php')
-                .then(r => r.json())
-                .then(dataOld => {
-                  if (dataOld.lines && Array.isArray(dataOld.lines)) {
-                    dataOld.lines.forEach(line => {
-                      const tipo = line.toLowerCase().includes('erro') && !line.toLowerCase().includes('0 erros') ? 'error' : 
-                                 (line.toLowerCase().includes('sucesso') || line.toLowerCase().includes('concluída')) ? 'success' : '';
-                      adicionarLog(line, tipo);
-                    });
-                  }
-                })
-                .catch(error => {
-                  console.error('Erro ao carregar logs antigos:', error);
-                });
-            }
-            
             // Atualizar progresso baseado no status real
-            if (data.progress !== undefined && data.progress !== null && data.progress !== 0) {
+            if (data.progress !== undefined && data.progress !== null) {
               atualizarProgresso(data.progress);
             } else if (data.total_expected && data.total_expected > 0) {
               // Calcular progresso real usando o total esperado do backend
               const progressoReal = Math.min(99, Math.round((contadorProcessados / data.total_expected) * 100));
               atualizarProgresso(progressoReal);
-            } else {
-              // Calcular progresso baseado nos contadores (fallback)
-              const totalEsperado = Math.max(contadorProcessados, 1);
-              const progressoCalculado = Math.min(95, (contadorProcessados / totalEsperado) * 100);
-              atualizarProgresso(progressoCalculado);
+            } else if (data.status === 'processing') {
+              // Se estiver processando mas não temos total esperado, usar progresso incremental
+              const progressoAtual = Math.min(95, contadorProcessados * 2); // 2% por item processado
+              atualizarProgresso(progressoAtual);
+            }
+            
+            // Progresso baseado no status
+            switch (data.status) {
+              case 'starting':
+                atualizarProgresso(10);
+                break;
+              case 'processing':
+                atualizarProgresso(50);
+                break;
+              case 'success':
+                atualizarProgresso(100);
+                break;
+              case 'error':
+                atualizarProgresso(0);
+                break;
+              default:
+                atualizarProgresso(0);
             }
             
             // Atualizar status baseado na análise inteligente
             if (data.status) {
               switch (data.status) {
                 case 'success':
-                  atualizarStatus('✅', 'Sincronização corrigida concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
+                  atualizarStatus('✅', 'Sincronização corrigida concluída!', 'Dados atualizados com proteção de dados manuais', '#059669');
                   atualizarProgresso(100);
                   syncErrorSummary.style.display = 'none';
                   if (syncInterval) clearInterval(syncInterval);
@@ -831,10 +842,13 @@ document.addEventListener('DOMContentLoaded', function() {
                   if (syncInterval) clearInterval(syncInterval);
                   break;
                 case 'processing':
-                  atualizarStatus('🔄', 'Sincronizando (versão corrigida)...', 'Processando dados do Asaas', '#3b82f6');
+                  atualizarStatus('🔄', 'Sincronizando (versão corrigida)...', 'Processando dados do Asaas com proteção', '#3b82f6');
                   break;
                 case 'starting':
                   atualizarStatus('⏳', 'Iniciando sincronização corrigida...', 'Preparando conexão com Asaas', '#3b82f6');
+                  break;
+                case 'not_started':
+                  atualizarStatus('⏳', 'Aguardando início da sincronização...', 'Clique no botão para iniciar', '#6b7280');
                   break;
                 default:
                   break;
@@ -852,8 +866,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 atualizarStatus('💸', 'Sincronizando cobranças (corrigido)...', 'Buscando cobranças no Asaas', '#3b82f6');
               } else if (ultima.includes('cobranças sincronizadas')) {
                 atualizarStatus('💾', 'Cobranças sincronizadas (corrigido)!', 'Finalizando...', '#3b82f6');
-              } else if (ultima.includes('sincronização melhorada concluída com sucesso')) {
-                atualizarStatus('✅', 'Sincronização corrigida concluída!', 'Todos os dados foram atualizados com sucesso', '#059669');
+              } else if (ultima.includes('sincronização corrigida concluída com sucesso')) {
+                atualizarStatus('✅', 'Sincronização corrigida concluída!', 'Dados atualizados com proteção de dados manuais', '#059669');
                 atualizarProgresso(100);
                 if (syncInterval) clearInterval(syncInterval);
               }

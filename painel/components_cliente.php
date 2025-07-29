@@ -553,106 +553,10 @@ function render_cliente_ficha($cliente_id, $modo_edicao = false) {
     <div class="painel-card">
       <h4>💸 Financeiro</h4>';
   
-  $cobrancas = [];
-  $total_pago = $total_aberto = $total_vencido = 0.0;
+  // Incluir e usar o componente financeiro reutilizável
+  require_once __DIR__ . '/components_financeiro.php';
+  render_componente_financeiro($cliente_id);
   
-  // Verificar se a tabela cobrancas existe
-  $check_table = $mysqli->query("SHOW TABLES LIKE 'cobrancas'");
-  if ($check_table && $check_table->num_rows > 0) {
-    // Tabela existe, fazer a consulta
-    $res_cob = $mysqli->query("SELECT * FROM cobrancas WHERE cliente_id = $cliente_id ORDER BY vencimento DESC");
-    
-    if ($res_cob) {
-      while ($cob = $res_cob->fetch_assoc()) {
-        $cobrancas[] = $cob;
-        $valor = floatval($cob['valor']);
-        if ($cob['status'] === 'RECEIVED' || $cob['status'] === 'PAID') $total_pago += $valor;
-        elseif ($cob['status'] === 'PENDING' && strtotime($cob['vencimento']) < time()) $total_vencido += $valor;
-        elseif ($cob['status'] === 'PENDING') $total_aberto += $valor;
-      }
-    }
-  }
-  
-  // Resumo financeiro melhorado
-  echo '<div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-    <div style="display: flex; gap: 24px; flex-wrap: wrap; justify-content: space-between;">
-      <div style="flex: 1; min-width: 150px; text-align: center;">
-        <div style="font-size: 0.85em; color: #64748b; margin-bottom: 6px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Total Pago</div>
-        <div style="font-size: 1.5em; font-weight: bold; color: #059669; text-shadow: 0 1px 2px rgba(5,150,105,0.1);">R$ ' . number_format($total_pago,2,',','.') . '</div>
-      </div>
-      <div style="flex: 1; min-width: 150px; text-align: center;">
-        <div style="font-size: 0.85em; color: #64748b; margin-bottom: 6px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Em Aberto</div>
-        <div style="font-size: 1.5em; font-weight: bold; color: #7c3aed; text-shadow: 0 1px 2px rgba(124,58,237,0.1);">R$ ' . number_format($total_aberto,2,',','.') . '</div>
-      </div>
-      <div style="flex: 1; min-width: 150px; text-align: center;">
-        <div style="font-size: 0.85em; color: #64748b; margin-bottom: 6px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Vencido</div>
-        <div style="font-size: 1.5em; font-weight: bold; color: #dc2626; text-shadow: 0 1px 2px rgba(220,38,38,0.1);">R$ ' . number_format($total_vencido,2,',','.') . '</div>
-      </div>
-    </div>
-  </div>';
-  
-  // Tabela de cobranças melhorada
-  echo '<div style="background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #e2e8f0;">
-    <div style="background: linear-gradient(135deg, #f8fafc, #f1f5f9); padding: 16px 20px; border-bottom: 2px solid #e2e8f0;">
-      <h5 style="margin: 0; color: #7c2ae8; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; gap: 8px;">
-        📋 Cobranças/Faturas (Banco Local)
-      </h5>
-    </div>
-    <div style="overflow-x: auto;">
-      <table class="w-full text-sm" style="border-collapse: collapse; width: 100%;">
-        <thead>
-          <tr style="background: #f8fafc;">
-            <th style="padding: 12px 16px; text-align: left; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #374151; font-size: 0.9em;">Nº</th>
-            <th style="padding: 12px 16px; text-align: left; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #374151; font-size: 0.9em;">Valor</th>
-            <th style="padding: 12px 16px; text-align: left; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #374151; font-size: 0.9em;">Vencimento</th>
-            <th style="padding: 12px 16px; text-align: left; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #374151; font-size: 0.9em;">Status</th>
-            <th style="padding: 12px 16px; text-align: left; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #374151; font-size: 0.9em;">Pagamento</th>
-            <th style="padding: 12px 16px; text-align: left; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #374151; font-size: 0.9em;">Fatura</th>
-            <th style="padding: 12px 16px; text-align: left; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #374151; font-size: 0.9em;">Ações</th>
-          </tr>
-        </thead>
-        <tbody>';
-  if (empty($cobrancas)) {
-    echo '<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 60px 20px; font-style: italic; background: #fafafa;">
-      <div style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;">📄</div>
-      <div style="font-size: 1.1em; margin-bottom: 8px; color: #64748b;">Nenhuma cobrança encontrada</div>
-      <div style="font-size: 0.9em; color: #94a3b8;">Este cliente ainda não possui cobranças registradas</div>
-    </td></tr>';
-  } else {
-    foreach ($cobrancas as $i => $cob) {
-      $status_map = [ 'RECEIVED' => 'RECEBIDO', 'PAID' => 'PAGO', 'PENDING' => 'PENDENTE', 'OVERDUE' => 'VENCIDO', 'CANCELLED' => 'CANCELADO', 'REFUNDED' => 'ESTORNADO', 'PROCESSING' => 'PROCESSANDO', 'AUTHORIZED' => 'AUTORIZADO', 'EXPIRED' => 'EXPIRADO', ];
-      $status_pt = $status_map[$cob['status']] ?? $cob['status'];
-      $status_color = $cob['status'] === 'RECEIVED' || $cob['status'] === 'PAID' ? '#059669' : ($cob['status'] === 'PENDING' ? '#7c3aed' : '#dc2626');
-      
-      // Determinar se deve mostrar botão "Marcar como Recebida"
-      $show_marcar_recebida = ($cob['status'] === 'PENDING' || $cob['status'] === 'OVERDUE') && empty($cob['data_pagamento']);
-      
-      // Estilo alternado para as linhas
-      $row_bg = $i % 2 === 0 ? '#ffffff' : '#fafafa';
-      
-      echo '<tr style="background: ' . $row_bg . '; transition: background 0.2s;" onmouseover="this.style.background=\'#f0f9ff\'" onmouseout="this.style.background=\'' . $row_bg . '\'">
-        <td style="padding: 12px 16px; font-weight: 500; color: #374151; border-bottom: 1px solid #f1f5f9;">' . ($i+1) . '</td>
-        <td style="padding: 12px 16px; font-weight: 600; color: #1f2937; border-bottom: 1px solid #f1f5f9;">R$ ' . number_format($cob['valor'],2,',','.') . '</td>
-        <td style="padding: 12px 16px; color: #374151; border-bottom: 1px solid #f1f5f9;">' . date('d/m/Y', strtotime($cob['vencimento'])) . '</td>
-        <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
-          <span style="color: ' . $status_color . '; font-weight: 600; padding: 4px 8px; border-radius: 6px; background: ' . $status_color . '15; font-size: 0.85em;">' . htmlspecialchars($status_pt) . '</span>
-        </td>
-        <td style="padding: 12px 16px; color: #374151; border-bottom: 1px solid #f1f5f9;">' . ($cob['data_pagamento'] ? date('d/m/Y', strtotime($cob['data_pagamento'])) : '—') . '</td>
-        <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">' . (!empty($cob['url_fatura']) ? '<a href="' . htmlspecialchars($cob['url_fatura']) . '" target="_blank" style="color: #7c2ae8; text-decoration: none; font-weight: 500; padding: 4px 8px; border-radius: 4px; background: #ede9fe; transition: all 0.2s;" onmouseover="this.style.background=\'#ddd6fe\'; this.style.color=\'#6d28d9\'" onmouseout="this.style.background=\'#ede9fe\'; this.style.color=\'#7c2ae8\'">📄 Ver Fatura</a>' : '—') . '</td>
-        <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
-          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-            <button onclick="excluirCobranca(\'' . htmlspecialchars($cob['asaas_payment_id']) . '\', ' . intval($cob['id']) . ')" style="background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8em; cursor: pointer; transition: all 0.2s; font-weight: 500; box-shadow: 0 1px 3px rgba(220,38,38,0.2);" onmouseover="this.style.background=\'#b91c1c\'; this.style.transform=\'translateY(-1px)\'; this.style.boxShadow=\'0 2px 6px rgba(220,38,38,0.3)\'" onmouseout="this.style.background=\'#dc2626\'; this.style.transform=\'translateY(0)\'; this.style.boxShadow=\'0 1px 3px rgba(220,38,38,0.2)\'">🗑️ Excluir</button>';
-      
-      if ($show_marcar_recebida) {
-        echo '<button onclick="marcarRecebida(\'' . htmlspecialchars($cob['asaas_payment_id']) . '\', ' . intval($cob['id']) . ')" style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8em; cursor: pointer; transition: all 0.2s; font-weight: 500; box-shadow: 0 1px 3px rgba(5,150,105,0.2);" onmouseover="this.style.background=\'#047857\'; this.style.transform=\'translateY(-1px)\'; this.style.boxShadow=\'0 2px 6px rgba(5,150,105,0.3)\'" onmouseout="this.style.background=\'#059669\'; this.style.transform=\'translateY(0)\'; this.style.boxShadow=\'0 1px 3px rgba(5,150,105,0.2)\'">✅ Marcar como Recebida</button>';
-      }
-      
-      echo '</div>
-        </td>
-      </tr>';
-    }
-  }
-  echo '</tbody></table></div></div>';
   echo '</div></div>';
   echo '</div>';
   

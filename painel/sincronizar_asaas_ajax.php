@@ -13,18 +13,18 @@ try {
     
     // Agora executar a sincronização CORRIGIDA
     ob_start();
-    passthru('php ' . escapeshellarg(__DIR__ . '/sincroniza_asaas_melhorado.php') . ' 2>&1', $exitCode);
+    passthru('php ' . escapeshellarg(__DIR__ . '/sincroniza_asaas_corrigido.php') . ' 2>&1', $exitCode);
     $output = ob_get_clean();
     
     // Log da sincronização corrigida
-    file_put_contents(__DIR__ . '/../logs/sincronizacao_melhorada.log', date('Y-m-d H:i:s') . " - Sincronização via AJAX executada\n", FILE_APPEND);
+    file_put_contents(__DIR__ . '/../logs/sincronizacao_corrigida.log', date('Y-m-d H:i:s') . " - Sincronização via AJAX executada\n", FILE_APPEND);
     
     if ($exitCode === 0) {
         echo json_encode([
             'success' => true, 
             'output' => $output, 
             'debug' => $debugOutput,
-            'message' => 'Sincronização corrigida executada com sucesso!'
+            'message' => 'Sincronização corrigida executada com sucesso! Dados editados manualmente foram preservados.'
         ]);
     } else {
         echo json_encode([
@@ -41,4 +41,5 @@ try {
         'error' => $e->getMessage(),
         'message' => 'Exceção na sincronização corrigida'
     ]);
-} 
+}
+?> 

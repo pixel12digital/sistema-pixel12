@@ -1,7 +1,9 @@
 <?php
 /**
- * Sincronização de Cobranças do Asaas
- * Versão focada apenas em cobranças, preservando dados existentes
+ * Sincronização Protegida com Asaas
+ * - Não sobrescreve dados editados manualmente
+ * - Sincroniza apenas cobranças (espelho do Asaas)
+ * - Preserva dados locais quando necessário
  */
 
 require_once __DIR__ . '/../config.php';
@@ -13,7 +15,7 @@ function logDetalhado($mensagem, $tipo = 'INFO') {
     $log_entry = "[$timestamp] [$tipo] $mensagem\n";
     
     // Log para arquivo
-    $log_file = __DIR__ . '/../logs/sincronizacao_melhorada.log';
+    $log_file = __DIR__ . '/../logs/sincronizacao_protegida.log';
     file_put_contents($log_file, $log_entry, FILE_APPEND | LOCK_EX);
     
     // Log para console
@@ -57,6 +59,124 @@ function getAsaas($endpoint) {
     }
     
     return $data;
+}
+
+// Função para sincronizar cliente de forma protegida
+function sincronizarClienteProtegido($mysqli, $clienteAsaas) {
+    try {
+        // Verificar se o cliente já existe
+        $stmt = $mysqli->prepare("SELECT id, nome, email, telefone, celular, endereco, 
+                                        telefone_editado_manual, celular_editado_manual, 
+                                        email_editado_manual, nome_editado_manual, endereco_editado_manual
+                                 FROM clientes WHERE asaas_id = ?");
+        $stmt->bind_param('s', $clienteAsaas['id']);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $clienteExistente = $result->fetch_assoc();
+        $stmt->close();
+        
+        $dados = [
+            'asaas_id' => $clienteAsaas['id'],
+            'nome' => $clienteAsaas['name'] ?? '',
+            'email' => $clienteAsaas['email'] ?? '',
+            'telefone' => $clienteAsaas['phone'] ?? '',
+            'celular' => $clienteAsaas['mobilePhone'] ?? '',
+            'endereco' => $clienteAsaas['address'] ?? '',
+            'cpf_cnpj' => $clienteAsaas['cpfCnpj'] ?? '',
+            'data_criacao' => date('Y-m-d H:i:s'),
+            'data_atualizacao' => date('Y-m-d H:i:s')
+        ];
+        
+        if ($clienteExistente) {
+            // Cliente existe - atualizar apenas campos não editados manualmente
+            $updates = [];
+            $params = [];
+            $types = '';
+            
+            // Só atualizar campos que não foram editados manualmente
+            if (!$clienteExistente['nome_editado_manual']) {
+                $updates[] = "nome = ?";
+                $params[] = $dados['nome'];
+                $types .= 's';
+            }
+            
+            if (!$clienteExistente['email_editado_manual']) {
+                $updates[] = "email = ?";
+                $params[] = $dados['email'];
+                $types .= 's';
+            }
+            
+            if (!$clienteExistente['telefone_editado_manual']) {
+                $updates[] = "telefone = ?";
+                $params[] = $dados['telefone'];
+                $types .= 's';
+            }
+            
+            if (!$clienteExistente['celular_editado_manual']) {
+                $updates[] = "celular = ?";
+                $params[] = $dados['celular'];
+                $types .= 's';
+            }
+            
+            if (!$clienteExistente['endereco_editado_manual']) {
+                $updates[] = "endereco = ?";
+                $params[] = $dados['endereco'];
+                $types .= 's';
+            }
+            
+            // Sempre atualizar CPF/CNPJ e data de atualização
+            $updates[] = "cpf_cnpj = ?";
+            $params[] = $dados['cpf_cnpj'];
+            $types .= 's';
+            
+            $updates[] = "data_atualizacao = ?";
+            $params[] = $dados['data_atualizacao'];
+            $types .= 's';
+            
+            if (!empty($updates)) {
+                $params[] = $clienteExistente['id'];
+                $types .= 'i';
+                
+                $sql = "UPDATE clientes SET " . implode(', ', $updates) . " WHERE id = ?";
+                $stmt = $mysqli->prepare($sql);
+                $stmt->bind_param($types, ...$params);
+                $stmt->execute();
+                $stmt->close();
+                
+                logDetalhado("Cliente atualizado (protegido): {$clienteAsaas['id']}");
+                return $clienteExistente['id'];
+            } else {
+                logDetalhado("Cliente não atualizado (todos os campos protegidos): {$clienteAsaas['id']}");
+                return $clienteExistente['id'];
+            }
+        } else {
+            // Cliente não existe - inserir novo
+            $sql = "INSERT INTO clientes (asaas_id, nome, email, telefone, celular, endereco, cpf_cnpj, data_criacao, data_atualizacao) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $stmt = $mysqli->prepare($sql);
+            $stmt->bind_param('sssssssss',
+                $dados['asaas_id'],
+                $dados['nome'],
+                $dados['email'],
+                $dados['telefone'],
+                $dados['celular'],
+                $dados['endereco'],
+                $dados['cpf_cnpj'],
+                $dados['data_criacao'],
+                $dados['data_atualizacao']
+            );
+            $stmt->execute();
+            $cliente_id = $mysqli->insert_id;
+            $stmt->close();
+            
+            logDetalhado("Cliente inserido: {$clienteAsaas['id']} (ID: $cliente_id)");
+            return $cliente_id;
+        }
+        
+    } catch (Exception $e) {
+        logDetalhado("ERRO ao sincronizar cliente {$clienteAsaas['id']}: " . $e->getMessage(), "ERROR");
+        return null;
+    }
 }
 
 // Função para validar dados de cobrança
@@ -125,7 +245,7 @@ function prepararDadosCobranca($cob, $cliente_id) {
     return $dados;
 }
 
-// Função para inserir cobrança com tratamento de erro melhorado
+// Função para inserir/atualizar cobrança
 function inserirCobranca($mysqli, $dados) {
     try {
         // Verificar conexão
@@ -186,37 +306,64 @@ function inserirCobranca($mysqli, $dados) {
         
     } catch (Exception $e) {
         logDetalhado("ERRO ao inserir cobrança: " . $e->getMessage(), "ERROR");
-        logDetalhado("Dados da cobrança: " . json_encode($dados), "DEBUG");
         return false;
     }
 }
 
-// Função para buscar cliente
-function buscarCliente($mysqli, $asaas_id) {
-    $stmt = $mysqli->prepare("SELECT id FROM clientes WHERE asaas_id = ? LIMIT 1");
-    if (!$stmt) {
-        logDetalhado("Erro ao preparar busca de cliente: " . $mysqli->error, "ERROR");
-        return null;
-    }
-    
-    $stmt->bind_param('s', $asaas_id);
-    $stmt->execute();
-    $stmt->bind_result($cliente_id);
-    $stmt->fetch();
-    $stmt->close();
-    
-    return $cliente_id;
-}
-
-// INÍCIO DA SINCRONIZAÇÃO
+// INÍCIO DA SINCRONIZAÇÃO PROTEGIDA
 try {
-    logDetalhado("==== INICIANDO SINCRONIZAÇÃO DE COBRANÇAS DO ASAAS ====");
+    logDetalhado("==== INICIANDO SINCRONIZAÇÃO PROTEGIDA COM ASAAS ====");
     
-    // Primeiro, contar o total de cobranças para ter uma referência
+    // 1. Sincronizar clientes (protegendo dados manuais)
+    logDetalhado("--- ETAPA 1: SINCRONIZANDO CLIENTES (PROTEGIDO) ---");
+    $clientes = [];
+    $offset = 0;
+    $maxPaginas = 50;
+    $paginaAtual = 0;
+    $clientesSucessos = 0;
+    $clientesErros = 0;
+    
+    do {
+        $resp = getAsaas("/customers?limit=100&offset=$offset");
+        $paginaAtual++;
+        
+        if ($paginaAtual > $maxPaginas) {
+            logDetalhado("ERRO: Limite de páginas de clientes atingido.", "ERROR");
+            break;
+        }
+        
+        if ($resp === null) {
+            logDetalhado("ERRO: Falha ao buscar clientes. Parando.", "ERROR");
+            exit(1);
+        }
+        
+        if (!empty($resp['data'])) {
+            logDetalhado("Encontrados " . count($resp['data']) . " clientes na página " . ($offset/100 + 1));
+            
+            foreach ($resp['data'] as $cliente) {
+                $clientes[] = $cliente;
+                $cliente_id = sincronizarClienteProtegido($mysqli, $cliente);
+                
+                if ($cliente_id) {
+                    $clientesSucessos++;
+                } else {
+                    $clientesErros++;
+                }
+            }
+        } else {
+            logDetalhado("Nenhum cliente encontrado na página " . ($offset/100 + 1));
+        }
+        
+        $offset += 100;
+    } while (!empty($resp['data']) && count($resp['data']) === 100);
+    
+    logDetalhado("Clientes sincronizados: " . count($clientes));
+    logDetalhado("Sucessos: $clientesSucessos, Erros: $clientesErros");
+    
+    // 2. Contar total de cobranças para progresso
     logDetalhado("--- CONTANDO TOTAL DE COBRANÇAS ---");
     $totalCobrancas = 0;
     $offset = 0;
-    $maxPaginas = 50; // Limite de 5000 cobranças
     $paginaAtual = 0;
     
     do {
@@ -246,13 +393,13 @@ try {
     logDetalhado("TOTAL_COBRANCAS_ESPERADO: $totalCobrancas");
     logDetalhado("--- FIM CONTAGEM DE COBRANÇAS ---");
     
-    // Sincronizar apenas cobranças
-    logDetalhado("--- SINCRONIZANDO COBRANÇAS ---");
+    // 3. Sincronizar cobranças (espelho completo do Asaas)
+    logDetalhado("--- ETAPA 2: SINCRONIZANDO COBRANÇAS (ESPELHO COMPLETO) ---");
     $cobrancas = [];
     $offset = 0;
     $paginaAtual = 0;
-    $sucessos = 0;
-    $erros = 0;
+    $cobrancasSucessos = 0;
+    $cobrancasErros = 0;
     $processados = 0;
     
     do {
@@ -292,15 +439,21 @@ try {
                     foreach ($erros_validacao as $erro) {
                         logDetalhado("  - $erro", "ERROR");
                     }
-                    $erros++;
+                    $cobrancasErros++;
                     continue;
                 }
                 
                 // Buscar cliente
-                $cliente_id = buscarCliente($mysqli, $cob['customer']);
+                $stmt = $mysqli->prepare("SELECT id FROM clientes WHERE asaas_id = ? LIMIT 1");
+                $stmt->bind_param('s', $cob['customer']);
+                $stmt->execute();
+                $stmt->bind_result($cliente_id);
+                $stmt->fetch();
+                $stmt->close();
+                
                 if (!$cliente_id) {
                     logDetalhado("ERRO: Cliente não encontrado para cobrança $cobranca_id (asaas_id: {$cob['customer']})", "ERROR");
-                    $erros++;
+                    $cobrancasErros++;
                     continue;
                 }
                 
@@ -308,10 +461,10 @@ try {
                 $dados = prepararDadosCobranca($cob, $cliente_id);
                 if (inserirCobranca($mysqli, $dados)) {
                     logDetalhado("Cobrança processada com sucesso: $cobranca_id");
-                    $sucessos++;
+                    $cobrancasSucessos++;
                 } else {
                     logDetalhado("ERRO ao processar cobrança: $cobranca_id", "ERROR");
-                    $erros++;
+                    $cobrancasErros++;
                 }
             }
         } else {
@@ -323,12 +476,11 @@ try {
     
     logDetalhado("Cobranças sincronizadas: " . count($cobrancas));
     logDetalhado("PROCESSADOS: $processados");
-    logDetalhado("ATUALIZADOS: $sucessos");
-    logDetalhado("ERROS: $erros");
-    logDetalhado("Sucessos: $sucessos, Erros: $erros");
-    logDetalhado("--- FIM SINCRONIZAÇÃO DE COBRANÇAS ---");
+    logDetalhado("ATUALIZADOS: $cobrancasSucessos");
+    logDetalhado("ERROS: $cobrancasErros");
+    logDetalhado("Sucessos: $cobrancasSucessos, Erros: $cobrancasErros");
     
-    // Registrar data/hora da última sincronização
+    // 4. Registrar data/hora da última sincronização
     logDetalhado("--- REGISTRANDO DATA/HORA DA ÚLTIMA SINCRONIZAÇÃO ---");
     $ultima_sync_path = __DIR__ . '/../logs/ultima_sincronizacao.log';
     if (@file_put_contents($ultima_sync_path, date('Y-m-d H:i:s')) === false) {
@@ -338,8 +490,9 @@ try {
         logDetalhado("Arquivo de última sincronização gravado com sucesso: $ultima_sync_path");
     }
     
-    logDetalhado("==== SINCRONIZAÇÃO DE COBRANÇAS CONCLUÍDA COM SUCESSO ====");
-    logDetalhado("Resumo: $sucessos cobranças processadas com sucesso, $erros erros");
+    logDetalhado("==== SINCRONIZAÇÃO PROTEGIDA CONCLUÍDA COM SUCESSO ====");
+    logDetalhado("Resumo: $clientesSucessos clientes, $cobrancasSucessos cobranças processadas com sucesso");
+    logDetalhado("Dados editados manualmente foram preservados");
     exit(0);
     
 } catch (Throwable $e) {
