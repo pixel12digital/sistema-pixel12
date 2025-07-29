@@ -49,7 +49,7 @@ if (!$numero_direto) {
     }
 }
 
-// Função melhorada para formatar número WhatsApp
+// Função melhorada para formatar número WhatsApp (garante sempre código +55 do Brasil)
 function ajustarNumeroWhatsapp($numero) {
     // Remover todos os caracteres não numéricos
     $numero = preg_replace('/\D/', '', $numero);
@@ -99,7 +99,7 @@ function ajustarNumeroWhatsapp($numero) {
         return null; // Número inválido
     }
     
-    // Retornar no formato: 55 + DDD + número
+    // GARANTIR SEMPRE o código +55 do Brasil + DDD + número
     return '55' . $ddd . $telefone;
 }
 

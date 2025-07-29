@@ -4,8 +4,64 @@
  * Executar via cron: 0,5,10,15,20,25,30,35,40,45,50,55 * * * * php /caminho/para/painel/cron/processar_mensagens_agendadas.php
  */
 
-require_once __DIR__ . '/../config.php';
-require_once '../db.php';
+date_default_timezone_set('America/Sao_Paulo');
+
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../db.php';
+
+// Função para formatar número WhatsApp (garante sempre código +55 do Brasil)
+function ajustarNumeroWhatsapp($numero) {
+    // Remover todos os caracteres não numéricos
+    $numero = preg_replace('/\D/', '', $numero);
+    
+    // Se já tem código do país (55), remover para processar
+    if (strpos($numero, '55') === 0) {
+        $numero = substr($numero, 2);
+    }
+    
+    // Para números muito longos, pegar apenas os últimos 11 dígitos (DDD + telefone)
+    if (strlen($numero) > 11) {
+        $numero = substr($numero, -11);
+    }
+    
+    // Verificar se tem pelo menos DDD (2 dígitos) + número (mínimo 7 dígitos)
+    if (strlen($numero) < 9) {
+        return null; // Número muito curto
+    }
+    
+    // Extrair DDD e número
+    $ddd = substr($numero, 0, 2);
+    $telefone = substr($numero, 2);
+    
+    // Verificar se o DDD é válido (deve ser um DDD brasileiro válido)
+    $ddds_validos = ['11','12','13','14','15','16','17','18','19','21','22','24','27','28','31','32','33','34','35','37','38','41','42','43','44','45','46','47','48','49','51','53','54','55','61','62','63','64','65','66','67','68','69','71','73','74','75','77','79','81','82','83','84','85','86','87','88','89','91','92','93','94','95','96','97','98','99'];
+    
+    if (!in_array($ddd, $ddds_validos)) {
+        return null; // DDD inválido
+    }
+    
+    // Regras de formatação:
+    // 1. Se tem 9 dígitos e começa com 9, manter como está (celular com 9)
+    if (strlen($telefone) === 9 && substr($telefone, 0, 1) === '9') {
+        // Manter como está - é um celular válido
+    }
+    // 2. Se tem 8 dígitos, adicionar 9 no início (celular sem 9)
+    elseif (strlen($telefone) === 8) {
+        $telefone = '9' . $telefone;
+    }
+    // 3. Se tem 7 dígitos, adicionar 9 no início (telefone fixo convertido para celular)
+    elseif (strlen($telefone) === 7) {
+        $telefone = '9' . $telefone;
+    }
+    
+    // Verificar se o número final é válido (deve ter 8 ou 9 dígitos)
+    if (strlen($telefone) < 8 || strlen($telefone) > 9) {
+        return null; // Número inválido
+    }
+    
+    // GARANTIR SEMPRE o código +55 do Brasil + DDD + número
+    return '55' . $ddd . $telefone;
+}
 
 // Log do início da execução
 $log_data = date('Y-m-d H:i:s') . " - Iniciando processamento de mensagens agendadas\n";
@@ -67,11 +123,14 @@ try {
             }
             
             // Enviar mensagem via VPS
-            $numero_limpo = preg_replace('/\D/', '', $mensagem['cliente_celular']);
+            $numero_formatado = ajustarNumeroWhatsapp($mensagem['cliente_celular']);
+            if (!$numero_formatado) {
+                throw new Exception("Número do cliente inválido para envio no WhatsApp");
+            }
             
             $payload = json_encode([
                 'sessionName' => 'default',
-                'number' => $numero_limpo,
+                'number' => $numero_formatado,
                 'message' => $mensagem['mensagem']
             ]);
             
