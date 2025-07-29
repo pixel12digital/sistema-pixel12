@@ -87,20 +87,18 @@ try {
         throw new Exception("Canal financeiro não conectado");
     }
 
-    // Formatar número do celular usando função melhorada
-    $numero_formatado = ajustarNumeroWhatsapp($cliente_celular);
-    if (!$numero_formatado) {
-        throw new Exception("Número do cliente inválido para envio no WhatsApp");
-    }
-    $numero_formatado .= '@c.us';
+    // Formatar número do celular usando função simplificada
+    $numero_limpo = preg_replace('/\D/', '', $cliente_celular);
+    $numero_formatado = '55' . $numero_limpo . '@c.us';
 
     // Enviar mensagem via VPS
     $payload = json_encode([
-        'to' => $numero_formatado,
+        'sessionName' => 'default',
+        'number' => $numero_formatado,
         'message' => $mensagem
     ]);
-
-    $ch = curl_init("http://212.85.11.238:3000/send");
+    
+    $ch = curl_init("http://212.85.11.238:3000/send/text");
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);

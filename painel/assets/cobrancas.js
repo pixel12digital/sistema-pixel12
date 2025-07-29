@@ -256,7 +256,7 @@ function renderizarTabelaCobrancas() {
             function salvarStatusManual() {
                 const novoStatus = select.value;
                 cell.innerHTML = '<span style="color:#a259e6;">Salvando...</span>';
-                fetch('/painel/api/corrigir_status_manual.php', {
+                fetch(getBasePath() + '/painel/api/corrigir_status_manual.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: 'cliente_id='+encodeURIComponent(clienteId)+'&cobranca_id='+encodeURIComponent(cobrancaId)+'&status='+encodeURIComponent(novoStatus)
@@ -595,7 +595,7 @@ function abrirModalWhatsapp(cliente_id, canal_id, mensagemPadrao, cobranca_id) {
         statusDiv.style.color = 'green';
         setTimeout(() => {
           modal.style.display = 'none';
-          location.reload();
+          carregarCobrancas();
         }, 2000);
       } else {
         statusDiv.textContent = resp.error || 'Erro ao enviar mensagem.';
@@ -641,7 +641,7 @@ function salvarInteracaoManual(clienteId, dataHora, cell) {
     const dt = new Date(dataHora);
     const dataHoraFormatada = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0') + ' ' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0') + ':00';
     cell.innerHTML = '<span style="color:#a259e6;">Salvando...</span>';
-    fetch('/painel/api/registrar_interacao_manual.php', {
+    fetch(getBasePath() + '/painel/api/registrar_interacao_manual.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'cliente_id='+encodeURIComponent(clienteId)+'&cobranca_id='+encodeURIComponent(cobrancaId)+'&data_hora='+encodeURIComponent(dataHoraFormatada)
@@ -711,7 +711,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const msgId = e.target.getAttribute('data-msg-id');
         if (!msgId) return;
         e.target.disabled = true;
-        fetch('/painel/api/corrigir_status_mensagem.php', {
+        fetch(getBasePath() + '/painel/api/corrigir_status_mensagem.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: `id=${encodeURIComponent(msgId)}&status=pendente`
@@ -736,7 +736,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const msgId = e.target.getAttribute('data-msg-id');
         if (msgId) {
           e.target.style.pointerEvents = 'none';
-          fetch('/painel/api/corrigir_status_mensagem.php', {
+          fetch(getBasePath() + '/painel/api/corrigir_status_mensagem.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `id=${encodeURIComponent(msgId)}&status=pendente`
@@ -765,7 +765,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (msgId) {
           if (!confirm('Deseja marcar esta mensagem como ENVIADA?')) return;
           e.target.style.pointerEvents = 'none';
-          fetch('/painel/api/corrigir_status_mensagem.php', {
+          fetch(getBasePath() + '/painel/api/corrigir_status_mensagem.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `id=${encodeURIComponent(msgId)}&status=enviado`
@@ -888,7 +888,7 @@ function exibirModalConfirmacaoLiberarEnvio(clienteId, vencimento) {
   const btn = document.getElementById('btn-confirmar-liberar-envio');
   btn.onclick = function() {
     btn.disabled = true;
-    fetch('/painel/api/liberar_envio_sem_id.php', {
+    fetch(getBasePath() + '/painel/api/liberar_envio_sem_id.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `cliente_id=${encodeURIComponent(clienteId)}&vencimento=${encodeURIComponent(vencimento)}`

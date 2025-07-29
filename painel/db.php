@@ -184,5 +184,4 @@ function closeDatabaseConnection() {
 }
 
 // Registrar função para fechar conexão ao finalizar script
-register_shutdown_function('closeDatabaseConnection');
-?> 
+register_shutdown_function('closeDatabaseConnection'); 

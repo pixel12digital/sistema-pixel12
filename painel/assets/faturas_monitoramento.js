@@ -204,6 +204,15 @@ class ClienteMonitoramento {
             throw new Error(data.error);
         }
 
+        // Se há avisos, mostrar como alertas informativos
+        if (data.avisos && data.avisos.length > 0) {
+            console.log('Avisos do monitoramento:', data.avisos);
+            // Mostrar avisos como alertas informativos (não como erros)
+            data.avisos.forEach(aviso => {
+                this.mostrarAlerta(aviso, 'warning');
+            });
+        }
+
         return data;
     }
 

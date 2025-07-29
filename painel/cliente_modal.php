@@ -24,61 +24,49 @@ if (!$cliente) {
   exit;
 }
 
-// Função para formatar campos
-function formatar_campo($campo, $valor, $cliente_id = null) {
+// Função para formatar valores de campos
+function formatar_valor($campo, $valor) {
   if ($valor === null || $valor === '' || $valor === '0-0-0' || $valor === '0000-00-00') return '—';
-  
-  $labels = [
-    'nome' => 'Nome', 'contact_name' => 'Contato', 'cpf_cnpj' => 'CPF/CNPJ', 'razao_social' => 'Razão Social',
-    'data_criacao' => 'Data de Criação', 'data_atualizacao' => 'Data de Atualização', 'asaas_id' => 'ID Asaas',
-    'referencia_externa' => 'Referência Externa', 'criado_em_asaas' => 'Criado no Asaas', 'email' => 'E-mail',
-    'emails_adicionais' => 'E-mails Adicionais', 'telefone' => 'Telefone', 'celular' => 'Celular', 'cep' => 'CEP',
-    'rua' => 'Rua', 'numero' => 'Número', 'complemento' => 'Complemento', 'bairro' => 'Bairro', 'cidade' => 'Cidade',
-    'estado' => 'Estado', 'pais' => 'País', 'id' => 'ID', 'observacoes' => 'Observações', 'plano' => 'Plano', 'status' => 'Status',
-  ];
-  $label = $labels[$campo] ?? ucfirst(str_replace('_', ' ', $campo));
-  
-  // Campos que podem ser editados
-  $campos_editaveis = ['nome', 'contact_name', 'cpf_cnpj', 'razao_social', 'email', 'telefone', 'celular', 'cep', 'rua', 'numero', 'complemento', 'bairro', 'observacoes'];
-  
-  // Se o campo é editável e temos o ID do cliente
-  if (in_array($campo, $campos_editaveis) && $cliente_id) {
-    return sprintf(
-      '<span class="campo-editavel" data-campo="%s" data-valor="%s">%s</span>',
-      htmlspecialchars($campo),
-      htmlspecialchars($valor),
-      htmlspecialchars($valor)
-    );
-  }
   
   // Datas
   if (preg_match('/^\d{4}-\d{2}-\d{2}/', $valor)) {
     $data = substr($valor, 0, 10);
     $partes = explode('-', $data);
-    if (count($partes) === 3) return "$label: {$partes[2]}/{$partes[1]}/{$partes[0]}";
+    if (count($partes) === 3) return "{$partes[2]}/{$partes[1]}/{$partes[0]}";
   }
   
   // CPF/CNPJ
   if ($campo === 'cpf_cnpj' && preg_match('/^\d{11,14}$/', $valor)) {
     if (strlen($valor) === 11) {
-      return "$label: " . preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $valor);
+      return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $valor);
     } else {
-      return "$label: " . preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $valor);
+      return preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $valor);
     }
   }
   
   // Telefone/Celular
   if (($campo === 'telefone' || $campo === 'celular') && preg_match('/^\d{10,11}$/', $valor)) {
-    return "$label: (" . substr($valor,0,2) . ") " . substr($valor,-9,-4) . '-' . substr($valor,-4);
+    $ddd = substr($valor, 0, 2);
+    if (strlen($valor) === 11) {
+      // Celular com nono dígito
+      $parte1 = substr($valor, 2, 5);
+      $parte2 = substr($valor, 7, 4);
+      return "($ddd) $parte1-$parte2";
+    } else {
+      // Telefone fixo ou celular antigo
+      $parte1 = substr($valor, 2, 4);
+      $parte2 = substr($valor, 6, 4);
+      return "($ddd) $parte1-$parte2";
+    }
   }
   
-  // Cidade e País - se for ID numérico, mostrar como "ID: X"
-  if (($campo === 'cidade' || $campo === 'pais') && is_numeric($valor) && $valor > 0) {
-    return "$label: ID $valor";
+  // CEP
+  if ($campo === 'cep' && preg_match('/^\d{8}$/', $valor)) {
+    return preg_replace('/(\d{5})(\d{3})/', '$1-$2', $valor);
   }
   
-  // Label padrão
-  return "$label: $valor";
+  // Valor padrão
+  return $valor;
 }
 
 // Separar campos por categoria
@@ -454,11 +442,38 @@ $total_vencido = $total_vencido ?? 0.0;
             <h4>👤 Dados Pessoais</h4>
             <table>
               <tbody>
-                <?php foreach ($dados_pessoais as $campo): if (isset($cliente[$campo])): ?>
+                <!-- Nome -->
+                <tr>
+                  <td class="font-semibold text-gray-600">Nome:</td>
+                  <td>
+                    <span class="campo-editavel" data-campo="nome" data-valor="<?= htmlspecialchars($cliente['nome'] ?? '') ?>">
+                      <?= htmlspecialchars($cliente['nome'] ?? '') ?>
+                    </span>
+                  </td>
+                </tr>
+                <!-- Contato Principal -->
+                <tr>
+                  <td class="font-semibold text-gray-600">Contato Principal:</td>
+                  <td>
+                    <span class="campo-editavel" data-campo="contact_name" data-valor="<?= htmlspecialchars($cliente['contact_name'] ?? '') ?>" data-placeholder="Ex: João">
+                      <?= htmlspecialchars($cliente['contact_name'] ?? '—') ?>
+                    </span>
+                  </td>
+                </tr>
+                <?php foreach ($dados_pessoais as $campo): if (!isset($cliente[$campo]) || in_array($campo, ['nome','contact_name'])) continue; ?>
                   <tr>
-                    <td class="font-semibold text-gray-600"><?= formatar_campo($campo, $cliente[$campo], $cliente_id) ?></td>
+                    <td class="font-semibold text-gray-600"><?= ucfirst(str_replace('_', ' ', $campo)) ?>:</td>
+                    <td>
+                      <?php if ($campo === 'asaas_id'): ?>
+                        <span style="font-family:monospace; background:#f3f4f6; padding:4px 8px; border-radius:6px; color:#7c2ae8;"><?= htmlspecialchars($cliente[$campo]) ?></span>
+                      <?php else: ?>
+                        <span class="campo-editavel" data-campo="<?= $campo ?>" data-valor="<?= htmlspecialchars($cliente[$campo]) ?>">
+                          <?= htmlspecialchars(formatar_valor($campo, $cliente[$campo])) ?>
+                        </span>
+                      <?php endif; ?>
+                    </td>
                   </tr>
-                <?php endif; endforeach; ?>
+                <?php endforeach; ?>
               </tbody>
             </table>
           </div>
@@ -468,11 +483,16 @@ $total_vencido = $total_vencido ?? 0.0;
             <h4>✉️ Contato</h4>
             <table>
               <tbody>
-                <?php foreach ($contato as $campo): if (isset($cliente[$campo])): ?>
+                <?php foreach ($contato as $campo): if (!isset($cliente[$campo])) continue; ?>
                   <tr>
-                    <td class="font-semibold text-gray-600"><?= formatar_campo($campo, $cliente[$campo], $cliente_id) ?></td>
+                    <td class="font-semibold text-gray-600"><?= ucfirst(str_replace('_', ' ', $campo)) ?>:</td>
+                    <td>
+                      <span class="campo-editavel" data-campo="<?= $campo ?>" data-valor="<?= htmlspecialchars($cliente[$campo]) ?>">
+                        <?= htmlspecialchars(formatar_valor($campo, $cliente[$campo])) ?>
+                      </span>
+                    </td>
                   </tr>
-                <?php endif; endforeach; ?>
+                <?php endforeach; ?>
               </tbody>
             </table>
           </div>
@@ -482,11 +502,16 @@ $total_vencido = $total_vencido ?? 0.0;
             <h4>📍 Endereço</h4>
             <table>
               <tbody>
-                <?php foreach ($endereco as $campo): if (isset($cliente[$campo])): ?>
+                <?php foreach ($endereco as $campo): if (!isset($cliente[$campo])) continue; ?>
                   <tr>
-                    <td class="font-semibold text-gray-600"><?= formatar_campo($campo, $cliente[$campo], $cliente_id) ?></td>
+                    <td class="font-semibold text-gray-600"><?= ucfirst(str_replace('_', ' ', $campo)) ?>:</td>
+                    <td>
+                      <span class="campo-editavel" data-campo="<?= $campo ?>" data-valor="<?= htmlspecialchars($cliente[$campo]) ?>">
+                        <?= htmlspecialchars(formatar_valor($campo, $cliente[$campo])) ?>
+                      </span>
+                    </td>
                   </tr>
-                <?php endif; endforeach; ?>
+                <?php endforeach; ?>
               </tbody>
             </table>
           </div>
@@ -498,7 +523,12 @@ $total_vencido = $total_vencido ?? 0.0;
               <tbody>
                 <?php foreach ($outros as $campo): ?>
                   <tr>
-                    <td class="font-semibold text-gray-600"><?= formatar_campo($campo, $cliente[$campo], $cliente_id) ?></td>
+                    <td class="font-semibold text-gray-600"><?= ucfirst(str_replace('_', ' ', $campo)) ?>:</td>
+                    <td>
+                      <span class="campo-editavel" data-campo="<?= $campo ?>" data-valor="<?= htmlspecialchars($cliente[$campo]) ?>">
+                        <?= htmlspecialchars(formatar_valor($campo, $cliente[$campo])) ?>
+                      </span>
+                    </td>
                   </tr>
                 <?php endforeach; ?>
               </tbody>

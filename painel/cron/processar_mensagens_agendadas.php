@@ -123,10 +123,8 @@ try {
             }
             
             // Enviar mensagem via VPS
-            $numero_formatado = ajustarNumeroWhatsapp($mensagem['cliente_celular']);
-            if (!$numero_formatado) {
-                throw new Exception("Número do cliente inválido para envio no WhatsApp");
-            }
+            $numero_limpo = preg_replace('/\D/', '', $mensagem['cliente_celular']);
+            $numero_formatado = '55' . $numero_limpo . '@c.us';
             
             $payload = json_encode([
                 'sessionName' => 'default',

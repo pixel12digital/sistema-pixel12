@@ -154,11 +154,12 @@ try {
             $numero_formatado = '55' . $numero_limpo . '@c.us';
 
             $payload = json_encode([
-                'to' => $numero_formatado,
+                'sessionName' => 'default',
+                'number' => $numero_formatado,
                 'message' => $mensagem
             ]);
-
-            $ch = curl_init("http://212.85.11.238:3000/send");
+            
+            $ch = curl_init("http://212.85.11.238:3000/send/text");
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);

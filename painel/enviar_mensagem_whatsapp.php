@@ -107,12 +107,14 @@ function ajustarNumeroWhatsapp($numero) {
 $numero = null;
 if ($numero_direto) {
     // Usar número direto fornecido
-    $numero = ajustarNumeroWhatsapp($numero_direto);
+    $numero_limpo = preg_replace('/\D/', '', $numero_direto);
+    $numero = '55' . $numero_limpo . '@c.us';
 } else {
     // Buscar número do cliente no banco
     $resCli = $mysqli->query("SELECT celular FROM clientes WHERE id = $cliente_id LIMIT 1");
     if ($resCli && ($rowCli = $resCli->fetch_assoc())) {
-        $numero = ajustarNumeroWhatsapp($rowCli['celular']);
+        $numero_limpo = preg_replace('/\D/', '', $rowCli['celular']);
+        $numero = '55' . $numero_limpo . '@c.us';
     }
 }
 

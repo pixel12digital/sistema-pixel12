@@ -171,7 +171,7 @@ app.get('/status', (req, res) => {
   res.json({ ready: isReady, lastSession, number });
 });
 
-// Função melhorada para formatar número (garante sempre código +55 do Brasil)
+// Função simplificada para formatar número (apenas adiciona código 55, sem adicionar 9)
 function formatarNumeroWhatsapp(numero) {
   // Remover todos os caracteres não numéricos
   numero = String(numero).replace(/\D/g, '');
@@ -202,26 +202,13 @@ function formatarNumeroWhatsapp(numero) {
     return null; // DDD inválido
   }
   
-  // Regras de formatação:
-  // 1. Se tem 9 dígitos e começa com 9, manter como está (celular com 9)
-  if (telefone.length === 9 && telefone.startsWith('9')) {
-    // Manter como está - é um celular válido
-  }
-  // 2. Se tem 8 dígitos, adicionar 9 no início (celular sem 9)
-  else if (telefone.length === 8) {
-    telefone = '9' + telefone;
-  }
-  // 3. Se tem 7 dígitos, adicionar 9 no início (telefone fixo convertido para celular)
-  else if (telefone.length === 7) {
-    telefone = '9' + telefone;
-  }
-  
-  // Verificar se o número final é válido (deve ter 8 ou 9 dígitos)
-  if (telefone.length < 8 || telefone.length > 9) {
+  // Verificar se o número final é válido (deve ter 7, 8 ou 9 dígitos)
+  if (telefone.length < 7 || telefone.length > 9) {
     return null; // Número inválido
   }
   
   // GARANTIR SEMPRE o código +55 do Brasil + DDD + número + @c.us
+  // NÃO ADICIONAR 9 - usar exatamente o número como está
   return '55' + ddd + telefone + '@c.us';
 }
 

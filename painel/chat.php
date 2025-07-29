@@ -1504,25 +1504,105 @@ function render_content() {
       conversationItem.classList.add('active');
     }
     
-    // Atualizar título da conversa
-    const chatHeader = document.querySelector('.chat-messages-header h2');
-    if (chatHeader) {
-      chatHeader.textContent = `💬 Conversa com ${nomeCliente}`;
+    // Invalidar cache para garantir dados atualizados
+    fetch(`api/invalidar_cache.php?cliente_id=${clienteId}`)
+      .then(response => response.json())
+      .then(data => {
+        console.log('Cache invalidado:', data);
+      })
+      .catch(error => {
+        console.error('Erro ao invalidar cache:', error);
+      });
+    
+    // Atualizar a coluna de detalhes do cliente
+    const detailsColumn = document.querySelector('.client-details-column');
+    if (detailsColumn) {
+      // Se a coluna está vazia, criar a estrutura completa
+      if (detailsColumn.querySelector('.client-details-empty')) {
+        detailsColumn.innerHTML = `
+          <div class="client-details-header">
+            <h2>👤 Detalhes do Cliente</h2>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button onclick="forcarAtualizacaoCache()" style="background: #7c3aed; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8em; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">🔄 Atualizar</button>
+              <button onclick="abrirTesteCobrancas()" style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8em; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">🔍 Testar Cobranças</button>
+            </div>
+          </div>
+          <div class="client-details-full">
+            <iframe src="api/detalhes_cliente.php?cliente_id=${clienteId}&atualizar=1" 
+                    frameborder="0" 
+                    style="width: 100%; height: calc(100vh - 130px); border: none;"
+                    id="iframe-detalhes-cliente">
+            </iframe>
+          </div>
+        `;
+      } else {
+        // Se já existe estrutura, apenas atualizar o iframe
+        const iframe = document.getElementById('iframe-detalhes-cliente');
+        if (iframe) {
+          iframe.src = `api/detalhes_cliente.php?cliente_id=${clienteId}&atualizar=1`;
+        }
+      }
     }
     
-    // Recarregar o iframe com o novo cliente
-    const iframe = document.getElementById('iframe-detalhes-cliente');
-    if (iframe) {
-      iframe.src = `api/detalhes_cliente.php?cliente_id=${clienteId}&atualizar=1`;
-      
-      // Inicializar abas após o carregamento
-      iframe.onload = function() {
-        setTimeout(inicializarAbasIframe, 200);
-      };
+    // Atualizar a coluna de mensagens
+    const messagesColumn = document.querySelector('.chat-messages-column');
+    if (messagesColumn) {
+      // Se a coluna está vazia, criar a estrutura completa
+      if (messagesColumn.querySelector('div[style*="display: flex"]')) {
+        messagesColumn.innerHTML = `
+          <div class="chat-messages-header">
+            <h2>💬 Conversa com ${nomeCliente}</h2>
+          </div>
+          <div class="chat-messages" id="chat-messages">
+            <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+              <div class="loading-spinner" style="margin: 0 auto 1rem;"></div>
+              Carregando mensagens...
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <form id="form-chat-enviar" enctype="multipart/form-data">
+              <input type="hidden" name="cliente_id" value="${clienteId}">
+              <input type="hidden" name="canal_id" value="36">
+              <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                  <textarea 
+                    name="mensagem" 
+                    class="chat-input" 
+                    placeholder="Digite sua mensagem..."
+                    rows="1"
+                  ></textarea>
+                </div>
+                <label class="chat-attachment" for="anexo" title="Anexar arquivo">
+                  📎
+                  <input type="file" id="anexo" name="anexo" style="display: none;" accept="image/*,.pdf,.doc,.docx,.txt">
+                </label>
+              </div>
+              <button type="submit" class="chat-send-btn">
+                Enviar
+                <span>➤</span>
+              </button>
+            </form>
+          </div>
+        `;
+      } else {
+        // Se já existe estrutura, apenas atualizar o título e carregar mensagens
+        const chatHeader = document.querySelector('.chat-messages-header h2');
+        if (chatHeader) {
+          chatHeader.textContent = `💬 Conversa com ${nomeCliente}`;
+        }
+      }
     }
     
     // Carregar mensagens via AJAX
     carregarMensagensCliente(clienteId);
+    
+    // Inicializar abas após o carregamento do iframe
+    const iframe = document.getElementById('iframe-detalhes-cliente');
+    if (iframe) {
+      iframe.onload = function() {
+        setTimeout(inicializarAbasIframe, 200);
+      };
+    }
   }
   
   // Função para forçar atualização das abas
@@ -1577,12 +1657,18 @@ function render_content() {
           
           // Scroll para a última mensagem
           chatMessages.scrollTop = chatMessages.scrollHeight;
+          
+          // Reconfigurar formulário de chat após carregar mensagens
+          reconfigurarFormularioChat(clienteId);
         } else {
           chatMessages.innerHTML = `
             <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
               <p>Nenhuma mensagem encontrada</p>
             </div>
           `;
+          
+          // Reconfigurar formulário mesmo sem mensagens
+          reconfigurarFormularioChat(clienteId);
         }
       })
       .catch(error => {
@@ -1592,7 +1678,161 @@ function render_content() {
             <p>Erro ao carregar mensagens</p>
           </div>
         `;
+        
+        // Reconfigurar formulário mesmo com erro
+        reconfigurarFormularioChat(clienteId);
       });
+  }
+  
+  // Função para reconfigurar o formulário de chat
+  function reconfigurarFormularioChat(clienteId) {
+    // Atualizar o valor do cliente_id no formulário
+    const form = document.getElementById('form-chat-enviar');
+    if (form) {
+      const clienteIdInput = form.querySelector('input[name="cliente_id"]');
+      if (clienteIdInput) {
+        clienteIdInput.value = clienteId;
+      }
+      
+      // Reconfigurar eventos do formulário
+      const textarea = form.querySelector('textarea[name="mensagem"]');
+      if (textarea) {
+        // Auto-resize do textarea
+        textarea.addEventListener('input', function() {
+          this.style.height = 'auto';
+          this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+        
+        // Envio com Enter (Shift+Enter para nova linha)
+        textarea.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            form.dispatchEvent(new Event('submit'));
+          }
+        });
+      }
+      
+      // Reconfigurar evento de envio do formulário
+      form.onsubmit = function(e) {
+        e.preventDefault();
+        enviarMensagemChat();
+      };
+    }
+    
+    // Reconfigurar evento de anexo
+    const anexoInput = document.getElementById('anexo');
+    if (anexoInput) {
+      anexoInput.onchange = function() {
+        if (this.files.length > 0) {
+          const fileName = this.files[0].name;
+          const label = this.parentElement;
+          label.textContent = `📎 ${fileName}`;
+          label.title = `Anexo: ${fileName}`;
+        }
+      };
+    }
+  }
+  
+  // Função para enviar mensagem via AJAX
+  function enviarMensagemChat() {
+    const form = document.getElementById('form-chat-enviar');
+    if (!form) return;
+    
+    const formData = new FormData(form);
+    const mensagem = formData.get('mensagem');
+    const clienteId = formData.get('cliente_id');
+    
+    if (!mensagem.trim()) {
+      alert('Digite uma mensagem');
+      return;
+    }
+    
+    if (!clienteId) {
+      alert('Cliente não selecionado');
+      return;
+    }
+    
+    // Desabilitar botão de envio
+    const sendBtn = form.querySelector('.chat-send-btn');
+    const originalText = sendBtn.innerHTML;
+    sendBtn.innerHTML = '⏳ Enviando...';
+    sendBtn.disabled = true;
+    
+    // Limpar campo de mensagem
+    const textarea = form.querySelector('textarea[name="mensagem"]');
+    textarea.value = '';
+    textarea.style.height = 'auto';
+    
+    // Resetar anexo
+    const anexoInput = form.querySelector('#anexo');
+    if (anexoInput) {
+      anexoInput.value = '';
+      const label = anexoInput.parentElement;
+      label.textContent = '📎';
+      label.title = 'Anexar arquivo';
+    }
+    
+    fetch('chat_enviar.php', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Recarregar mensagens para mostrar a nova mensagem
+        carregarMensagensCliente(clienteId);
+        
+        // Mostrar feedback de sucesso
+        showToast('Mensagem enviada com sucesso!', 'success');
+      } else {
+        // Mostrar erro
+        showToast('Erro ao enviar mensagem: ' + (data.error || 'Erro desconhecido'), 'error');
+        
+        // Restaurar mensagem no campo
+        textarea.value = mensagem;
+      }
+    })
+    .catch(error => {
+      console.error('Erro ao enviar mensagem:', error);
+      showToast('Erro de conexão ao enviar mensagem', 'error');
+      
+      // Restaurar mensagem no campo
+      textarea.value = mensagem;
+    })
+    .finally(() => {
+      // Reabilitar botão de envio
+      sendBtn.innerHTML = originalText;
+      sendBtn.disabled = false;
+    });
+  }
+  
+  // Função para mostrar toast (caso não exista)
+  function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      padding: 12px 20px;
+      background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+      color: white;
+      border-radius: 8px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transition: opacity 0.3s ease;
+      max-width: 300px;
+      word-wrap: break-word;
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Remover após 3 segundos
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
   }
   
   function updateClientInterface(detalhesHtml, mensagensHtml, clienteId) {
