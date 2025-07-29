@@ -289,8 +289,8 @@ function render_content() {
   document.addEventListener('DOMContentLoaded', function() {
     carregarConversasTemporarias();
     
-    // Atualizar a cada 30 segundos
-    setInterval(carregarConversasTemporarias, 30000);
+    // Atualizar a cada 5 minutos (OTIMIZADO para economizar conexões)
+    setInterval(carregarConversasTemporarias, 300000); // 5 minutos
   });
   </script>
   

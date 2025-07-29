@@ -235,6 +235,10 @@ header('Expires: 0');
         let logCompleto = [];
         let vpsOnline = false;
         
+        // Configurações de polling OTIMIZADAS para economizar conexões
+        const POLLING_INTERVAL = 300000; // 5 minutos (era 3 segundos)
+        const CACHE_TTL = 1800; // 30 minutos de cache
+
         // =================== FUNÇÕES DE DEBUG ===================
         
         function debug(message, type = 'info') {
@@ -697,8 +701,8 @@ header('Expires: 0');
             
             carregarQRCode();
             
-            // Monitorar conexão a cada 3 segundos
-            monitorTimer = setInterval(monitorarConexaoWhatsApp, 30000); // Aumentado para 30s
+            // Iniciar monitoramento
+            monitorTimer = setInterval(monitorarConexaoWhatsApp, POLLING_INTERVAL); // 5 minutos para economizar conexões
         }
         
         function carregarQRCode() {

@@ -560,9 +560,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // CORREÇÃO: Reduzir frequência de verificação para evitar oscilação
+    // CORREÇÃO: Reduzir frequência de verificação para economizar conexões
     atualizarStatus();
-    setInterval(atualizarStatus, 60000); // Aumentado para 60 segundos (1 minuto)
+    setInterval(atualizarStatus, 600000); // 10 minutos para economizar conexões
     
     if (acoesArea) {
       acoesArea.addEventListener('click', function(e) {

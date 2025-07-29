@@ -201,8 +201,8 @@ $custom_header = $custom_header ?? '';
       });
     }
 
-    // Executar verificação a cada 10 minutos (aumentado de 2 minutos para 10 minutos)
-    setInterval(checarCanaisWhatsappDesconectados, 600000);
+    // Executar verificação a cada 10 minutos (OTIMIZADO para economizar conexões)
+    setInterval(checarCanaisWhatsappDesconectados, 600000); // 10 minutos
     
     // Executar verificação inicial após 5 segundos
     setTimeout(checarCanaisWhatsappDesconectados, 5000);

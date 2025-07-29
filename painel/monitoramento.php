@@ -3,6 +3,10 @@ $page = 'monitoramento.php';
 $page_title = 'Monitoramento de Clientes';
 $custom_header = '<button type="button" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md flex items-center gap-2" id="btn-executar-monitoramento"><span>🔄 Executar Monitoramento</span></button> <button type="button" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md flex items-center gap-2" id="btn-agendar-pendentes"><span>📅 Agendar Pendentes</span></button> <button type="button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2" id="btn-configuracoes"><span>⚙️ Configurações</span></button>';
 
+// Configurações de polling OTIMIZADAS para economizar conexões
+const POLLING_INTERVAL = 600000; // 10 minutos (era 1 segundo)
+const CACHE_TTL = 1800; // 30 minutos de cache
+
 function render_content() {
 ?>
 <!-- Dashboard de Monitoramento -->
@@ -24,7 +28,8 @@ function render_content() {
         function atualizarRelogioNavegador() {
           document.getElementById('hora-navegador').innerText = new Date().toLocaleString('pt-BR');
         }
-        setInterval(atualizarRelogioNavegador, 60000); // Aumentado para 60s
+        // Atualizar relógio a cada 10 minutos para economizar conexões
+        setInterval(atualizarRelogioNavegador, POLLING_INTERVAL);
         atualizarRelogioNavegador();
       </script>
     </div>

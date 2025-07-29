@@ -84,25 +84,26 @@ if ($is_local) {
 if (!defined('ASAAS_API_URL')) define('ASAAS_API_URL', 'https://www.asaas.com/api/v3');
 
 /* ===== Configurações do sistema ===== */
-if (!defined('CACHE_TTL_DEFAULT')) define('CACHE_TTL_DEFAULT', 600); // 10 minutos
-if (!defined('CACHE_MAX_SIZE')) define('CACHE_MAX_SIZE', '200MB');
+if (!defined('CACHE_TTL_DEFAULT')) define('CACHE_TTL_DEFAULT', 1800); // 30 minutos
+if (!defined('CACHE_MAX_SIZE')) define('CACHE_MAX_SIZE', '100MB');
 
 /* ===== Configurações do WhatsApp ===== */
 if (!defined('WHATSAPP_ROBOT_URL')) define('WHATSAPP_ROBOT_URL', 'http://212.85.11.238:3000');
 if (!defined('WHATSAPP_TIMEOUT')) define('WHATSAPP_TIMEOUT', 10);
 
 /* ===== CONFIGURAÇÕES OTIMIZADAS PARA REDUZIR CONEXÕES ===== */
-// Configurações de polling otimizadas - REDUZIDAS para evitar muitas conexões
-if (!defined('POLLING_CONFIGURACOES')) define("POLLING_CONFIGURACOES", 120000);   // 2 minutos
-if (!defined('POLLING_WHATSAPP')) define("POLLING_WHATSAPP", 60000);             // 1 minuto
-if (!defined('POLLING_MONITORAMENTO')) define("POLLING_MONITORAMENTO", 120000);   // 2 minutos
-if (!defined('POLLING_CHAT')) define("POLLING_CHAT", 120000);                    // 2 minutos
-if (!defined('POLLING_COMUNICACAO')) define("POLLING_COMUNICACAO", 300000);       // 5 minutos
+// Configurações de polling OTIMIZADAS - REDUZIDAS drasticamente para economizar conexões
+// As configurações específicas estão no config_otimizada.php
 
-// Configurações de conexão otimizadas
-if (!defined('DB_PERSISTENT')) define("DB_PERSISTENT", true);                    // Usar conexões persistentes
-if (!defined('DB_TIMEOUT')) define("DB_TIMEOUT", 30);                            // Timeout de 30 segundos
-if (!defined('DB_MAX_RETRIES')) define("DB_MAX_RETRIES", 2);                     // Máximo 2 tentativas de reconexão
+// Configurações de cache OTIMIZADAS
+if (!defined('CACHE_TTL_DEFAULT')) define('CACHE_TTL_DEFAULT', 1800); // 30 minutos
+if (!defined('CACHE_MAX_SIZE')) define('CACHE_MAX_SIZE', '100MB');
+if (!defined('ENABLE_CACHE')) define('ENABLE_CACHE', true);
+
+// Configurações de conexão OTIMIZADAS
+if (!defined('DB_PERSISTENT')) define('DB_PERSISTENT', true);
+if (!defined('DB_TIMEOUT')) define('DB_TIMEOUT', 5);
+if (!defined('DB_MAX_RETRIES')) define('DB_MAX_RETRIES', 1);
 
 // Configurações de pool de conexões
 if (!defined('DB_MAX_CONNECTIONS')) define("DB_MAX_CONNECTIONS", 8);             // Máximo 8 conexões simultâneas

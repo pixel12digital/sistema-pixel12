@@ -300,6 +300,10 @@ if (!isset($_SESSION['logado']) || !$_SESSION['logado']) {
 let monitorAtivo = false;
 let monitorInterval = null;
 
+// Configurações de polling OTIMIZADAS para economizar conexões
+const POLLING_INTERVAL = 300000; // 5 minutos (era 5 segundos)
+const CACHE_TTL = 1800; // 30 minutos de cache
+
 function executarAcao(acao) {
     const botao = event.target;
     const resultadoDiv = document.getElementById(`resultado-${acao}`);
@@ -360,7 +364,7 @@ function toggleMonitor() {
         atualizarMonitor();
         
         // Atualiza a cada 5 segundos
-        monitorInterval = setInterval(atualizarMonitor, 60000); // Aumentado para 60s
+        monitorInterval = setInterval(atualizarMonitor, POLLING_INTERVAL); // Aumentado para 60s
     } else {
         // Para monitor
         monitorAtivo = false;

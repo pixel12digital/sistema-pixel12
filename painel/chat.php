@@ -822,67 +822,28 @@ function render_content() {
     window.location.href = 'chat.php';
   }
   
-  // Polling para atualização automática - OTIMIZADO
-  let pollingInterval = null;
-  let lastMessageTimestamp = 0;
-  let cachedConversations = new Map();
-  let cacheTimeout = 300000; // 5 minutos de cache
-  let lastCacheUpdate = 0;
+  // Configurações de polling OTIMIZADAS para economizar conexões
+  const POLLING_INTERVAL = 300000; // 5 minutos (era 2-10 segundos)
+  const CACHE_TTL = 1800; // 30 minutos de cache
+  let pollingSpeed = POLLING_INTERVAL; // Iniciar com 5 minutos
+  let inactivityTimer = 0;
   
-  function startChatPolling(clienteId) {
-    if (pollingInterval) clearInterval(pollingInterval);
-    
-    // Primeira verificação imediata
-    checkForNewMessages(clienteId);
-    
-    // Polling adaptativo baseado em atividade
-    let pollingSpeed = 5000; // Padrão 5s
-    let inactivityTimer = 0;
-    
-    pollingInterval = setInterval(() => {
-      // Só verificar se a janela está ativa
-      if (document.visibilityState === 'visible') {
-        checkForNewMessages(clienteId);
-        updateConversationList();
-        
-        // Aumentar intervalo se não há atividade
-        inactivityTimer += pollingSpeed;
-        if (inactivityTimer > 120000) { // 2 minutos
-          pollingSpeed = 10000; // Reduzir para 10s
-        }
-        if (inactivityTimer > 300000) { // 5 minutos  
-          pollingSpeed = 30000; // Reduzir para 30s
-        }
+  pollingInterval = setInterval(() => {
+    // Só verificar se a janela está ativa
+    if (document.visibilityState === 'visible') {
+      checkForNewMessages(clienteId);
+      updateConversationList();
+      
+      // Aumentar intervalo se não há atividade
+      inactivityTimer += pollingSpeed;
+      if (inactivityTimer > 600000) { // 10 minutos
+        pollingSpeed = 600000; // Reduzir para 10 minutos
       }
-    }, pollingSpeed);
-    
-    // Listener para quando a página volta ao foco
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && clienteId) {
-        // Reset para velocidade máxima ao voltar
-        pollingSpeed = 2000; 
-        inactivityTimer = 0;
-        setTimeout(() => {
-          checkForNewMessages(clienteId);
-          updateConversationList();
-        }, 1000);
+      if (inactivityTimer > 1200000) { // 20 minutos  
+        pollingSpeed = 900000; // Reduzir para 15 minutos
       }
-    });
-    
-    // Reset velocidade quando há interação do usuário
-    document.addEventListener('click', () => {
-      pollingSpeed = 2000;
-      inactivityTimer = 0;
-      // Salvar atividade
-      recordUserActivity(clienteId);
-    });
-    
-    document.addEventListener('keypress', () => {
-      pollingSpeed = 2000;
-      inactivityTimer = 0;
-      recordUserActivity(clienteId);
-    });
-  }
+    }
+  }, pollingSpeed);
   
   function recordUserActivity(clienteId) {
     // Registrar atividade do usuário para otimizar cache
@@ -1161,7 +1122,7 @@ function render_content() {
           }
         }
       }
-    }, 10000); // Aumentado de 3s para 10s
+    }, 60000); // Aumentado de 10s para 1 minuto
     
     // Limpar interval quando sair da página
     window.addEventListener('beforeunload', () => {
@@ -1185,7 +1146,7 @@ function render_content() {
       if (document.visibilityState === 'visible') {
         verificarStatusRobo();
       }
-    }, 120000); // Aumentado de 30s para 2 minutos
+    }, 300000); // Aumentado de 2 minutos para 5 minutos
     
     // Verificar quando a página volta ao foco
     document.addEventListener('visibilitychange', () => {
@@ -1252,7 +1213,7 @@ function render_content() {
       if (document.visibilityState === 'visible') {
         verificarTotalNaoLidas();
       }
-    }, 30000); // Reduzido de 60s para 30s
+    }, 300000); // Aumentado de 30s para 5 minutos
     
     // Debug: Verificar se o chat-messages existe após carregamento
     setTimeout(() => {

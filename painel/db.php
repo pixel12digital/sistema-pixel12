@@ -1,6 +1,11 @@
 <?php
-// Incluir configuração de emergência primeiro
-require_once __DIR__ . '/../config_emergencia.php';
+/**
+ * Gerenciador de Conexões de Banco de Dados
+ * Otimizado para reduzir conexões e economizar recursos
+ */
+
+// Incluir configuração otimizada
+require_once __DIR__ . '/../config_otimizada.php';
 
 // Incluir configurações globais
 require_once __DIR__ . '/../config.php';

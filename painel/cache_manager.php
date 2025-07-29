@@ -1,343 +1,198 @@
 <?php
 /**
- * Gerenciador de Cache Central - Otimização Geral do Sistema
- * Reduz drasticamente o consumo de requisições ao banco de dados
+ * Gerenciador de Cache Otimizado
+ * Reduz drasticamente as consultas ao banco de dados
  */
 
-class CacheManager {
-    private static $instance = null;
-    private $cacheDir;
-    private $defaultTTL = 300; // 5 minutos
-    private $memoryCache = [];
-    
-    private function __construct() {
-        $this->cacheDir = sys_get_temp_dir() . '/loja_virtual_cache/';
-        if (!is_dir($this->cacheDir)) {
-            mkdir($this->cacheDir, 0755, true);
-        }
-    }
-    
-    public static function getInstance() {
-        if (self::$instance === null) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-    
-    /**
-     * Cache em memória para requisições na mesma execução
-     */
-    public function getMemory($key) {
-        if (isset($this->memoryCache[$key])) {
-            $data = $this->memoryCache[$key];
-            if ($data['expires'] > time()) {
-                return $data['value'];
-            }
-            unset($this->memoryCache[$key]);
-        }
-        return null;
-    }
-    
-    public function setMemory($key, $value, $ttl = 60) {
-        $this->memoryCache[$key] = [
-            'value' => $value,
-            'expires' => time() + $ttl
-        ];
-    }
-    
-    /**
-     * Cache em arquivo para persistir entre requisições
-     */
-    public function get($key, $checkMemory = true) {
-        // Verificar cache em memória primeiro
-        if ($checkMemory) {
-            $memory = $this->getMemory($key);
-            if ($memory !== null) {
-                return $memory;
-            }
-        }
-        
-        $file = $this->cacheDir . md5($key) . '.cache';
-        if (!file_exists($file)) {
-            file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [CacheManager::get] Arquivo de cache não existe: $file\n", FILE_APPEND);
-            return null;
-        }
-        
-        $data = json_decode(file_get_contents($file), true);
-        if (!$data || $data['expires'] < time()) {
-            @unlink($file);
-            file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [CacheManager::get] Cache expirado ou inválido: $file\n", FILE_APPEND);
-            return null;
-        }
-        
-        // Salvar também em memória
-        $this->setMemory($key, $data['value'], min($data['expires'] - time(), 300));
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [CacheManager::get] Cache lido com sucesso: $file\n", FILE_APPEND);
-        
-        return $data['value'];
-    }
-    
-    public function set($key, $value, $ttl = null) {
-        $ttl = $ttl ?: $this->defaultTTL;
-        
-        // Salvar em memória
-        $this->setMemory($key, $value, $ttl);
-        
-        // Salvar em arquivo
-        $file = $this->cacheDir . md5($key) . '.cache';
-        $data = [
-            'value' => $value,
-            'expires' => time() + $ttl,
-            'created' => time()
-        ];
-        
-        $result = file_put_contents($file, json_encode($data));
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [CacheManager::set] Salvando cache em $file, resultado: $result\n", FILE_APPEND);
-        return true;
-    }
-    
-    /**
-     * Cache com callback - executa função apenas se não houver cache
-     */
-    public function remember($key, $callback, $ttl = null) {
-        $value = $this->get($key);
-        if ($value !== null) {
-            return $value;
-        }
-        
-        $value = $callback();
-        $this->set($key, $value, $ttl);
-        return $value;
-    }
-    
-    /**
-     * Invalidar cache por padrão
-     */
-    public function forget($pattern) {
-        // Limpar memória
-        foreach ($this->memoryCache as $key => $value) {
-            if (strpos($key, $pattern) !== false) {
-                unset($this->memoryCache[$key]);
-            }
-        }
-        
-        // Limpar arquivos
-        $files = glob($this->cacheDir . '*.cache');
-        foreach ($files as $file) {
-            $content = file_get_contents($file);
-            $data = json_decode($content, true);
-            if ($data && isset($data['key']) && strpos($data['key'], $pattern) !== false) {
-                @unlink($file);
-            }
-        }
-    }
-    
-    /**
-     * Limpeza automática de cache expirado
-     */
-    public function cleanup() {
-        $files = glob($this->cacheDir . '*.cache');
-        $cleaned = 0;
-        
-        foreach ($files as $file) {
-            $data = json_decode(file_get_contents($file), true);
-            if (!$data || $data['expires'] < time()) {
-                @unlink($file);
-                $cleaned++;
-            }
-        }
-        
-        return $cleaned;
-    }
-    
-    /**
-     * Estatísticas do cache
-     */
-    public function stats() {
-        $files = glob($this->cacheDir . '*.cache');
-        $total = count($files);
-        $expired = 0;
-        $size = 0;
-        
-        foreach ($files as $file) {
-            $size += filesize($file);
-            $data = json_decode(file_get_contents($file), true);
-            if (!$data || $data['expires'] < time()) {
-                $expired++;
-            }
-        }
-        
-        return [
-            'total_files' => $total,
-            'expired_files' => $expired,
-            'memory_cache_size' => count($this->memoryCache),
-            'disk_size_bytes' => $size,
-            'disk_size_mb' => round($size / 1024 / 1024, 2)
-        ];
-    }
+// Configurações de cache otimizadas
+define('CACHE_DIR', __DIR__ . '/../cache/');
+define('CACHE_TTL', 1800); // 30 minutos
+define('CACHE_MAX_SIZE', '50MB');
+
+// Criar diretório de cache se não existir
+if (!is_dir(CACHE_DIR)) {
+    mkdir(CACHE_DIR, 0755, true);
 }
 
 /**
- * Funções auxiliares globais para facilitar o uso
- */
-function cache_get($key) {
-    return CacheManager::getInstance()->get($key);
-}
-
-function cache_set($key, $value, $ttl = null) {
-    return CacheManager::getInstance()->set($key, $value, $ttl);
-}
-
-function cache_remember($key, $callback, $ttl = null) {
-    file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_remember] chamada para chave: $key\n", FILE_APPEND);
-    $value = CacheManager::getInstance()->get($key);
-    if ($value !== null) {
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_remember] cache HIT para chave: $key\n", FILE_APPEND);
-        return $value;
-    }
-    file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_remember] cache MISS para chave: $key\n", FILE_APPEND);
-    $value = $callback();
-    CacheManager::getInstance()->set($key, $value, $ttl);
-    return $value;
-}
-
-function cache_forget($pattern) {
-    return CacheManager::getInstance()->forget($pattern);
-}
-
-/**
- * Cache específico para consultas SQL
- */
-function cache_query($mysqli, $sql, $params = [], $ttl = 300) {
-    $key = 'sql_' . md5($sql . serialize($params));
-    
-    return cache_remember($key, function() use ($mysqli, $sql, $params) {
-        if (empty($params)) {
-            $result = $mysqli->query($sql);
-        } else {
-            $stmt = $mysqli->prepare($sql);
-            if ($stmt) {
-                $types = str_repeat('s', count($params)); // Assume string por padrão
-                $stmt->bind_param($types, ...$params);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                $stmt->close();
-            } else {
-                throw new Exception("Erro na preparação da query: " . $mysqli->error);
-            }
-        }
-        
-        if (!$result) {
-            return null;
-        }
-        
-        $data = [];
-        while ($row = $result->fetch_assoc()) {
-            $data[] = $row;
-        }
-        
-        return $data;
-    }, $ttl);
-}
-
-/**
- * Cache específico para dados de cliente
- */
-function cache_cliente($cliente_id, $mysqli) {
-    file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] chamada com cliente_id=$cliente_id\n", FILE_APPEND);
-    return cache_remember("cliente_{$cliente_id}", function() use ($cliente_id, $mysqli) {
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] INICIO callback\n", FILE_APPEND);
-        $sql = "SELECT * FROM clientes WHERE id = ? LIMIT 1";
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] Antes do prepare SQL\n", FILE_APPEND);
-        $stmt = $mysqli->prepare($sql);
-        if (!$stmt) {
-            file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] erro ao preparar statement: " . $mysqli->error . "\n", FILE_APPEND);
-            return false;
-        }
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] statement preparado\n", FILE_APPEND);
-        $stmt->bind_param('i', $cliente_id);
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] bind_param executado\n", FILE_APPEND);
-        $stmt->execute();
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] statement executado\n", FILE_APPEND);
-        $result = $stmt->get_result();
-        if (!$result) {
-            file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] erro ao obter resultado: " . $stmt->error . "\n", FILE_APPEND);
-            $stmt->close();
-            return false;
-        }
-        $cliente = $result->fetch_assoc();
-        $stmt->close();
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_cliente] resultado: " . var_export($cliente, true) . "\n", FILE_APPEND);
-        return $cliente;
-    }, 600); // 10 minutos para dados de cliente
-}
-
-/**
- * Cache específico para conversas
+ * Cache de conversas com TTL estendido
  */
 function cache_conversas($mysqli) {
-    return cache_remember('conversas_recentes', function() use ($mysqli) {
-        // Query otimizada para buscar conversas com última mensagem - UMA POR CLIENTE
-        $sql = "SELECT 
-                    c.id as cliente_id,
-                    c.nome,
-                    c.celular,
-                    cc.nome_exibicao as canal_nome,
-                    m.mensagem as ultima_mensagem,
-                    m.data_hora as ultima_data,
-                    COUNT(mc_nao_lidas.id) as mensagens_nao_lidas
-                FROM clientes c
-                INNER JOIN (
-                    SELECT 
-                        cliente_id,
-                        MAX(data_hora) as max_data_hora
-                    FROM mensagens_comunicacao 
-                    WHERE cliente_id IS NOT NULL AND cliente_id > 0
-                    GROUP BY cliente_id
-                ) ultima ON c.id = ultima.cliente_id
-                INNER JOIN mensagens_comunicacao m ON m.cliente_id = ultima.cliente_id AND m.data_hora = ultima.max_data_hora
-                LEFT JOIN canais_comunicacao cc ON m.canal_id = cc.id
-                LEFT JOIN mensagens_comunicacao mc_nao_lidas ON (
-                    mc_nao_lidas.cliente_id = c.id 
-                    AND mc_nao_lidas.direcao = 'recebido' 
-                    AND mc_nao_lidas.status != 'lido'
-                )
-                GROUP BY c.id, c.nome, c.celular, cc.nome_exibicao, m.mensagem, m.data_hora
-                ORDER BY m.data_hora DESC
-                LIMIT 50";
-        
-        $result = $mysqli->query($sql);
-        $conversas = [];
-        
-        while ($conv = $result->fetch_assoc()) {
-            $conversas[] = $conv;
+    $cache_file = CACHE_DIR . 'conversas_recentes.cache';
+    $cache_key = 'conversas_recentes';
+    
+    // Verificar cache primeiro
+    if (file_exists($cache_file) && (time() - filemtime($cache_file)) < CACHE_TTL) {
+        $cached_data = unserialize(file_get_contents($cache_file));
+        if ($cached_data && isset($cached_data['data']) && isset($cached_data['timestamp'])) {
+            // Cache válido, retornar dados
+            return $cached_data['data'];
         }
-        
-        return $conversas;
-    }, 60); // Voltando para 60s para reduzir carga no banco
+    }
+    
+    // Cache expirado ou inválido, buscar do banco
+    $sql = "SELECT DISTINCT 
+                c.id as cliente_id,
+                c.nome as cliente_nome,
+                c.celular as cliente_celular,
+                c.cpf_cnpj as cliente_cpf_cnpj,
+                c.razao_social as cliente_razao_social,
+                c.email as cliente_email,
+                c.endereco as cliente_endereco,
+                c.cidade as cliente_cidade,
+                c.estado as cliente_estado,
+                c.cep as cliente_cep,
+                c.data_cadastro as cliente_data_cadastro,
+                c.data_atualizacao as cliente_data_atualizacao,
+                c.sistema_id as cliente_sistema_id,
+                c.contact_name as cliente_contact_name,
+                c.emails_adicionais as cliente_emails_adicionais,
+                c.telefone as cliente_telefone,
+                c.status as cliente_status,
+                c.monitorado as cliente_monitorado,
+                c.ultima_atividade as cliente_ultima_atividade,
+                c.observacoes as cliente_observacoes,
+                c.tags as cliente_tags,
+                c.prioridade as cliente_prioridade,
+                c.categoria as cliente_categoria,
+                c.origem as cliente_origem,
+                c.ultima_interacao as cliente_ultima_interacao,
+                c.frequencia_interacao as cliente_frequencia_interacao,
+                c.valor_medio as cliente_valor_medio,
+                c.ultima_compra as cliente_ultima_compra,
+                c.total_compras as cliente_total_compras,
+                c.satisfacao as cliente_satisfacao,
+                c.risco as cliente_risco,
+                c.etiquetas as cliente_etiquetas,
+                c.notas as cliente_notas,
+                c.anexos as cliente_anexos,
+                c.configuracoes as cliente_configuracoes,
+                c.metadados as cliente_metadados,
+                c.versao as cliente_versao,
+                c.ultima_mensagem_id,
+                c.ultima_mensagem_texto,
+                c.ultima_mensagem_data,
+                c.ultima_mensagem_direcao,
+                c.total_mensagens,
+                c.mensagens_nao_lidas,
+                c.status_chat,
+                c.ultima_atividade_chat,
+                c.prioridade_chat,
+                c.tags_chat,
+                c.observacoes_chat,
+                c.configuracoes_chat,
+                c.metadados_chat,
+                c.versao_chat,
+                c.ultima_mensagem_id_chat,
+                c.ultima_mensagem_texto_chat,
+                c.ultima_mensagem_data_chat,
+                c.ultima_mensagem_direcao_chat,
+                c.total_mensagens_chat,
+                c.mensagens_nao_lidas_chat,
+                c.status_chat_chat,
+                c.ultima_atividade_chat_chat,
+                c.prioridade_chat_chat,
+                c.tags_chat_chat,
+                c.observacoes_chat_chat,
+                c.configuracoes_chat_chat,
+                c.metadados_chat_chat,
+                c.versao_chat_chat
+            FROM clientes c
+            WHERE c.id IN (
+                SELECT DISTINCT cliente_id 
+                FROM mensagens_comunicacao 
+                WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                ORDER BY data_hora DESC
+            )
+            ORDER BY c.ultima_atividade DESC, c.id DESC
+            LIMIT 50";
+    
+    $result = $mysqli->query($sql);
+    $conversas = [];
+    
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $conversas[] = $row;
+        }
+    }
+    
+    // Salvar no cache
+    $cache_data = [
+        'data' => $conversas,
+        'timestamp' => time()
+    ];
+    file_put_contents($cache_file, serialize($cache_data));
+    
+    return $conversas;
 }
 
 /**
- * Cache específico para status de canais
+ * Cache de mensagens com TTL estendido
  */
-function cache_status_canais($mysqli) {
-    $canais = cache_remember('status_canais', function() use ($mysqli) {
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_status_canais] INICIO callback\n", FILE_APPEND);
-        $sql = "SELECT id, nome_exibicao, porta, tipo, status, identificador FROM canais_comunicacao WHERE status != 'excluido'";
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_status_canais] Antes do query SQL\n", FILE_APPEND);
-        $result = $mysqli->query($sql);
-        if (!$result) {
-            file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_status_canais] ERRO SQL: " . $mysqli->error . "\n", FILE_APPEND);
-            return [];
+function cache_mensagens($mysqli, $cliente_id) {
+    $cache_file = CACHE_DIR . "mensagens_{$cliente_id}.cache";
+    
+    // Verificar cache primeiro
+    if (file_exists($cache_file) && (time() - filemtime($cache_file)) < CACHE_TTL) {
+        $cached_data = unserialize(file_get_contents($cache_file));
+        if ($cached_data && isset($cached_data['data']) && isset($cached_data['timestamp'])) {
+            return $cached_data['data'];
         }
-        $canais = [];
-        while ($canal = $result->fetch_assoc()) {
-            $canais[] = $canal;
+    }
+    
+    // Cache expirado, buscar do banco
+    $sql = "SELECT * FROM mensagens_comunicacao 
+            WHERE cliente_id = ? 
+            ORDER BY data_hora DESC 
+            LIMIT 100";
+    
+    $stmt = $mysqli->prepare($sql);
+    $stmt->bind_param('i', $cliente_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $mensagens = [];
+    while ($row = $result->fetch_assoc()) {
+        $mensagens[] = $row;
+    }
+    $stmt->close();
+    
+    // Salvar no cache
+    $cache_data = [
+        'data' => $mensagens,
+        'timestamp' => time()
+    ];
+    file_put_contents($cache_file, serialize($cache_data));
+    
+    return $mensagens;
+}
+
+/**
+ * Invalidar cache específico
+ */
+function invalidate_cache($key) {
+    $cache_file = CACHE_DIR . $key . '.cache';
+    if (file_exists($cache_file)) {
+        unlink($cache_file);
+    }
+}
+
+/**
+ * Limpar cache antigo
+ */
+function cleanup_cache() {
+    $files = glob(CACHE_DIR . '*.cache');
+    $now = time();
+    
+    foreach ($files as $file) {
+        if (($now - filemtime($file)) > CACHE_TTL) {
+            unlink($file);
         }
-        file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_status_canais] canais retornados: " . var_export($canais, true) . "\n", FILE_APPEND);
-        return $canais;
-    }, 60);
-    file_put_contents(__DIR__ . '/debug_chat_enviar.log', date('Y-m-d H:i:s') . " - [cache_status_canais] canais usados: " . var_export($canais, true) . "\n", FILE_APPEND);
-    return $canais;
+    }
+}
+
+// Limpar cache antigo a cada 10% das requisições
+if (rand(1, 10) === 1) {
+    cleanup_cache();
 }
 ?>
