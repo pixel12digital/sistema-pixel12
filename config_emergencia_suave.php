@@ -21,8 +21,8 @@ if (!defined('POLLING_COMUNICACAO')) define('POLLING_COMUNICACAO', 600000);     
 if (!defined('DB_CONNECT_TIMEOUT')) define('DB_CONNECT_TIMEOUT', 5);
 if (!defined('DB_READ_TIMEOUT')) define('DB_READ_TIMEOUT', 10);
 
-// Sistema de cache em arquivo (renomeado para evitar conflito)
-function emergency_cache_get($key) {
+// Sistema de cache em arquivo
+function cache_get($key) {
     $file = 'cache/' . md5($key) . '.cache';
     if (file_exists($file) && (time() - filemtime($file)) < 1800) {
         return unserialize(file_get_contents($file));
@@ -30,7 +30,7 @@ function emergency_cache_get($key) {
     return null;
 }
 
-function emergency_cache_set($key, $value, $ttl = 1800) {
+function cache_set($key, $value, $ttl = 1800) {
     $cache_dir = 'cache/';
     if (!is_dir($cache_dir)) {
         mkdir($cache_dir, 0755, true);
@@ -44,12 +44,6 @@ function emergency_cache_set($key, $value, $ttl = 1800) {
 function check_connection_limit() {
     $contador_file = 'cache/conexoes_contador.txt';
     $limite_conexoes = 450; // Limite mais alto
-    
-    // Criar diretório cache se não existir
-    $cache_dir = 'cache/';
-    if (!is_dir($cache_dir)) {
-        mkdir($cache_dir, 0755, true);
-    }
     
     $contador = 0;
     if (file_exists($contador_file)) {
