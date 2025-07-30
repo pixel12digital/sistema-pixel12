@@ -210,11 +210,13 @@ try {
                         $nome = $cliente['contact_name'] ?: $cliente['nome'];
                         $valor_formatado = number_format($value, 2, ',', '.');
                         $data_pagamento_formatada = $paymentDate ? date('d/m/Y', strtotime($paymentDate)) : date('d/m/Y');
+                        $data_vencimento_formatada = $dueDate ? date('d/m/Y', strtotime($dueDate)) : 'N/A';
                         
                         $mensagem = "✅ *Pagamento Confirmado!*\n\n";
                         $mensagem .= "Olá {$nome}!\n\n";
                         $mensagem .= "Recebemos seu pagamento de *R$ {$valor_formatado}*\n";
                         $mensagem .= "Data do pagamento: {$data_pagamento_formatada}\n";
+                        $mensagem .= "Vencimento original: {$data_vencimento_formatada}\n";
                         $mensagem .= "Referente à cobrança #{$asaas_id}\n\n";
                         $mensagem .= "Obrigado pela confiança! 🙏\n\n";
                         $mensagem .= "Esta é uma mensagem automática.";

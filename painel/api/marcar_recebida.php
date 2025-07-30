@@ -206,7 +206,7 @@ if ($http_code === 200) {
         // 6. SÓ ENVIAR WHATSAPP SE BANCO FOI ATUALIZADO COM SUCESSO
         try {
             // Buscar dados do cliente
-            $stmt_cliente = $mysqli->prepare("SELECT c.nome, c.contact_name, c.celular, cob.valor FROM clientes c INNER JOIN cobrancas cob ON c.id = cob.cliente_id WHERE cob.id = ? LIMIT 1");
+            $stmt_cliente = $mysqli->prepare("SELECT c.nome, c.contact_name, c.celular, cob.valor, cob.vencimento FROM clientes c INNER JOIN cobrancas cob ON c.id = cob.cliente_id WHERE cob.id = ? LIMIT 1");
             $stmt_cliente->bind_param('i', $cobranca_id);
             $stmt_cliente->execute();
             $cliente = $stmt_cliente->get_result()->fetch_assoc();
@@ -229,11 +229,13 @@ if ($http_code === 200) {
                 $nome = $cliente['contact_name'] ?: $cliente['nome'];
                 $valor_formatado = number_format($cliente['valor'], 2, ',', '.');
                 $data_pagamento_formatada = date('d/m/Y');
+                $data_vencimento_formatada = $cliente['vencimento'] ? date('d/m/Y', strtotime($cliente['vencimento'])) : 'N/A';
                 
                 $mensagem = "✅ *Pagamento Confirmado!*\n\n";
                 $mensagem .= "Olá {$nome}!\n\n";
                 $mensagem .= "Recebemos seu pagamento de *R$ {$valor_formatado}*\n";
                 $mensagem .= "Data do pagamento: {$data_pagamento_formatada}\n";
+                $mensagem .= "Vencimento original: {$data_vencimento_formatada}\n";
                 $mensagem .= "Referente à cobrança #{$asaas_payment_id}\n\n";
                 $mensagem .= "Obrigado pela confiança! 🙏\n\n";
                 $mensagem .= "Esta é uma mensagem automática.";
