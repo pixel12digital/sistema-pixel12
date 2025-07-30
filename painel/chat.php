@@ -341,24 +341,124 @@ function render_content() {
       targetTab.classList.add('active');
     }
     
-    const itensConversa = document.querySelectorAll('.conversation-item');
-    
     if (tipo === 'nao-lidas') {
       // Filtro especial para mensagens não lidas
       filtrarConversasNaoLidas();
     } else if (tipo === 'fechadas') {
       // Mostrar apenas conversas fechadas (implementar se necessário)
-      itensConversa.forEach(item => {
-        // Por enquanto, esconder todas para fechadas
-        item.style.display = 'none';
-      });
+      filtrarConversasFechadas();
     } else {
-      // Mostrar todas as conversas (abertas)
-      itensConversa.forEach(item => {
-        item.style.display = 'flex';
-        item.classList.remove('filtered-out');
-      });
+      // Mostrar todas as conversas (abertas) - ATUALIZADO
+      filtrarConversasAbertas();
     }
+  }
+  
+  /**
+   * 🚀 FILTRAR CONVERSAS ABERTAS (TODAS AS CONVERSAS)
+   * Exibe todas as conversas ativas com mensagens não lidas destacadas
+   */
+  function filtrarConversasAbertas() {
+    const container = document.querySelector('.chat-conversations');
+    
+    // Mostrar loading
+    container.innerHTML = `
+      <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+        <div class="loading-spinner" style="margin: 0 auto 1rem;"></div>
+        Carregando conversas...
+      </div>
+    `;
+    
+    fetch('api/conversas_recentes.php')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && data.conversas) {
+          if (data.conversas.length > 0) {
+            // Renderizar todas as conversas
+            let html = '';
+            data.conversas.forEach(conv => {
+              const isActive = currentClientId == conv.cliente_id ? 'active' : '';
+              const hasUnread = conv.mensagens_nao_lidas > 0 ? 'has-unread' : '';
+              const iniciais = conv.nome.charAt(0).toUpperCase();
+              const tempo = conv.ultima_data ? new Date(conv.ultima_data).toLocaleTimeString('pt-BR', {
+                hour: '2-digit', 
+                minute: '2-digit'
+              }) : '';
+              
+              html += `
+                <div class="conversation-item ${isActive} ${hasUnread}" 
+                     data-cliente-id="${conv.cliente_id}"
+                     onclick="return carregarCliente(${conv.cliente_id}, '${conv.nome.replace(/'/g, "\\'")}', event);">
+                  <div class="conversation-avatar">${iniciais}</div>
+                  <div class="conversation-content">
+                    <div class="conversation-header">
+                      <span class="conversation-name">${conv.nome}</span>
+                      <span class="conversation-time">${tempo}</span>
+                    </div>
+                    <div class="conversation-meta">
+                      <span class="conversation-tag">${conv.canal_nome || 'Canal'}</span>
+                      <span class="conversation-preview">
+                        ${conv.mensagens_nao_lidas > 0 ? 
+                          `<strong>${conv.mensagens_nao_lidas} nova${conv.mensagens_nao_lidas > 1 ? 's' : ''} mensagem${conv.mensagens_nao_lidas > 1 ? 's' : ''}</strong>` :
+                          (conv.ultima_mensagem || '').substring(0, 50)
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  ${conv.mensagens_nao_lidas > 0 ? `<div class="unread-badge">${conv.mensagens_nao_lidas}</div>` : ''}
+                </div>
+              `;
+            });
+            
+            container.innerHTML = html;
+          } else {
+            // Nenhuma conversa
+            container.innerHTML = `
+              <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                <div style="font-size: 2rem; margin-bottom: 1rem;">💬</div>
+                <p style="margin: 0; font-weight: 500;">Nenhuma conversa encontrada</p>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">
+                  Clique em "Nova Conversa" para começar
+                </p>
+              </div>
+            `;
+          }
+          
+          // Atualizar contador global de não lidas
+          verificarTotalNaoLidas();
+        } else {
+          container.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--error-color);">
+              <p>Erro ao carregar conversas</p>
+            </div>
+          `;
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao buscar conversas:', error);
+        container.innerHTML = `
+          <div style="text-align: center; padding: 2rem; color: var(--error-color);">
+            <p>Erro de conexão</p>
+          </div>
+        `;
+      });
+  }
+  
+  /**
+   * 🔒 FILTRAR CONVERSAS FECHADAS
+   * Exibe conversas que foram marcadas como fechadas
+   */
+  function filtrarConversasFechadas() {
+    const container = document.querySelector('.chat-conversations');
+    
+    container.innerHTML = `
+      <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+        <div style="font-size: 2rem; margin-bottom: 1rem;">🔒</div>
+        <p style="margin: 0; font-weight: 500;">Conversas Fechadas</p>
+        <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">
+          Funcionalidade em desenvolvimento
+        </p>
+      </div>
+    `;
   }
   
   /**
@@ -465,9 +565,13 @@ function render_content() {
   }
   
   /**
-   * Marcar conversa atual como lida e atualizar contador
+   * 🚀 MARCAR CONVERSA COMO LIDA E ATUALIZAR INTERFACE
+   * Marca mensagens como lidas e atualiza contadores em tempo real
    */
   function marcarConversaComoLida(clienteId) {
+    if (!clienteId) return;
+    
+    // Marcar como lida no servidor
     fetch('api/marcar_como_lida.php', {
       method: 'POST',
       headers: {
@@ -478,18 +582,59 @@ function render_content() {
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        // Atualizar contador global
-        verificarTotalNaoLidas();
+        console.log(`✅ Conversa ${clienteId} marcada como lida (${data.mensagens_atualizadas} mensagens)`);
         
-        // Remover indicador visual da conversa atual
+        // 🚀 ATUALIZAR INTERFACE EM TEMPO REAL
+        
+        // 1. Remover indicador visual da conversa atual
         const conversaAtual = document.querySelector(`[data-cliente-id="${clienteId}"]`);
         if (conversaAtual) {
           conversaAtual.classList.remove('has-unread');
+          
+          // Atualizar preview da conversa
+          const preview = conversaAtual.querySelector('.conversation-preview');
+          if (preview) {
+            // Buscar última mensagem para mostrar no preview
+            fetch(`api/ultima_mensagem.php?cliente_id=${clienteId}`)
+              .then(res => res.json())
+              .then(msgData => {
+                if (msgData.success && msgData.mensagem) {
+                  preview.innerHTML = msgData.mensagem.substring(0, 50);
+                }
+              })
+              .catch(() => {
+                preview.innerHTML = '';
+              });
+          }
+          
+          // Remover badge de não lidas
+          const badge = conversaAtual.querySelector('.unread-badge');
+          if (badge) {
+            badge.remove();
+          }
         }
+        
+        // 2. Atualizar contador global de não lidas
+        verificarTotalNaoLidas();
+        
+        // 3. Remover indicador "NOVA" das mensagens na conversa
+        const mensagensNova = document.querySelectorAll('.message.unread.received');
+        mensagensNova.forEach(msg => {
+          msg.classList.remove('unread');
+        });
+        
+        // 4. Se estiver na aba "Não Lidas", atualizar lista
+        const tabAtiva = document.querySelector('.chat-tab.active');
+        if (tabAtiva && tabAtiva.textContent.includes('Não Lidas')) {
+          filtrarConversasNaoLidas();
+        }
+        
+      } else {
+        console.error('❌ Erro ao marcar como lida:', data.error);
       }
     })
     .catch(error => {
-      console.error('Erro ao marcar como lida:', error);
+      console.error('❌ Erro ao marcar como lida:', error);
     });
   }
   
@@ -1030,9 +1175,10 @@ function render_content() {
   
   /**
    * 🔔 MOSTRA NOTIFICAÇÃO VISUAL DE NOVA MENSAGEM
+   * Notificação direta na conversa (estilo WhatsApp)
    */
   function mostrarNotificacaoNovaMensagem(notificacao) {
-    // Criar notificação visual
+    // 1. Notificação no canto superior direito (mantida)
     const notification = document.createElement('div');
     notification.className = 'push-notification';
     notification.innerHTML = `
@@ -1042,8 +1188,6 @@ function render_content() {
         <button class="push-close" onclick="this.parentElement.parentElement.remove()">×</button>
       </div>
     `;
-    
-    // Adicionar estilos
     notification.style.cssText = `
       position: fixed;
       top: 20px;
@@ -1059,38 +1203,131 @@ function render_content() {
       font-size: 14px;
     `;
     
-    // Adicionar animação
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-      .push-notification-content {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .push-close {
-        background: none;
-        border: none;
-        color: white;
-        font-size: 18px;
-        cursor: pointer;
-        margin-left: 10px;
-      }
-    `;
-    document.head.appendChild(style);
+    // Adicionar estilos CSS
+    if (!document.getElementById('push-notification-styles')) {
+      const style = document.createElement('style');
+      style.id = 'push-notification-styles';
+      style.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .push-notification-content {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .push-close {
+          background: none;
+          border: none;
+          color: white;
+          font-size: 18px;
+          cursor: pointer;
+          margin-left: 10px;
+        }
+      `;
+      document.head.appendChild(style);
+    }
     
-    // Adicionar ao DOM
     document.body.appendChild(notification);
     
-    // Remover automaticamente após 5 segundos
+    // Remover após 5 segundos
     setTimeout(() => {
       if (notification.parentElement) {
         notification.remove();
       }
     }, 5000);
+    
+    // 2. 🚀 NOVA FUNCIONALIDADE: Notificação direta na conversa (estilo WhatsApp)
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) {
+      // Criar notificação inline na conversa
+      const inlineNotification = document.createElement('div');
+      inlineNotification.className = 'inline-notification';
+      inlineNotification.innerHTML = `
+        <div class="inline-notification-content">
+          <span class="inline-icon">🔔</span>
+          <span class="inline-text">Nova mensagem: ${notificacao.mensagem.substring(0, 50)}${notificacao.mensagem.length > 50 ? '...' : ''}</span>
+          <button class="inline-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+      `;
+      inlineNotification.style.cssText = `
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin: 10px 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        animation: slideDown 0.4s ease-out;
+        font-size: 13px;
+        position: relative;
+      `;
+      
+      // Adicionar estilos para notificação inline
+      if (!document.getElementById('inline-notification-styles')) {
+        const inlineStyle = document.createElement('style');
+        inlineStyle.id = 'inline-notification-styles';
+        inlineStyle.textContent = `
+          @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
+          .inline-notification-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          .inline-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            margin-left: auto;
+            opacity: 0.8;
+          }
+          .inline-close:hover {
+            opacity: 1;
+          }
+          .inline-icon {
+            font-size: 14px;
+          }
+        `;
+        document.head.appendChild(inlineStyle);
+      }
+      
+      // Inserir no topo das mensagens
+      chatMessages.insertBefore(inlineNotification, chatMessages.firstChild);
+      
+      // Scroll para mostrar a notificação
+      chatMessages.scrollTop = 0;
+      
+      // Remover após 8 segundos
+      setTimeout(() => {
+        if (inlineNotification.parentElement) {
+          inlineNotification.style.animation = 'slideUp 0.3s ease-out';
+          setTimeout(() => {
+            if (inlineNotification.parentElement) {
+              inlineNotification.remove();
+            }
+          }, 300);
+        }
+      }, 8000);
+      
+      // Adicionar animação de saída
+      if (!document.getElementById('inline-notification-styles').textContent.includes('slideUp')) {
+        const existingStyle = document.getElementById('inline-notification-styles');
+        existingStyle.textContent += `
+          @keyframes slideUp {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-20px); opacity: 0; }
+          }
+        `;
+      }
+    }
+    
+    // 3. Atualizar contador de não lidas na interface
+    verificarTotalNaoLidas();
   }
   
   function recordUserActivity(clienteId) {
@@ -1690,6 +1927,9 @@ function render_content() {
     if (conversationItem) {
       conversationItem.classList.add('active');
     }
+    
+    // 🚀 NOVA FUNCIONALIDADE: Marcar como lida automaticamente
+    marcarConversaComoLida(clienteId);
     
     // Invalidar cache para garantir dados atualizados
     fetch(`api/invalidar_cache.php?cliente_id=${clienteId}`)
