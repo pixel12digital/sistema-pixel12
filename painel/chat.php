@@ -169,7 +169,16 @@ function render_content() {
     <div class="chat-messages-column">
       <?php if ($cliente_selecionado): ?>
         <div class="chat-messages-header">
-          <h2>💬 Conversa com <?= htmlspecialchars($cliente_selecionado['nome']) ?></h2>
+          <div class="chat-header-content">
+            <h2>💬 Conversa com <?= htmlspecialchars($cliente_selecionado['nome']) ?></h2>
+            <div class="chat-header-actions">
+              <button onclick="fecharConversaAtual()" 
+                      class="btn-fechar-conversa" 
+                      title="Fechar conversa (mover para aba Fechadas)">
+                🔒 Fechar
+              </button>
+            </div>
+          </div>
         </div>
         
         <!-- Área de mensagens -->
@@ -450,15 +459,89 @@ function render_content() {
   function filtrarConversasFechadas() {
     const container = document.querySelector('.chat-conversations');
     
+    // Mostrar loading
     container.innerHTML = `
       <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
-        <div style="font-size: 2rem; margin-bottom: 1rem;">🔒</div>
-        <p style="margin: 0; font-weight: 500;">Conversas Fechadas</p>
-        <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">
-          Funcionalidade em desenvolvimento
-        </p>
+        <div class="loading-spinner" style="margin: 0 auto 1rem;"></div>
+        Carregando conversas fechadas...
       </div>
     `;
+    
+    fetch('api/conversas_fechadas.php')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          if (data.conversas.length > 0) {
+            // Renderizar conversas fechadas
+            let html = '';
+            data.conversas.forEach(conv => {
+              const iniciais = conv.nome.charAt(0).toUpperCase();
+              const dataFormatada = new Date(conv.ultima_mensagem).toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+              
+              const preview = conv.ultima_mensagem_texto.length > 50 
+                ? conv.ultima_mensagem_texto.substring(0, 50) + '...' 
+                : conv.ultima_mensagem_texto;
+              
+              html += `
+                <div class="conversation-item conversation-closed" 
+                     data-cliente-id="${conv.cliente_id}"
+                     onclick="carregarCliente(${conv.cliente_id}, '${conv.nome.replace(/'/g, "\\'")}', event);">
+                  <div class="conversation-avatar" style="opacity: 0.6;">${iniciais}</div>
+                  <div class="conversation-content">
+                    <div class="conversation-header">
+                      <span class="conversation-name" style="opacity: 0.7;">${conv.nome}</span>
+                      <span class="conversation-time">${dataFormatada}</span>
+                    </div>
+                    <div class="conversation-meta">
+                      <span class="conversation-tag" style="background: #6b7280; color: white;">Fechada</span>
+                      <span class="conversation-preview" style="opacity: 0.6;">${preview}</span>
+                    </div>
+                    <div class="conversation-actions" style="margin-top: 0.5rem;">
+                      <button onclick="event.stopPropagation(); reabrirConversa(${conv.cliente_id});" 
+                              style="background: #22c55e; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.8rem; cursor: pointer;">
+                        🔓 Reabrir
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `;
+            });
+            
+            container.innerHTML = html;
+          } else {
+            // Nenhuma conversa fechada
+            container.innerHTML = `
+              <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                <div style="font-size: 2rem; margin-bottom: 1rem;">🔓</div>
+                <p style="margin: 0; font-weight: 500;">Nenhuma conversa fechada</p>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">
+                  Todas as conversas estão abertas
+                </p>
+              </div>
+            `;
+          }
+        } else {
+          container.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--error-color);">
+              <p>Erro ao carregar conversas fechadas</p>
+            </div>
+          `;
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao buscar conversas fechadas:', error);
+        container.innerHTML = `
+          <div style="text-align: center; padding: 2rem; color: var(--error-color);">
+            <p>Erro de conexão</p>
+          </div>
+        `;
+      });
   }
   
   /**
@@ -2863,6 +2946,75 @@ function render_content() {
     // Focar no input após limpar
     searchInput.focus();
   }
+  
+  /**
+   * 🔒 FECHAR CONVERSA ATUAL
+   */
+  function fecharConversaAtual() {
+    if (!clienteId) {
+      alert('Nenhuma conversa selecionada');
+      return;
+    }
+    
+    if (!confirm('Deseja fechar esta conversa?\n\nA conversa será movida para a aba "Fechadas" e não receberá mais respostas automáticas.')) {
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append('cliente_id', clienteId);
+    
+    fetch('api/fechar_conversa.php', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Conversa fechada com sucesso!\n\nA conversa foi movida para a aba "Fechadas".');
+        // Redirecionar para lista de conversas
+        window.location.href = 'chat.php';
+      } else {
+        alert('Erro ao fechar conversa: ' + (data.error || 'Erro desconhecido'));
+      }
+    })
+    .catch(error => {
+      console.error('Erro ao fechar conversa:', error);
+      alert('Erro ao fechar conversa: ' + error.message);
+    });
+  }
+  
+  /**
+   * 🔓 REABRIR CONVERSA
+   */
+  function reabrirConversa(clienteId) {
+    if (!confirm('Deseja reabrir esta conversa?')) return;
+    
+    const formData = new FormData();
+    formData.append('cliente_id', clienteId);
+    
+    fetch('api/abrir_conversa.php', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Conversa reaberta com sucesso!');
+        // Recarregar lista de conversas fechadas
+        filtrarConversasFechadas();
+        // Atualizar lista principal se estiver na aba aberta
+        if (document.querySelector('.chat-tab.active').textContent.includes('Abertas')) {
+          updateConversationList();
+        }
+      } else {
+        alert('Erro ao reabrir conversa: ' + (data.error || 'Erro desconhecido'));
+      }
+    })
+    .catch(error => {
+      console.error('Erro ao reabrir conversa:', error);
+      alert('Erro ao reabrir conversa: ' + error.message);
+    });
+  }
   </script>
   
   <?php
@@ -2925,3 +3077,50 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 });
 </script>
+
+<style>
+/* Estilos para o header da conversa */
+.chat-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.chat-header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-fechar-conversa {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.btn-fechar-conversa:hover {
+  background: #dc2626;
+}
+
+.btn-fechar-conversa:active {
+  transform: translateY(1px);
+}
+
+/* Ajuste do header existente */
+.chat-messages-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.chat-messages-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+}
+</style>
