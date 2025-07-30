@@ -132,12 +132,7 @@ $mensagem_id = $mysqli->insert_id;
 file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Mensagem salva no banco, id: $mensagem_id\n", FILE_APPEND);
 
 // INVALIDAR CACHE após inserir nova mensagem
-invalidate_message_cache($cliente_id, [
-    'id' => $mensagem_id,
-    'cliente_id' => $cliente_id,
-    'mensagem' => $mensagem,
-    'data_hora' => $data_hora
-]);
+invalidate_message_cache($cliente_id);
 // Forçar limpeza de todos os caches relevantes
 if (function_exists('cache_forget')) {
     cache_forget("mensagens_{$cliente_id}");
@@ -199,8 +194,7 @@ echo json_encode([
     'enviado_api' => $enviado_api,
     'cache_invalidated' => true // Indicar que cache foi invalidado
 ]);
-?>
-<?php
+
 } catch (Throwable $e) {
     file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Erro fatal: " . $e->getMessage() . "\n", FILE_APPEND);
     echo json_encode(['success' => false, 'error' => 'Erro fatal: ' . $e->getMessage()]);
