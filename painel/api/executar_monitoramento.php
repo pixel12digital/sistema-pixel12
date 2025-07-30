@@ -189,13 +189,8 @@ try {
             $mensagem_escaped = $mysqli->real_escape_string($mensagem);
             $data_hora = date('Y-m-d H:i:s');
             
-            // Buscar canal WhatsApp financeiro
-            $canal_result = $mysqli->query("SELECT id FROM canais_comunicacao WHERE tipo = 'whatsapp' AND (id = 36 OR nome_exibicao LIKE '%financeiro%') LIMIT 1");
-            $canal = $canal_result->fetch_assoc();
-            $canal_id = $canal ? $canal['id'] : 36; // Usar canal 36 como padrão se não encontrar
-            
-            $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status, numero_whatsapp, numero_remetente) 
-                    VALUES ($canal_id, {$row['cliente_id']}, '$mensagem_escaped', 'cobranca_vencida', '$data_hora', 'enviado', 'enviado', '{$row['cliente_celular']}', '4797146908')";
+            $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) 
+                    VALUES (1, {$row['cliente_id']}, '$mensagem_escaped', 'cobranca_vencida', '$data_hora', 'enviado', 'enviado')";
             
             if (!$mysqli->query($sql)) {
                 error_log("Erro ao salvar mensagem automática: " . $mysqli->error);
