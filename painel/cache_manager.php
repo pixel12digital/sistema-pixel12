@@ -195,6 +195,34 @@ function cache_cliente($cliente_id, $mysqli) {
 }
 
 /**
+ * Função cache_status_canais - Cache para status dos canais de comunicação
+ */
+function cache_status_canais($mysqli) {
+    return cache_remember("status_canais", function() use ($mysqli) {
+        $sql = "SELECT * FROM canais_comunicacao WHERE status <> 'excluido' ORDER BY id";
+        $result = $mysqli->query($sql);
+        $canais = [];
+        
+        if ($result) {
+            while ($canal = $result->fetch_assoc()) {
+                $canais[] = [
+                    'id' => $canal['id'],
+                    'nome' => $canal['nome_exibicao'],
+                    'porta' => intval($canal['porta']),
+                    'conectado' => ($canal['status'] === 'conectado'),
+                    'lastSession' => $canal['data_conexao'] ?? null,
+                    'tipo' => $canal['tipo'] ?? null,
+                    'identificador' => $canal['identificador'] ?? null,
+                    'status' => $canal['status'] ?? 'pendente'
+                ];
+            }
+        }
+        
+        return $canais;
+    }, 60); // Cache de 1 minuto para status dos canais
+}
+
+/**
  * Invalidar cache específico
  */
 function invalidate_cache($key) {
