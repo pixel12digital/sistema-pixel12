@@ -15,6 +15,25 @@ header('Expires: 0');
 function verificarContextoConversacional($numero, $cliente_id, $texto, $mysqli) {
     $texto_lower = strtolower(trim($texto));
     
+    // Verificar se a conversa está fechada
+    $sql_conversa_fechada = "SELECT 
+                                m.status_conversa,
+                                COUNT(*) as total_mensagens
+                            FROM mensagens_comunicacao m 
+                            WHERE m.numero_whatsapp = ? 
+                            AND m.cliente_id = ?
+                            AND m.status_conversa = 'fechada'
+                            GROUP BY m.status_conversa";
+    
+    $stmt = $mysqli->prepare($sql_conversa_fechada);
+    $stmt->bind_param('si', $numero, $cliente_id);
+    $stmt->execute();
+    $result_conversa_fechada = $stmt->get_result();
+    $conversa_fechada = $result_conversa_fechada->fetch_assoc();
+    $stmt->close();
+    
+    $eh_conversa_fechada = $conversa_fechada ? true : false;
+    
     // Verificar se já foi enviada resposta de faturas recentemente (últimas 2 horas)
     $sql_contexto = "SELECT 
                         m.mensagem, 
@@ -57,6 +76,7 @@ function verificarContextoConversacional($numero, $cliente_id, $texto, $mysqli) 
     }
     
     return [
+        'eh_conversa_fechada' => $eh_conversa_fechada,
         'faturas_enviadas_recentemente' => $contexto_faturas ? true : false,
         'minutos_ultima_fatura' => $contexto_faturas ? $contexto_faturas['minutos_atras'] : null,
         'eh_solicitacao_consolidacao' => $eh_solicitacao_consolidacao,
@@ -66,6 +86,12 @@ function verificarContextoConversacional($numero, $cliente_id, $texto, $mysqli) 
 }
 
 function gerarFallbackInteligente($contexto, $cliente_id, $mysqli) {
+    if ($contexto['eh_conversa_fechada']) {
+        return "🔒 *Esta conversa foi fechada.*\n\n" .
+               "Para reabrir a conversa e receber atendimento, entre em contato através do número: *47 997309525*\n\n" .
+               "🤖 *Esta é uma mensagem automática*";
+    }
+    
     if ($contexto['eh_fora_contexto']) {
         return "Olá! 👋\n\n" .
                "📋 *Este canal é específico para consulta de faturas.*\n\n" .
@@ -288,7 +314,8 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
             }
             
             // 🚀 NOVA FUNCIONALIDADE: Notificação Push para Atualização Automática
-            enviarNotificacaoPush($cliente_id, $numero, $texto, $mensagem_id);
+            // ATUALIZADO: Passa o tipo de mensagem para verificação
+            enviarNotificacaoPush($cliente_id, $numero, $texto, $mensagem_id, $tipo);
         }
     } else {
         error_log("[WEBHOOK WHATSAPP] ❌ Erro ao salvar mensagem: " . $mysqli->error);
@@ -310,19 +337,25 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         $enviar_resposta = true;
         error_log("[WEBHOOK WHATSAPP] 📞 Solicitação de atendente processada");
     }
-    // 3. Verificar se é solicitação fora do contexto ou consolidação
+    // 3. Verificar se a conversa está fechada
+    elseif ($contexto['eh_conversa_fechada']) {
+        $resposta_automatica = gerarFallbackInteligente($contexto, $cliente_id, $mysqli);
+        $enviar_resposta = true;
+        error_log("[WEBHOOK WHATSAPP] 🔒 Conversa fechada - não processando respostas automáticas");
+    }
+    // 4. Verificar se é solicitação fora do contexto ou consolidação
     elseif ($contexto['eh_fora_contexto'] || $contexto['eh_solicitacao_consolidacao']) {
         $resposta_automatica = gerarFallbackInteligente($contexto, $cliente_id, $mysqli);
         $enviar_resposta = true;
         error_log("[WEBHOOK WHATSAPP] 🔄 Fallback inteligente aplicado");
     }
-    // 4. Verificar se faturas foram enviadas recentemente
+    // 5. Verificar se faturas foram enviadas recentemente
     elseif ($contexto['faturas_enviadas_recentemente']) {
         $resposta_automatica = gerarFallbackInteligente($contexto, $cliente_id, $mysqli);
         $enviar_resposta = true;
         error_log("[WEBHOOK WHATSAPP] ⏰ Faturas enviadas recentemente - evitando repetição");
     }
-    // 5. Processar normalmente se não há conflitos de contexto
+    // 6. Processar normalmente se não há conflitos de contexto
     else {
         // LÓGICA ORIGINAL MELHORADA PARA EVITAR LOOPS:
         // 1. Se é a primeira mensagem da conversa (sem conversa recente)
@@ -566,11 +599,71 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
 }
 
 /**
+ * 🔍 VERIFICA SE DEVE ENVIAR NOTIFICAÇÃO
+ * Considera status da conversa e tipo de mensagem
+ */
+function deveEnviarNotificacao($cliente_id, $numero, $tipo_mensagem, $mysqli) {
+    // Se não tem cliente_id, não enviar notificação
+    if (!$cliente_id) {
+        return false;
+    }
+    
+    // Verificar se a conversa está fechada
+    $sql_conversa_fechada = "SELECT COUNT(*) as total 
+                            FROM mensagens_comunicacao 
+                            WHERE cliente_id = ? 
+                            AND status_conversa = 'fechada' 
+                            AND data_hora >= DATE_SUB(NOW(), INTERVAL 24 HOUR)";
+    
+    $stmt = $mysqli->prepare($sql_conversa_fechada);
+    $stmt->bind_param('i', $cliente_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $conversa_fechada = $result->fetch_assoc();
+    $stmt->close();
+    
+    // Se conversa está fechada, verificar tipo de mensagem
+    if ($conversa_fechada['total'] > 0) {
+        // Tipos de mensagem que DEVEM ser enviadas mesmo com conversa fechada
+        $tipos_importantes = [
+            'monitoramento',    // Alertas de sistema
+            'agendamento',      // Lembretes de agendamento
+            'fatura',           // Notificações de fatura
+            'cobranca',         // Cobranças importantes
+            'sistema',          // Mensagens do sistema
+            'emergencia'        // Emergências
+        ];
+        
+        // Se é um tipo importante, enviar notificação
+        if (in_array($tipo_mensagem, $tipos_importantes)) {
+            error_log("[WEBHOOK WHATSAPP] 📡 Notificação enviada (conversa fechada, mas tipo importante: $tipo_mensagem)");
+            return true;
+        }
+        
+        // Se não é tipo importante, não enviar notificação
+        error_log("[WEBHOOK WHATSAPP] 🔇 Notificação bloqueada (conversa fechada, tipo: $tipo_mensagem)");
+        return false;
+    }
+    
+    // Se conversa está aberta, enviar notificação normalmente
+    error_log("[WEBHOOK WHATSAPP] 📡 Notificação enviada (conversa aberta)");
+    return true;
+}
+
+/**
  * 🚀 ENVIA NOTIFICAÇÃO PUSH PARA ATUALIZAÇÃO AUTOMÁTICA
  * Aciona atualização imediata do chat quando mensagem é recebida
+ * ATUALIZADO: Verifica se deve enviar baseado no status da conversa
  */
-function enviarNotificacaoPush($cliente_id, $numero, $texto, $mensagem_id) {
+function enviarNotificacaoPush($cliente_id, $numero, $texto, $mensagem_id, $tipo_mensagem = 'texto') {
     try {
+        // Verificar se deve enviar notificação
+        global $mysqli;
+        if (!deveEnviarNotificacao($cliente_id, $numero, $tipo_mensagem, $mysqli)) {
+            error_log("[WEBHOOK WHATSAPP] 🔇 Notificação push bloqueada (conversa fechada ou tipo não importante)");
+            return;
+        }
+        
         // URL do endpoint de notificação push
         $push_url = ($GLOBALS['is_local'] ? 'http://localhost:8080/loja-virtual-revenda' : '') . '/painel/api/push_notification.php';
         
@@ -579,7 +672,8 @@ function enviarNotificacaoPush($cliente_id, $numero, $texto, $mensagem_id) {
             'cliente_id' => $cliente_id,
             'numero' => $numero,
             'texto' => $texto,
-            'mensagem_id' => $mensagem_id
+            'mensagem_id' => $mensagem_id,
+            'tipo_mensagem' => $tipo_mensagem
         ];
         
         $ch = curl_init($push_url);
