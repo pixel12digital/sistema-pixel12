@@ -889,9 +889,24 @@ function render_content() {
   let pollingSpeed = POLLING_INTERVAL; // Iniciar com 5 minutos
   let inactivityTimer = 0;
   
+  // 🚀 NOVO SISTEMA: Notificação Push + Polling Híbrido
+  let lastPushCheck = Date.now();
+  let pushCheckInterval = null;
+  let pushNotificationsEnabled = true;
+  
+  // ⚡ OTIMIZAÇÃO: Controle de requisições para economizar banco
+  let requestCount = 0;
+  let lastRequestTime = 0;
+  const MAX_REQUESTS_PER_HOUR = 400; // Deixar margem de segurança
+  const MIN_REQUEST_INTERVAL = 5000; // Mínimo 5 segundos entre requisições
+  
+  // Inicializar sistema de notificação push
+  iniciarSistemaNotificacaoPush();
+  
+  // Polling tradicional (mantido como fallback, mas muito reduzido)
   pollingInterval = setInterval(() => {
-    // Só verificar se a janela está ativa
-    if (document.visibilityState === 'visible') {
+    // Só verificar se a janela está ativa E se não excedeu limite
+    if (document.visibilityState === 'visible' && podeFazerRequisicao()) {
       checkForNewMessages(clienteId);
       updateConversationList();
       
@@ -905,6 +920,178 @@ function render_content() {
       }
     }
   }, pollingSpeed);
+  
+  /**
+   * ⚡ VERIFICA SE PODE FAZER REQUISIÇÃO
+   * Controla limite de 500 requisições por hora
+   */
+  function podeFazerRequisicao() {
+    const agora = Date.now();
+    
+    // Verificar intervalo mínimo entre requisições
+    if (agora - lastRequestTime < MIN_REQUEST_INTERVAL) {
+      return false;
+    }
+    
+    // Verificar limite por hora
+    if (requestCount >= MAX_REQUESTS_PER_HOUR) {
+      console.log('⚠️ Limite de requisições atingido. Aguardando reset...');
+      return false;
+    }
+    
+    return true;
+  }
+  
+  /**
+   * 📊 REGISTRA REQUISIÇÃO FEITA
+   */
+  function registrarRequisicao() {
+    requestCount++;
+    lastRequestTime = Date.now();
+    
+    // Reset contador a cada hora
+    setTimeout(() => {
+      requestCount = Math.max(0, requestCount - 1);
+    }, 3600000); // 1 hora
+    
+    console.log(`📊 Requisição #${requestCount}/${MAX_REQUESTS_PER_HOUR} registrada`);
+  }
+  
+  /**
+   * 🚀 INICIA SISTEMA DE NOTIFICAÇÃO PUSH
+   * Verifica notificações push apenas quando há eventos
+   */
+  function iniciarSistemaNotificacaoPush() {
+    if (pushCheckInterval) {
+      clearInterval(pushCheckInterval);
+    }
+    
+    // ⚡ OTIMIZAÇÃO: Verificar apenas a cada 30 segundos (vs 2s antes)
+    pushCheckInterval = setInterval(() => {
+      if (document.visibilityState === 'visible' && pushNotificationsEnabled && podeFazerRequisicao()) {
+        verificarNotificacoesPush(clienteId);
+      }
+    }, 30000); // 30 segundos - muito mais econômico
+    
+    // Primeira verificação imediata
+    setTimeout(() => {
+      if (podeFazerRequisicao()) {
+        verificarNotificacoesPush(clienteId);
+      }
+    }, 2000);
+  }
+  
+  /**
+   * 🔍 VERIFICA NOTIFICAÇÕES PUSH
+   * Sistema principal para detectar novas mensagens
+   */
+  function verificarNotificacoesPush(clienteId) {
+    if (!clienteId || !podeFazerRequisicao()) return;
+    
+    registrarRequisicao();
+    
+    fetch(`api/check_push_notifications.php?cliente_id=${clienteId}&last_check=${lastPushCheck}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.has_notifications) {
+          console.log(`🚀 Nova mensagem detectada via push! (${data.count} notificação${data.count > 1 ? 's' : ''})`);
+          
+          // Atualizar timestamp da última verificação
+          lastPushCheck = data.timestamp || Date.now();
+          
+          // Forçar atualização imediata do chat
+          carregarMensagensCliente(clienteId, true); // true = forçar reload
+          updateConversationList();
+          
+          // Mostrar notificação visual
+          mostrarNotificacaoNovaMensagem(data.notifications[0]);
+          
+          // Resetar timer de inatividade
+          inactivityTimer = 0;
+          pollingSpeed = POLLING_INTERVAL; // Voltar ao intervalo normal
+          
+          // ⚡ OTIMIZAÇÃO: Verificar novamente em 5 segundos se há mais mensagens
+          setTimeout(() => {
+            if (podeFazerRequisicao()) {
+              verificarNotificacoesPush(clienteId);
+            }
+          }, 5000);
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao verificar notificações push:', error);
+        // Em caso de erro, desabilitar temporariamente
+        pushNotificationsEnabled = false;
+        setTimeout(() => {
+          pushNotificationsEnabled = true;
+        }, 60000); // Reabilitar em 1 minuto (vs 10s antes)
+      });
+  }
+  
+  /**
+   * 🔔 MOSTRA NOTIFICAÇÃO VISUAL DE NOVA MENSAGEM
+   */
+  function mostrarNotificacaoNovaMensagem(notificacao) {
+    // Criar notificação visual
+    const notification = document.createElement('div');
+    notification.className = 'push-notification';
+    notification.innerHTML = `
+      <div class="push-notification-content">
+        <span class="push-icon">💬</span>
+        <span class="push-text">Nova mensagem recebida</span>
+        <button class="push-close" onclick="this.parentElement.parentElement.remove()">×</button>
+      </div>
+    `;
+    
+    // Adicionar estilos
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #4CAF50;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 9999;
+      animation: slideIn 0.3s ease-out;
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    `;
+    
+    // Adicionar animação
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      .push-notification-content {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .push-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 18px;
+        cursor: pointer;
+        margin-left: 10px;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Adicionar ao DOM
+    document.body.appendChild(notification);
+    
+    // Remover automaticamente após 5 segundos
+    setTimeout(() => {
+      if (notification.parentElement) {
+        notification.remove();
+      }
+    }, 5000);
+  }
   
   function recordUserActivity(clienteId) {
     // Registrar atividade do usuário para otimizar cache

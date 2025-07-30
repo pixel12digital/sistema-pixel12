@@ -125,6 +125,9 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
                 cache_forget("mensagens_html_{$cliente_id}");
                 cache_forget("historico_html_{$cliente_id}");
             }
+            
+            // 🚀 NOVA FUNCIONALIDADE: Notificação Push para Atualização Automática
+            enviarNotificacaoPush($cliente_id, $numero, $texto, $mensagem_id);
         }
     } else {
         error_log("[WEBHOOK WHATSAPP] ❌ Erro ao salvar mensagem: " . $mysqli->error);
@@ -279,6 +282,48 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         'success' => false,
         'message' => 'Evento inválido ou dados incompletos'
     ]);
+}
+
+/**
+ * 🚀 ENVIA NOTIFICAÇÃO PUSH PARA ATUALIZAÇÃO AUTOMÁTICA
+ * Aciona atualização imediata do chat quando mensagem é recebida
+ */
+function enviarNotificacaoPush($cliente_id, $numero, $texto, $mensagem_id) {
+    try {
+        // URL do endpoint de notificação push
+        $push_url = ($GLOBALS['is_local'] ? 'http://localhost:8080/loja-virtual-revenda' : '') . '/painel/api/push_notification.php';
+        
+        $payload = [
+            'action' => 'new_message',
+            'cliente_id' => $cliente_id,
+            'numero' => $numero,
+            'mensagem' => $texto,
+            'mensagem_id' => $mensagem_id,
+            'timestamp' => time()
+        ];
+        
+        error_log("[WEBHOOK WHATSAPP] 🚀 Enviando notificação push para cliente $cliente_id");
+        
+        $ch = curl_init($push_url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5); // Timeout baixo para não atrasar o webhook
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($http_code === 200) {
+            error_log("[WEBHOOK WHATSAPP] ✅ Notificação push enviada com sucesso");
+        } else {
+            error_log("[WEBHOOK WHATSAPP] ⚠️ Erro ao enviar notificação push: HTTP $http_code");
+        }
+    } catch (Exception $e) {
+        error_log("[WEBHOOK WHATSAPP] ❌ Exceção ao enviar notificação push: " . $e->getMessage());
+    }
 }
 
 /**
