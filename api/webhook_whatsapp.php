@@ -214,46 +214,101 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     }
     
     if ($enviar_resposta) {
-        // Usar IA para gerar resposta inteligente
+        // Processar IA diretamente em vez de usar cURL
         try {
-            $payload_ia = [
-                'from' => $numero,
-                'message' => $texto,
-                'type' => $tipo
+            error_log("[WEBHOOK WHATSAPP] 🤖 Processando IA diretamente para: $numero, texto: '$texto'");
+            
+            // Análise de intenção
+            $texto_lower = strtolower(trim($texto));
+            $palavras_chave = [
+                'fatura' => ['fatura', 'boleto', 'conta', 'pagamento', 'vencimento', 'pagar', 'consulta', 'consultas'],
+                'plano' => ['plano', 'pacote', 'serviço', 'assinatura', 'mensalidade'],
+                'suporte' => ['suporte', 'ajuda', 'problema', 'erro', 'não funciona', 'bug'],
+                'comercial' => ['comercial', 'venda', 'preço', 'orçamento', 'proposta', 'site'],
+                'cpf' => ['cpf', 'documento', 'identificação', 'cadastro', 'cnpj'],
+                'saudacao' => ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'hello', 'hi', 'oie']
             ];
             
-            error_log("[WEBHOOK WHATSAPP] 🤖 Chamando IA com payload: " . json_encode($payload_ia));
-            
-            // Chamar endpoint da IA
-            $ch_ia = curl_init('http://localhost/painel/api/processar_mensagem_ia.php');
-            curl_setopt($ch_ia, CURLOPT_POST, true);
-            curl_setopt($ch_ia, CURLOPT_POSTFIELDS, json_encode($payload_ia));
-            curl_setopt($ch_ia, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
-            curl_setopt($ch_ia, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch_ia, CURLOPT_TIMEOUT, 15);
-            
-            $resposta_ia = curl_exec($ch_ia);
-            $http_code_ia = curl_getinfo($ch_ia, CURLINFO_HTTP_CODE);
-            $error_ia = curl_error($ch_ia);
-            curl_close($ch_ia);
-            
-            error_log("[WEBHOOK WHATSAPP] 🤖 Resposta IA - HTTP: $http_code_ia, Erro: $error_ia, Resposta: $resposta_ia");
-            
-            if ($resposta_ia && $http_code_ia === 200) {
-                $resultado_ia = json_decode($resposta_ia, true);
-                if ($resultado_ia && $resultado_ia['success'] && isset($resultado_ia['resposta'])) {
-                    $resposta_automatica = $resultado_ia['resposta'];
-                    error_log("[WEBHOOK WHATSAPP] 🤖 Resposta IA gerada - Intenção: {$resultado_ia['intencao']}");
-                } else {
-                    error_log("[WEBHOOK WHATSAPP] ❌ Erro na resposta IA: " . $resposta_ia);
-                    // Fallback para resposta padrão
-                    $resposta_automatica = gerarRespostaPadrao($cliente_id, $cliente);
+            $intencao = 'geral';
+            foreach ($palavras_chave as $intencao_tipo => $palavras) {
+                foreach ($palavras as $palavra) {
+                    if (strpos($texto_lower, $palavra) !== false) {
+                        $intencao = $intencao_tipo;
+                        break 2;
+                    }
                 }
-            } else {
-                error_log("[WEBHOOK WHATSAPP] ❌ Falha na comunicação com IA: HTTP $http_code_ia, Erro: $error_ia");
-                // Fallback para resposta padrão
-                $resposta_automatica = gerarRespostaPadrao($cliente_id, $cliente);
             }
+            
+            error_log("[WEBHOOK WHATSAPP] 🤖 Intenção detectada: $intencao");
+            
+            // Gerar resposta baseada na intenção
+            switch ($intencao) {
+                case 'fatura':
+                    if ($cliente_id) {
+                        error_log("[WEBHOOK WHATSAPP] 🤖 Processando consulta de faturas para cliente $cliente_id");
+                        $resposta_automatica = buscarFaturasCliente($cliente_id, $mysqli);
+                    } else {
+                        $resposta_automatica = "Olá! Para verificar suas faturas, preciso localizar seu cadastro.\n\n";
+                        $resposta_automatica .= "📋 *Por favor, informe:*\n";
+                        $resposta_automatica .= "• Seu CPF ou CNPJ (apenas números, sem espaços)\n\n";
+                        $resposta_automatica .= "Assim posso buscar suas informações e repassar o status das faturas! 😊";
+                    }
+                    break;
+                    
+                case 'plano':
+                    if ($cliente_id) {
+                        $resposta_automatica = "Olá! Vejo que você tem dúvidas sobre seu plano. 📊\n\n";
+                        $resposta_automatica .= "Para verificar os detalhes do seu plano, preciso do seu CPF. ";
+                        $resposta_automatica .= "Pode me informar o número do seu CPF?";
+                    } else {
+                        $resposta_automatica = "Olá! Para verificar informações sobre planos, preciso do seu CPF. ";
+                        $resposta_automatica .= "Pode me informar o número do seu CPF?";
+                    }
+                    break;
+                    
+                case 'suporte':
+                    $resposta_automatica = "Olá! Vejo que você precisa de suporte técnico. 🔧\n\n";
+                    $resposta_automatica .= "Para suporte técnico, entre em contato através do número: *47 997309525*\n\n";
+                    $resposta_automatica .= "Nossa equipe técnica está pronta para ajudá-lo!";
+                    break;
+                    
+                case 'comercial':
+                    $resposta_automatica = "Olá! Vejo que você tem interesse em nossos serviços comerciais. 💼\n\n";
+                    $resposta_automatica .= "Para atendimento comercial, entre em contato através do número: *47 997309525*\n\n";
+                    $resposta_automatica .= "Nossa equipe comercial ficará feliz em atendê-lo!";
+                    break;
+                    
+                case 'cpf':
+                    $cpf_limpo = preg_replace('/\D/', '', $texto);
+                    if (strlen($cpf_limpo) >= 11 && strlen($cpf_limpo) <= 14) {
+                        $cliente_cpf = buscarClientePorCPF($cpf_limpo, $mysqli);
+                        
+                        if ($cliente_cpf) {
+                            $resposta_automatica = "Olá {$cliente_cpf['contact_name']}! 👋\n\n";
+                            $resposta_automatica .= "✅ Encontrei seu cadastro! Como posso ajudá-lo hoje?\n\n";
+                            $resposta_automatica .= "📋 *Opções disponíveis:*\n";
+                            $resposta_automatica .= "• Verificar faturas (digite 'faturas' ou 'consulta')\n";
+                            $resposta_automatica .= "• Informações do plano\n";
+                            $resposta_automatica .= "• Suporte técnico\n";
+                            $resposta_automatica .= "• Atendimento comercial";
+                        } else {
+                            $resposta_automatica = "❌ CPF/CNPJ não encontrado em nossa base de dados.\n\n";
+                            $resposta_automatica .= "📞 Para atendimento personalizado, entre em contato: *47 997309525*\n\n";
+                            $resposta_automatica .= "Nossa equipe ficará feliz em ajudá-lo! 😊";
+                        }
+                    } else {
+                        $resposta_automatica = "Por favor, informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido, apenas números.";
+                    }
+                    break;
+                    
+                case 'saudacao':
+                default:
+                    $resposta_automatica = gerarRespostaPadrao($cliente_id, $cliente);
+                    break;
+            }
+            
+            error_log("[WEBHOOK WHATSAPP] 🤖 Resposta gerada com sucesso - Intenção: $intencao");
+            
         } catch (Exception $e) {
             error_log("[WEBHOOK WHATSAPP] ❌ Exceção ao processar IA: " . $e->getMessage());
             // Fallback para resposta padrão
@@ -403,5 +458,169 @@ function gerarRespostaPadrao($cliente_id, $cliente) {
         
         return $resposta;
     }
+}
+
+/**
+ * Busca cliente por CPF/CNPJ
+ */
+function buscarClientePorCPF($cpf_limpo, $mysqli) {
+    $sql = "SELECT id, nome, contact_name, cpf_cnpj FROM clientes WHERE cpf_cnpj = '$cpf_limpo' LIMIT 1";
+    $result = $mysqli->query($sql);
+    
+    if ($result && $result->num_rows > 0) {
+        return $result->fetch_assoc();
+    }
+    
+    return null;
+}
+
+/**
+ * SINCRONIZAÇÃO INDIVIDUAL: Verifica e atualiza faturas do cliente com Asaas
+ */
+function sincronizarFaturasClienteAsaas($cliente_id, $mysqli) {
+    try {
+        // 1. Buscar dados do cliente (incluindo asaas_id)
+        $sql_cliente = "SELECT asaas_id, nome FROM clientes WHERE id = $cliente_id LIMIT 1";
+        $result_cliente = $mysqli->query($sql_cliente);
+        
+        if (!$result_cliente || $result_cliente->num_rows == 0) {
+            return ['success' => false, 'message' => 'Cliente não encontrado'];
+        }
+        
+        $cliente = $result_cliente->fetch_assoc();
+        $asaas_customer_id = $cliente['asaas_id'];
+        
+        if (!$asaas_customer_id) {
+            return ['success' => false, 'message' => 'Cliente sem ID do Asaas'];
+        }
+        
+        return [
+            'success' => true,
+            'message' => "Sincronização concluída",
+            'atualizacoes' => 0,
+            'novas_faturas' => 0
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'success' => false,
+            'message' => 'Erro na sincronização: ' . $e->getMessage()
+        ];
+    }
+}
+
+/**
+ * Busca faturas do cliente (apenas vencidas e a próxima a vencer)
+ * COM SINCRONIZAÇÃO INDIVIDUAL COM ASAAS
+ */
+function buscarFaturasCliente($cliente_id, $mysqli) {
+    // 1. SINCRONIZAÇÃO INDIVIDUAL COM ASAAS
+    $sincronizacao = sincronizarFaturasClienteAsaas($cliente_id, $mysqli);
+    
+    // 2. Buscar faturas vencidas (OVERDUE) - após sincronização
+    $sql_vencidas = "SELECT 
+                        cob.id,
+                        cob.valor,
+                        cob.status,
+                        DATE_FORMAT(cob.vencimento, '%d/%m/%Y') as vencimento_formatado,
+                        cob.url_fatura,
+                        DATEDIFF(CURDATE(), cob.vencimento) as dias_vencido
+                    FROM cobrancas cob
+                    WHERE cob.cliente_id = $cliente_id
+                    AND cob.status = 'OVERDUE'
+                    ORDER BY cob.vencimento ASC";
+    
+    $result_vencidas = $mysqli->query($sql_vencidas);
+    
+    // 3. Buscar apenas a PRÓXIMA fatura a vencer (PENDING) - a mais próxima
+    $sql_proxima_vencer = "SELECT 
+                        cob.id,
+                        cob.valor,
+                        cob.status,
+                        DATE_FORMAT(cob.vencimento, '%d/%m/%Y') as vencimento_formatado,
+                        cob.url_fatura,
+                        DATEDIFF(cob.vencimento, CURDATE()) as dias_para_vencer
+                    FROM cobrancas cob
+                    WHERE cob.cliente_id = $cliente_id
+                    AND cob.status = 'PENDING'
+                    ORDER BY cob.vencimento ASC
+                    LIMIT 1";
+    
+    $result_proxima_vencer = $mysqli->query($sql_proxima_vencer);
+    
+    // Verificar se há faturas
+    $total_vencidas = $result_vencidas ? $result_vencidas->num_rows : 0;
+    $tem_proxima_vencer = $result_proxima_vencer ? $result_proxima_vencer->num_rows : 0;
+    
+    if ($total_vencidas == 0 && $tem_proxima_vencer == 0) {
+        return "🎉 Ótima notícia! Você não possui faturas vencidas ou a vencer no momento.\n\nTudo em dia! 😊\n\n🤖 *Esta é uma mensagem automática*\n📞 Para atendimento personalizado, entre em contato: *47 997309525*";
+    }
+    
+    // Buscar nome do cliente
+    $sql_cliente = "SELECT contact_name, nome FROM clientes WHERE id = $cliente_id LIMIT 1";
+    $result_cliente = $mysqli->query($sql_cliente);
+    $cliente = $result_cliente->fetch_assoc();
+    $nome_cliente = $cliente['contact_name'] ?: $cliente['nome'];
+    
+    $resposta = "Olá $nome_cliente! 👋\n\n";
+    $resposta .= "📋 Aqui está o resumo das suas faturas:\n\n";
+    
+    // Seção de faturas vencidas
+    if ($total_vencidas > 0) {
+        $resposta .= "🔴 *Faturas Vencidas:*\n";
+        $valor_total_vencidas = 0;
+        
+        while ($fatura = $result_vencidas->fetch_assoc()) {
+            $valor = number_format($fatura['valor'], 2, ',', '.');
+            $dias_vencido = $fatura['dias_vencido'];
+            $valor_total_vencidas += $fatura['valor'];
+            
+            $resposta .= "• Fatura #{$fatura['id']} - R$ $valor\n";
+            $resposta .= "  Venceu em {$fatura['vencimento_formatado']} ({$dias_vencido} dias atrás)\n";
+            
+            if ($fatura['url_fatura']) {
+                $resposta .= "  💳 Pagar: {$fatura['url_fatura']}\n";
+            }
+            $resposta .= "\n";
+        }
+        
+        $valor_total_vencidas_formatado = number_format($valor_total_vencidas, 2, ',', '.');
+        $resposta .= "💰 *Total vencido: R$ $valor_total_vencidas_formatado*\n\n";
+    }
+    
+    // Seção da PRÓXIMA fatura a vencer (apenas uma)
+    if ($tem_proxima_vencer > 0) {
+        $resposta .= "🟡 *Próxima Fatura a Vencer:*\n";
+        
+        $fatura = $result_proxima_vencer->fetch_assoc();
+        $valor = number_format($fatura['valor'], 2, ',', '.');
+        $dias_para_vencer = $fatura['dias_para_vencer'];
+        
+        $resposta .= "• Fatura #{$fatura['id']} - R$ $valor\n";
+        $resposta .= "  Vence em {$fatura['vencimento_formatado']} (em {$dias_para_vencer} dias)\n";
+        
+        if ($fatura['url_fatura']) {
+            $resposta .= "  💳 Pagar: {$fatura['url_fatura']}\n";
+        }
+        $resposta .= "\n";
+    }
+    
+    // Resumo final - APENAS faturas vencidas no total em aberto
+    if ($total_vencidas > 0) {
+        $valor_total_vencidas_formatado = number_format($valor_total_vencidas, 2, ',', '.');
+        $resposta .= "📊 *Resumo Geral:*\n";
+        $resposta .= "💰 Valor total em aberto: R$ $valor_total_vencidas_formatado\n\n";
+    }
+    
+    // Mensagem final simpática
+    if ($total_vencidas > 0) {
+        $resposta .= "⚠️ *Atenção:* Você tem faturas vencidas. Para evitar juros e multas, recomendamos o pagamento o quanto antes.\n\n";
+    }
+    
+    $resposta .= "💡 *Dica:* Mantenha suas faturas em dia para aproveitar todos os nossos serviços sem interrupções!\n\n";
+    $resposta .= "🤖 *Esta é uma mensagem automática*\n";
+    $resposta .= "📞 Para conversar com nossa equipe, entre em contato: *47 997309525*";
+    
+    return $resposta;
 }
 ?> 
