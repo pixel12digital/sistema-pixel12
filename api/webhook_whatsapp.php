@@ -225,7 +225,7 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
             error_log("[WEBHOOK WHATSAPP] 🤖 Chamando IA com payload: " . json_encode($payload_ia));
             
             // Chamar endpoint da IA
-            $ch_ia = curl_init(($is_local ? 'http://localhost:8080/loja-virtual-revenda' : '') . '/painel/api/processar_mensagem_ia.php');
+            $ch_ia = curl_init('http://localhost/painel/api/processar_mensagem_ia.php');
             curl_setopt($ch_ia, CURLOPT_POST, true);
             curl_setopt($ch_ia, CURLOPT_POSTFIELDS, json_encode($payload_ia));
             curl_setopt($ch_ia, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
@@ -379,9 +379,29 @@ function enviarNotificacaoPush($cliente_id, $numero, $texto, $mensagem_id) {
 function gerarRespostaPadrao($cliente_id, $cliente) {
     if ($cliente_id && $cliente) {
         $nome_cliente = $cliente['contact_name'] ?: $cliente['nome'];
-        return "Olá $nome_cliente! 👋\n\nComo posso ajudá-lo hoje?\n\n📋 *Opções disponíveis:*\n• Verificar faturas (digite 'faturas' ou 'consulta')\n• Informações do plano\n• Suporte técnico\n• Atendimento comercial";
+        $resposta = "Olá $nome_cliente! 👋\n\n";
+        $resposta .= "🤖 *Este é um atendimento automático* do canal exclusivo da *Pixel12Digital* para assuntos financeiros.\n\n";
+        $resposta .= "📞 *Para outras informações ou falar com nossa equipe:*\n";
+        $resposta .= "Entre em contato: *47 997309525*\n\n";
+        $resposta .= "💰 *Para assuntos financeiros:*\n";
+        $resposta .= "• Digite 'faturas' para consultar suas faturas em aberto\n";
+        $resposta .= "• Verificar status de pagamentos\n";
+        $resposta .= "• Informações sobre planos\n\n";
+        $resposta .= "Como posso ajudá-lo hoje? 😊";
+        
+        return $resposta;
     } else {
-        return "Olá! 👋\n\nEste é o canal da *Pixel12Digital* exclusivo para tratar de assuntos financeiros.\n\n📞 *Para atendimento comercial ou suporte técnico:*\nEntre em contato através do número: *47 997309525*\n\n📋 *Para informações sobre seu plano, faturas, etc.:*\nDigite 'faturas' ou 'consulta' para verificar suas pendências.\n\nSe não encontrar seu cadastro, informe seu CPF ou CNPJ (apenas números).";
+        $resposta = "Olá! 👋\n\n";
+        $resposta .= "🤖 *Este é um atendimento automático* do canal exclusivo da *Pixel12Digital* para assuntos financeiros.\n\n";
+        $resposta .= "📞 *Para outras informações ou falar com nossa equipe:*\n";
+        $resposta .= "Entre em contato: *47 997309525*\n\n";
+        $resposta .= "💰 *Para assuntos financeiros:*\n";
+        $resposta .= "• Digite 'faturas' para consultar suas faturas em aberto\n";
+        $resposta .= "• Verificar status de pagamentos\n";
+        $resposta .= "• Informações sobre planos\n\n";
+        $resposta .= "Se não encontrar seu cadastro, informe seu CPF ou CNPJ (apenas números).";
+        
+        return $resposta;
     }
 }
 ?> 

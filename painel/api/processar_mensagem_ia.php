@@ -131,19 +131,23 @@ switch ($intencao) {
         if ($cliente_id) {
             $nome_cliente = $cliente['contact_name'] ?: $cliente['nome'];
             $resposta = "Olá $nome_cliente! 👋\n\n";
-            $resposta .= "Como posso ajudá-lo hoje?\n\n";
-            $resposta .= "📋 *Opções disponíveis:*\n";
-            $resposta .= "• Verificar faturas (digite 'faturas' ou 'consulta')\n";
-            $resposta .= "• Informações do plano\n";
-            $resposta .= "• Suporte técnico\n";
-            $resposta .= "• Atendimento comercial";
+            $resposta .= "🤖 *Este é um atendimento automático* do canal exclusivo da *Pixel12Digital* para assuntos financeiros.\n\n";
+            $resposta .= "📞 *Para outras informações ou falar com nossa equipe:*\n";
+            $resposta .= "Entre em contato: *47 997309525*\n\n";
+            $resposta .= "💰 *Para assuntos financeiros:*\n";
+            $resposta .= "• Digite 'faturas' para consultar suas faturas em aberto\n";
+            $resposta .= "• Verificar status de pagamentos\n";
+            $resposta .= "• Informações sobre planos\n\n";
+            $resposta .= "Como posso ajudá-lo hoje? 😊";
         } else {
             $resposta = "Olá! 👋\n\n";
-            $resposta .= "Este é o canal da *Pixel12Digital* exclusivo para tratar de assuntos financeiros.\n\n";
-            $resposta .= "📞 *Para atendimento comercial ou suporte técnico:*\n";
-            $resposta .= "Entre em contato através do número: *47 997309525*\n\n";
-            $resposta .= "📋 *Para informações sobre seu plano, faturas, etc.:*\n";
-            $resposta .= "Digite 'faturas' ou 'consulta' para verificar suas pendências.\n\n";
+            $resposta .= "🤖 *Este é um atendimento automático* do canal exclusivo da *Pixel12Digital* para assuntos financeiros.\n\n";
+            $resposta .= "📞 *Para outras informações ou falar com nossa equipe:*\n";
+            $resposta .= "Entre em contato: *47 997309525*\n\n";
+            $resposta .= "💰 *Para assuntos financeiros:*\n";
+            $resposta .= "• Digite 'faturas' para consultar suas faturas em aberto\n";
+            $resposta .= "• Verificar status de pagamentos\n";
+            $resposta .= "• Informações sobre planos\n\n";
             $resposta .= "Se não encontrar seu cadastro, informe seu CPF ou CNPJ (apenas números).";
         }
         break;
@@ -152,19 +156,23 @@ switch ($intencao) {
         if ($cliente_id) {
             $nome_cliente = $cliente['contact_name'] ?: $cliente['nome'];
             $resposta = "Olá $nome_cliente! 👋\n\n";
-            $resposta .= "Como posso ajudá-lo hoje?\n\n";
-            $resposta .= "📋 *Opções disponíveis:*\n";
-            $resposta .= "• Verificar faturas (digite 'faturas' ou 'consulta')\n";
-            $resposta .= "• Informações do plano\n";
-            $resposta .= "• Suporte técnico\n";
-            $resposta .= "• Atendimento comercial";
+            $resposta .= "🤖 *Este é um atendimento automático* do canal exclusivo da *Pixel12Digital* para assuntos financeiros.\n\n";
+            $resposta .= "📞 *Para outras informações ou falar com nossa equipe:*\n";
+            $resposta .= "Entre em contato: *47 997309525*\n\n";
+            $resposta .= "💰 *Para assuntos financeiros:*\n";
+            $resposta .= "• Digite 'faturas' para consultar suas faturas em aberto\n";
+            $resposta .= "• Verificar status de pagamentos\n";
+            $resposta .= "• Informações sobre planos\n\n";
+            $resposta .= "Como posso ajudá-lo hoje? 😊";
         } else {
             $resposta = "Olá! 👋\n\n";
-            $resposta .= "Este é o canal da *Pixel12Digital* exclusivo para tratar de assuntos financeiros.\n\n";
-            $resposta .= "📞 *Para atendimento comercial ou suporte técnico:*\n";
-            $resposta .= "Entre em contato através do número: *47 997309525*\n\n";
-            $resposta .= "📋 *Para informações sobre seu plano, faturas, etc.:*\n";
-            $resposta .= "Digite 'faturas' ou 'consulta' para verificar suas pendências.\n\n";
+            $resposta .= "🤖 *Este é um atendimento automático* do canal exclusivo da *Pixel12Digital* para assuntos financeiros.\n\n";
+            $resposta .= "📞 *Para outras informações ou falar com nossa equipe:*\n";
+            $resposta .= "Entre em contato: *47 997309525*\n\n";
+            $resposta .= "💰 *Para assuntos financeiros:*\n";
+            $resposta .= "• Digite 'faturas' para consultar suas faturas em aberto\n";
+            $resposta .= "• Verificar status de pagamentos\n";
+            $resposta .= "• Informações sobre planos\n\n";
             $resposta .= "Se não encontrar seu cadastro, informe seu CPF ou CNPJ (apenas números).";
         }
         break;
