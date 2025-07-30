@@ -6,6 +6,157 @@
  * e as processa no sistema
  */
 
+// Cabeçalhos anti-cache
+header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+// ===== SISTEMA DE CONTROLE DE CONTEXTO CONVERSACIONAL =====
+function verificarContextoConversacional($numero, $cliente_id, $texto, $mysqli) {
+    $texto_lower = strtolower(trim($texto));
+    
+    // Verificar se já foi enviada resposta de faturas recentemente (últimas 2 horas)
+    $sql_contexto = "SELECT 
+                        m.mensagem, 
+                        m.data_hora,
+                        m.direcao,
+                        TIMESTAMPDIFF(MINUTE, m.data_hora, NOW()) as minutos_atras
+                    FROM mensagens_comunicacao m 
+                    WHERE m.numero_whatsapp = ? 
+                    AND m.direcao = 'enviado'
+                    AND m.mensagem LIKE '%fatura%'
+                    AND m.data_hora >= DATE_SUB(NOW(), INTERVAL 2 HOUR)
+                    ORDER BY m.data_hora DESC 
+                    LIMIT 1";
+    
+    $stmt = $mysqli->prepare($sql_contexto);
+    $stmt->bind_param('s', $numero);
+    $stmt->execute();
+    $result_contexto = $stmt->get_result();
+    $contexto_faturas = $result_contexto->fetch_assoc();
+    $stmt->close();
+    
+    // Verificar se é uma solicitação de consolidação ou ação específica
+    $palavras_consolidacao = ['boleto só', 'boleto so', 'único', 'unico', 'junto', 'consolidar', 'agregar', 'tudo junto'];
+    $eh_solicitacao_consolidacao = false;
+    foreach ($palavras_consolidacao as $palavra) {
+        if (strpos($texto_lower, $palavra) !== false) {
+            $eh_solicitacao_consolidacao = true;
+            break;
+        }
+    }
+    
+    // Verificar se é uma solicitação fora do contexto
+    $palavras_fora_contexto = ['negociação', 'negociacao', 'desconto', 'parcelamento', 'renegociar', 'renegociacao', 'atendente', 'humano', 'pessoa'];
+    $eh_fora_contexto = false;
+    foreach ($palavras_fora_contexto as $palavra) {
+        if (strpos($texto_lower, $palavra) !== false) {
+            $eh_fora_contexto = true;
+            break;
+        }
+    }
+    
+    return [
+        'faturas_enviadas_recentemente' => $contexto_faturas ? true : false,
+        'minutos_ultima_fatura' => $contexto_faturas ? $contexto_faturas['minutos_atras'] : null,
+        'eh_solicitacao_consolidacao' => $eh_solicitacao_consolidacao,
+        'eh_fora_contexto' => $eh_fora_contexto,
+        'texto_original' => $texto_lower
+    ];
+}
+
+function gerarFallbackInteligente($contexto, $cliente_id, $mysqli) {
+    if ($contexto['eh_fora_contexto']) {
+        return "Olá! 👋\n\n" .
+               "📋 *Este canal é específico para consulta de faturas.*\n\n" .
+               "Para negociações diferenciadas ou outros assuntos, digite *1* para falar com um atendente.\n\n" .
+               "🤖 *Esta é uma mensagem automática*";
+    }
+    
+    if ($contexto['eh_solicitacao_consolidacao']) {
+        return "Olá! 👋\n\n" .
+               "Entendi que você gostaria de consolidar suas faturas em um único pagamento.\n\n" .
+               "Para essa solicitação específica, digite *1* para falar com um atendente que poderá ajudá-lo com essa negociação.\n\n" .
+               "🤖 *Esta é uma mensagem automática*";
+    }
+    
+    if ($contexto['faturas_enviadas_recentemente']) {
+        $minutos = $contexto['minutos_ultima_fatura'];
+        return "Olá! 👋\n\n" .
+               "As informações das suas faturas foram enviadas há $minutos minutos.\n\n" .
+               "Se precisar de algo específico ou negociação diferenciada, digite *1* para falar com um atendente.\n\n" .
+               "🤖 *Esta é uma mensagem automática*";
+    }
+    
+    // Fallback genérico para situações não compreendidas
+    return "Olá! 👋\n\n" .
+           "Não entendi completamente sua solicitação.\n\n" .
+           "📋 *Este canal é para consulta de faturas.*\n\n" .
+           "Para outros assuntos ou atendimento personalizado, digite *1* para falar com um atendente.\n\n" .
+           "🤖 *Esta é uma mensagem automática*";
+}
+
+function processarSolicitacaoAtendente($numero, $cliente_id, $mysqli) {
+    // Verificar se já existe uma solicitação de atendente em andamento
+    $sql_atendente = "SELECT 
+                        m.mensagem, 
+                        m.data_hora,
+                        TIMESTAMPDIFF(MINUTE, m.data_hora, NOW()) as minutos_atras
+                    FROM mensagens_comunicacao m 
+                    WHERE m.numero_whatsapp = ? 
+                    AND m.direcao = 'enviado'
+                    AND m.mensagem LIKE '%atendente%'
+                    AND m.data_hora >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+                    ORDER BY m.data_hora DESC 
+                    LIMIT 1";
+    
+    $stmt = $mysqli->prepare($sql_atendente);
+    $stmt->bind_param('s', $numero);
+    $stmt->execute();
+    $result_atendente = $stmt->get_result();
+    $solicitacao_anterior = $result_atendente->fetch_assoc();
+    $stmt->close();
+    
+    if ($solicitacao_anterior) {
+        return "Sua solicitação de atendente já foi registrada! 📞\n\n" .
+               "Um atendente entrará em contato em breve através do número: *47 997309525*\n\n" .
+               "Aguarde o contato! 😊\n\n" .
+               "🤖 *Esta é uma mensagem automática*";
+    }
+    
+    // Buscar canal WhatsApp financeiro (mesmo usado no webhook principal)
+    $canal_id = 36; // Canal financeiro padrão
+    $canal_result = $mysqli->query("SELECT id, nome_exibicao FROM canais_comunicacao WHERE tipo = 'whatsapp' AND (id = 36 OR nome_exibicao LIKE '%financeiro%') LIMIT 1");
+    if ($canal_result && $canal_result->num_rows > 0) {
+        $canal = $canal_result->fetch_assoc();
+        $canal_id = $canal['id'];
+    } else {
+        // Criar canal WhatsApp financeiro se não existir
+        $mysqli->query("INSERT INTO canais_comunicacao (tipo, identificador, nome_exibicao, status, data_conexao) 
+                        VALUES ('whatsapp', 'financeiro', 'WhatsApp Financeiro', 'conectado', NOW())");
+        $canal_id = $mysqli->insert_id;
+    }
+    
+    // Registrar solicitação de atendente
+    $data_hora = date('Y-m-d H:i:s');
+    $mensagem_atendente = "Solicitação de atendente registrada - Cliente solicitou transferência para atendente humano";
+    
+    $sql_insert = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status, numero_whatsapp) 
+                   VALUES (?, ?, ?, 'sistema', ?, 'enviado', 'enviado', ?)";
+    
+    $stmt = $mysqli->prepare($sql_insert);
+    $stmt->bind_param('iisss', $canal_id, $cliente_id, $mensagem_atendente, $data_hora, $numero);
+    $stmt->execute();
+    $stmt->close();
+    
+    return "✅ *Solicitação de atendente registrada com sucesso!*\n\n" .
+           "📞 Um atendente entrará em contato em breve através do número: *47 997309525*\n\n" .
+           "⏰ Aguarde o contato! 😊\n\n" .
+           "🤖 *Esta é uma mensagem automática*";
+}
+
+// ===== FIM DO SISTEMA DE CONTROLE DE CONTEXTO =====
+
 header('Content-Type: application/json');
 require_once __DIR__ . '/../config.php';
 require_once '../painel/db.php';
@@ -147,56 +298,73 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     $resposta_automatica = '';
     $enviar_resposta = false;
     
-    // NOVA LÓGICA MELHORADA PARA EVITAR LOOPS:
-    // 1. Se é a primeira mensagem da conversa (sem conversa recente)
-    // 2. Se a última mensagem foi há mais de 1 hora (nova sessão)
-    // 3. Se ainda não foi enviada resposta automática hoje
-    // 4. Se é uma mensagem que requer resposta específica (saudação, faturas, etc.)
+    // ===== NOVA LÓGICA COM CONTROLE DE CONTEXTO CONVERSACIONAL =====
     
-    $texto_lower = strtolower(trim($texto));
-    $palavras_chave_saudacao = ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'hello', 'hi', 'oie'];
-    $palavras_chave_fatura = ['fatura', 'boleto', 'conta', 'pagamento', 'vencimento', 'pagar', 'consulta', 'consultas'];
-    $palavras_chave_cpf = ['cpf', 'documento', 'identificação', 'cadastro', 'cnpj'];
+    // 1. Verificar contexto conversacional
+    $contexto = verificarContextoConversacional($numero, $cliente_id, $texto, $mysqli);
+    error_log("[WEBHOOK WHATSAPP] 🔍 Contexto analisado: " . json_encode($contexto));
     
-    $eh_saudacao = false;
-    $eh_fatura = false;
-    $eh_cpf = false;
-    
-    // Verificar tipo de mensagem
-    foreach ($palavras_chave_saudacao as $palavra) {
-        if (strpos($texto_lower, $palavra) !== false) {
-            $eh_saudacao = true;
-            break;
-        }
-    }
-    
-    foreach ($palavras_chave_fatura as $palavra) {
-        if (strpos($texto_lower, $palavra) !== false) {
-            $eh_fatura = true;
-            break;
-        }
-    }
-    
-    foreach ($palavras_chave_cpf as $palavra) {
-        if (strpos($texto_lower, $palavra) !== false) {
-            $eh_cpf = true;
-            break;
-        }
-    }
-    
-    // Verificar se deve enviar resposta
-    if (!$tem_conversa_recente) {
-        // Primeira mensagem da conversa - sempre enviar resposta
+    // 2. Verificar se é solicitação de atendente (digite 1)
+    if (trim($texto) === '1' || strtolower(trim($texto)) === 'um') {
+        $resposta_automatica = processarSolicitacaoAtendente($numero, $cliente_id, $mysqli);
         $enviar_resposta = true;
-        error_log("[WEBHOOK WHATSAPP] 🆕 Primeira mensagem da conversa - enviando resposta");
-    } else {
-        // Verificar se a última mensagem foi há mais de 1 hora
-        $ultima_mensagem = $conversa_info['ultima_mensagem'];
-        $tempo_desde_ultima = time() - strtotime($ultima_mensagem);
+        error_log("[WEBHOOK WHATSAPP] 📞 Solicitação de atendente processada");
+    }
+    // 3. Verificar se é solicitação fora do contexto ou consolidação
+    elseif ($contexto['eh_fora_contexto'] || $contexto['eh_solicitacao_consolidacao']) {
+        $resposta_automatica = gerarFallbackInteligente($contexto, $cliente_id, $mysqli);
+        $enviar_resposta = true;
+        error_log("[WEBHOOK WHATSAPP] 🔄 Fallback inteligente aplicado");
+    }
+    // 4. Verificar se faturas foram enviadas recentemente
+    elseif ($contexto['faturas_enviadas_recentemente']) {
+        $resposta_automatica = gerarFallbackInteligente($contexto, $cliente_id, $mysqli);
+        $enviar_resposta = true;
+        error_log("[WEBHOOK WHATSAPP] ⏰ Faturas enviadas recentemente - evitando repetição");
+    }
+    // 5. Processar normalmente se não há conflitos de contexto
+    else {
+        // LÓGICA ORIGINAL MELHORADA PARA EVITAR LOOPS:
+        // 1. Se é a primeira mensagem da conversa (sem conversa recente)
+        // 2. Se a última mensagem foi há mais de 1 hora (nova sessão)
+        // 3. Se ainda não foi enviada resposta automática hoje
+        // 4. Se é uma mensagem que requer resposta específica (saudação, faturas, etc.)
         
-        if ($tempo_desde_ultima > 3600) { // Mais de 1 hora
+        $texto_lower = strtolower(trim($texto));
+        $palavras_chave_saudacao = ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'hello', 'hi', 'oie'];
+        $palavras_chave_fatura = ['fatura', 'boleto', 'conta', 'pagamento', 'vencimento', 'pagar', 'consulta', 'consultas'];
+        $palavras_chave_cpf = ['cpf', 'documento', 'identificação', 'cadastro', 'cnpj'];
+        
+        $eh_saudacao = false;
+        $eh_fatura = false;
+        $eh_cpf = false;
+        
+        foreach ($palavras_chave_saudacao as $palavra) {
+            if (strpos($texto_lower, $palavra) !== false) {
+                $eh_saudacao = true;
+                break;
+            }
+        }
+        
+        foreach ($palavras_chave_fatura as $palavra) {
+            if (strpos($texto_lower, $palavra) !== false) {
+                $eh_fatura = true;
+                break;
+            }
+        }
+        
+        foreach ($palavras_chave_cpf as $palavra) {
+            if (strpos($texto_lower, $palavra) !== false) {
+                $eh_cpf = true;
+                break;
+            }
+        }
+        
+        // Decidir se deve enviar resposta automática
+        if (!$tem_conversa_recente) {
+            // Primeira mensagem da conversa - sempre responder
             $enviar_resposta = true;
-            error_log("[WEBHOOK WHATSAPP] ⏰ Conversa retomada após " . round($tempo_desde_ultima/60) . " minutos - enviando resposta");
+            error_log("[WEBHOOK WHATSAPP] 👋 Primeira mensagem da conversa - enviando resposta");
         } else {
             // Verificar se já foi enviada resposta automática hoje
             if ($mensagens_automaticas == 0) {
@@ -212,6 +380,8 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
             }
         }
     }
+    
+    // ===== FIM DA NOVA LÓGICA COM CONTROLE DE CONTEXTO =====
     
     if ($enviar_resposta) {
         // Processar IA diretamente em vez de usar cURL
@@ -695,14 +865,14 @@ function buscarFaturasCliente($cliente_id, $mysqli) {
         $resposta .= "💰 Valor total em aberto: R$ $valor_total_vencidas_formatado\n\n";
     }
     
-    // Mensagem final simpática
+    // Mensagem final com contexto e instruções
     if ($total_vencidas > 0) {
         $resposta .= "⚠️ *Atenção:* Você tem faturas vencidas. Para evitar juros e multas, recomendamos o pagamento o quanto antes.\n\n";
     }
     
     $resposta .= "💡 *Dica:* Mantenha suas faturas em dia para aproveitar todos os nossos serviços sem interrupções!\n\n";
     $resposta .= "🤖 *Esta é uma mensagem automática*\n";
-    $resposta .= "📞 Para conversar com nossa equipe, entre em contato: *47 997309525*";
+    $resposta .= "📞 Para atendimento personalizado ou negociações, digite *1* para falar com um atendente.";
     
     return $resposta;
 }
