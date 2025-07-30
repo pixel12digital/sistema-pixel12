@@ -106,6 +106,19 @@ function buscar_conversas_diretamente($mysqli) {
                 GROUP BY cliente_id
             ) nao_lidas ON c.id = nao_lidas.cliente_id
             WHERE ultima.cliente_id IS NOT NULL
+            AND c.id NOT IN (
+                SELECT DISTINCT m.cliente_id 
+                FROM mensagens_comunicacao m
+                INNER JOIN (
+                    SELECT cliente_id, MAX(data_hora) as ultima_data
+                    FROM mensagens_comunicacao 
+                    WHERE cliente_id IS NOT NULL
+                    GROUP BY cliente_id
+                ) ultima_msg ON m.cliente_id = ultima_msg.cliente_id 
+                AND m.data_hora = ultima_msg.ultima_data
+                WHERE m.status_conversa = 'fechada' 
+                AND m.cliente_id IS NOT NULL
+            )
             ORDER BY ultima.data_hora DESC
             LIMIT 50";
     

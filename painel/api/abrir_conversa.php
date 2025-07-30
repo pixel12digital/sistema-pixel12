@@ -53,14 +53,27 @@ try {
     if ($stmt->execute()) {
         $mensagens_afetadas = $stmt->affected_rows;
         
+        // Buscar canal WhatsApp financeiro (mesmo usado no webhook principal)
+        $canal_id = 36; // Canal financeiro padrão
+        $canal_result = $mysqli->query("SELECT id, nome_exibicao FROM canais_comunicacao WHERE tipo = 'whatsapp' AND (id = 36 OR nome_exibicao LIKE '%financeiro%') LIMIT 1");
+        if ($canal_result && $canal_result->num_rows > 0) {
+            $canal = $canal_result->fetch_assoc();
+            $canal_id = $canal['id'];
+        } else {
+            // Criar canal WhatsApp financeiro se não existir
+            $mysqli->query("INSERT INTO canais_comunicacao (tipo, identificador, nome_exibicao, status, data_conexao) 
+                            VALUES ('whatsapp', 'financeiro', 'WhatsApp Financeiro', 'conectado', NOW())");
+            $canal_id = $mysqli->insert_id;
+        }
+        
         // Registrar ação no log (SEM enviar notificação WhatsApp)
         $data_hora = date('Y-m-d H:i:s');
         $usuario = $_SESSION['usuario_id'] ?? 'sistema';
         $log_sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status, status_conversa) 
-                    VALUES (1, ?, 'Conversa reaberta manualmente por $usuario', 'sistema', ?, 'enviado', 'enviado', 'aberta')";
+                    VALUES (?, ?, 'Conversa reaberta manualmente por $usuario', 'sistema', ?, 'enviado', 'enviado', 'aberta')";
         
         $log_stmt = $mysqli->prepare($log_sql);
-        $log_stmt->bind_param('is', $cliente_id, $data_hora);
+        $log_stmt->bind_param('iis', $canal_id, $cliente_id, $data_hora);
         $log_stmt->execute();
         $log_stmt->close();
         

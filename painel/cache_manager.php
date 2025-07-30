@@ -78,6 +78,20 @@ function cache_conversas($mysqli) {
                 WHERE data_hora >= DATE_SUB(NOW(), INTERVAL 30 DAY)
                 GROUP BY cliente_id
             ) m ON c.id = m.cliente_id
+            WHERE c.id NOT IN (
+                -- Excluir clientes cuja última mensagem tem status_conversa = 'fechada'
+                SELECT DISTINCT m.cliente_id 
+                FROM mensagens_comunicacao m
+                INNER JOIN (
+                    SELECT cliente_id, MAX(data_hora) as ultima_data
+                    FROM mensagens_comunicacao 
+                    WHERE cliente_id IS NOT NULL
+                    GROUP BY cliente_id
+                ) ultima_msg ON m.cliente_id = ultima_msg.cliente_id 
+                AND m.data_hora = ultima_msg.ultima_data
+                WHERE m.status_conversa = 'fechada' 
+                AND m.cliente_id IS NOT NULL
+            )
             ORDER BY m.ultima_data DESC, c.id DESC
             LIMIT 100";
     

@@ -69,6 +69,7 @@ function render_componente_financeiro($cliente_id) {
     foreach ($cobrancas as $i => $cob) {
       $status_map = [ 
         'RECEIVED' => 'RECEBIDO', 
+        'RECEIVED_IN_CASH' => 'RECEBIDO EM DINHEIRO',
         'PAID' => 'PAGO', 
         'PENDING' => 'PENDENTE', 
         'OVERDUE' => 'VENCIDO', 
@@ -79,7 +80,7 @@ function render_componente_financeiro($cliente_id) {
         'EXPIRED' => 'EXPIRADO', 
       ];
       $status_pt = $status_map[$cob['status']] ?? $cob['status'];
-      $status_color = $cob['status'] === 'RECEIVED' || $cob['status'] === 'PAID' ? '#059669' : ($cob['status'] === 'PENDING' ? '#7c3aed' : '#dc2626');
+      $status_color = ($cob['status'] === 'RECEIVED' || $cob['status'] === 'PAID' || $cob['status'] === 'RECEIVED_IN_CASH') ? '#059669' : ($cob['status'] === 'PENDING' ? '#7c3aed' : '#dc2626');
       
       echo '<tr style="border-bottom:1px solid #f1f5f9;">
         <td style="padding:10px;font-weight:500;">' . ($i+1) . '</td>

@@ -12,6 +12,7 @@ function traduzirStatus(status) {
         case 'PENDING': return 'Aguardando pagamento';
         case 'OVERDUE': return 'Vencida';
         case 'RECEIVED': return 'Recebida';
+        case 'RECEIVED_IN_CASH': return 'Recebido em dinheiro';
         case 'CONFIRMED': return 'Confirmada';
         default: return status;
     }
@@ -148,13 +149,27 @@ function renderizarTabelaCobrancas() {
             `;
         }
         
+        let statusColor = '';
+        switch ((cob.status || '').toUpperCase()) {
+            case 'RECEIVED':
+            case 'PAID':
+            case 'RECEIVED_IN_CASH':
+                statusColor = 'color:#059669;font-weight:500;';
+                break;
+            case 'PENDING':
+                statusColor = 'color:#7c3aed;font-weight:500;';
+                break;
+            default:
+                statusColor = 'color:#dc2626;font-weight:500;';
+        }
+
         tr.innerHTML = `
             <td class="px-3 py-2 text-center">${inicio + idx + 1}</td>
             <td class="px-2 py-2 text-left" style="min-width:100px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${cob.cliente_nome || '-'}</td>
             <td class="px-2 py-2 text-left">${contatoHtml}</td>
             <td class="px-2 py-2 text-right" style="min-width:90px;">R$ ${parseFloat(cob.valor).toFixed(2)}</td>
             <td class="px-3 py-2 text-center">${formatarDataBR(cob.vencimento)}</td>
-            <td class="px-3 py-2 text-center">${traduzirStatus(cob.status)}</td>
+            <td class="px-3 py-2 text-center"><span style="${statusColor}">${traduzirStatus(cob.status)}</span></td>
             <td class="px-2 py-2 text-center ultima-interacao-cell" data-cliente="${cob.cliente_id}" data-cobranca="${cob.id}" data-valor="${cob.ultima_interacao || ''}" title="Clique para editar" style="cursor:pointer;">${formatarDataHoraBR(cob.ultima_interacao)}</td>
             <td class="px-2 py-2 text-center status-envio-cell" data-cliente="${cob.cliente_id}" data-cobranca="${cob.id}" data-status="${cob.whatsapp_status || ''}" title="Clique para corrigir status" style="cursor:pointer;">${statusHtml}</td>
             <td class="px-2 py-2 text-center">${monitoramentoHtml}</td>

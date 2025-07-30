@@ -527,6 +527,7 @@ function render_content() {
                 <td><?php
                   $status_map = [
                     'RECEIVED' => 'RECEBIDO',
+                    'RECEIVED_IN_CASH' => 'RECEBIDO EM DINHEIRO',
                     'PAID' => 'PAGO',
                     'PENDING' => 'PENDENTE',
                     'OVERDUE' => 'VENCIDO',
@@ -537,7 +538,8 @@ function render_content() {
                     'EXPIRED' => 'EXPIRADO',
                   ];
                   $status_pt = $status_map[$cob['status']] ?? $cob['status'];
-                  echo htmlspecialchars($status_pt);
+                  $status_color = ($cob['status'] === 'RECEIVED' || $cob['status'] === 'PAID' || $cob['status'] === 'RECEIVED_IN_CASH') ? '#059669' : ($cob['status'] === 'PENDING' ? '#7c3aed' : '#dc2626');
+                  echo '<span style="color:' . $status_color . ';font-weight:500;">' . htmlspecialchars($status_pt) . '</span>';
                 ?></td>
                 <td><?= $cob['data_pagamento'] ? date('d/m/Y', strtotime($cob['data_pagamento'])) : '—' ?></td>
                 <td><?php if (!empty($cob['url_fatura'])): ?><a href="<?= htmlspecialchars($cob['url_fatura']) ?>" target="_blank" style="color:#7c2ae8;">Ver Fatura</a><?php else: ?>—<?php endif; ?></td>

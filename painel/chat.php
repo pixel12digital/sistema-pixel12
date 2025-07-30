@@ -272,6 +272,20 @@ function render_content() {
   </div>
   
   <script>
+  // Variáveis globais
+  let clienteId = null;
+  let pollingInterval = null;
+  
+  // Inicializar clienteId com o valor da URL se existir
+  document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const clienteIdParam = urlParams.get('cliente_id');
+    if (clienteIdParam) {
+      clienteId = clienteIdParam;
+      console.log('Cliente ID inicializado:', clienteId);
+    }
+  });
+  
   // Funções JavaScript limpas
   function autoResize(textarea) {
     textarea.style.height = 'auto';
@@ -1995,6 +2009,9 @@ function render_content() {
       event.stopPropagation();
     }
     
+    // Definir variável global
+    window.clienteId = clienteId;
+    
     // Atualizar URL sem recarregar a página
     const url = new URL(window.location);
     url.searchParams.set('cliente_id', clienteId);
@@ -2061,7 +2078,16 @@ function render_content() {
       if (messagesColumn.querySelector('div[style*="display: flex"]')) {
         messagesColumn.innerHTML = `
           <div class="chat-messages-header">
-            <h2>💬 Conversa com ${nomeCliente}</h2>
+            <div class="chat-header-content">
+              <h2>💬 Conversa com ${nomeCliente}</h2>
+              <div class="chat-header-actions">
+                <button onclick="fecharConversaAtual()" 
+                        class="btn-fechar-conversa" 
+                        title="Fechar conversa (mover para aba Fechadas)">
+                  🔒 Fechar
+                </button>
+              </div>
+            </div>
           </div>
           <div class="chat-messages" id="chat-messages">
             <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
@@ -2099,6 +2125,21 @@ function render_content() {
         const chatHeader = document.querySelector('.chat-messages-header h2');
         if (chatHeader) {
           chatHeader.textContent = `💬 Conversa com ${nomeCliente}`;
+        }
+        
+        // Verificar se o botão de fechar existe, se não, adicionar
+        const chatHeaderContent = document.querySelector('.chat-header-content');
+        if (chatHeaderContent && !chatHeaderContent.querySelector('.btn-fechar-conversa')) {
+          const headerActions = chatHeaderContent.querySelector('.chat-header-actions');
+          if (headerActions) {
+            headerActions.innerHTML = `
+              <button onclick="fecharConversaAtual()" 
+                      class="btn-fechar-conversa" 
+                      title="Fechar conversa (mover para aba Fechadas)">
+                🔒 Fechar
+              </button>
+            `;
+          }
         }
       }
     }
@@ -2951,7 +2992,9 @@ function render_content() {
    * 🔒 FECHAR CONVERSA ATUAL
    */
   function fecharConversaAtual() {
-    if (!clienteId) {
+    const currentClienteId = window.clienteId || new URLSearchParams(window.location.search).get('cliente_id');
+    
+    if (!currentClienteId) {
       alert('Nenhuma conversa selecionada');
       return;
     }
@@ -2961,7 +3004,7 @@ function render_content() {
     }
     
     const formData = new FormData();
-    formData.append('cliente_id', clienteId);
+    formData.append('cliente_id', currentClienteId);
     
     fetch('api/fechar_conversa.php', {
       method: 'POST',

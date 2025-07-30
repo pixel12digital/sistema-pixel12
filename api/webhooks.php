@@ -24,6 +24,7 @@ logWebhook($event, $input);
 // Validar se é um evento válido do Asaas
 $validEvents = [
     'PAYMENT_RECEIVED',
+    'PAYMENT_RECEIVED_IN_CASH',
     'PAYMENT_CONFIRMED', 
     'PAYMENT_OVERDUE',
     'PAYMENT_DELETED',
@@ -137,6 +138,120 @@ try {
             $stmt->bind_param('issds', $cliente_id, $asaas_id, $value, $status, $dueDate);
             $stmt->execute();
             $stmt->close();
+        }
+        
+        // Enviar notificação WhatsApp quando cobrança for marcada como recebida
+        if (($status === 'RECEIVED' || $status === 'RECEIVED_IN_CASH') && $cliente_id) {
+            try {
+                // Buscar dados do cliente
+                $stmt = $mysqli->prepare("SELECT nome, contact_name, celular FROM clientes WHERE id = ? LIMIT 1");
+                $stmt->bind_param('i', $cliente_id);
+                $stmt->execute();
+                $cliente = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+                
+                if ($cliente && !empty($cliente['celular'])) {
+                    // Buscar canal WhatsApp (ID 36 = Financeiro)
+                    $canal_id = 36;
+                    
+                    // Preparar mensagem de confirmação
+                    $nome = $cliente['contact_name'] ?: $cliente['nome'];
+                    $valor_formatado = number_format($value, 2, ',', '.');
+                    $data_pagamento_formatada = $paymentDate ? date('d/m/Y', strtotime($paymentDate)) : date('d/m/Y');
+                    
+                    $mensagem = "✅ *Pagamento Confirmado!*\n\n";
+                    $mensagem .= "Olá {$nome}!\n\n";
+                    $mensagem .= "Recebemos seu pagamento de *R$ {$valor_formatado}*\n";
+                    $mensagem .= "Data do pagamento: {$data_pagamento_formatada}\n";
+                    $mensagem .= "Referente à cobrança #{$asaas_id}\n\n";
+                    $mensagem .= "Obrigado pela confiança! 🙏\n\n";
+                    $mensagem .= "Esta é uma mensagem automática.";
+                    
+                    // Salvar mensagem no banco
+                    $data_hora = date('Y-m-d H:i:s');
+                    $mensagem_escaped = $mysqli->real_escape_string($mensagem);
+                    $celular_escaped = $mysqli->real_escape_string($cliente['celular']);
+                    
+                    $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) VALUES ($canal_id, $cliente_id, '$mensagem_escaped', 'texto', '$data_hora', 'enviado', 'enviado')";
+                    
+                    if ($mysqli->query($sql)) {
+                        // Enviar via WhatsApp (se houver integração configurada)
+                        // Aqui você pode adicionar a chamada para sua API de WhatsApp
+                        // Por exemplo: enviarWhatsApp($cliente['celular'], $mensagem);
+                        
+                        // Enviar mensagem via API do WhatsApp
+                        try {
+                            $whatsapp_url = defined('WHATSAPP_ROBOT_URL') ? WHATSAPP_ROBOT_URL : 'http://212.85.11.238:3000';
+                            $api_url = $whatsapp_url . "/send/text";
+                            
+                            $api_data = [
+                                'sessionName' => 'default',
+                                'number' => $cliente['celular'],
+                                'message' => $mensagem
+                            ];
+                            
+                            $ch = curl_init($api_url);
+                            curl_setopt($ch, CURLOPT_POST, true);
+                            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($api_data));
+                            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                            
+                            $api_response = curl_exec($ch);
+                            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                            curl_close($ch);
+                            
+                            if ($api_response && $http_code === 200) {
+                                $api_result = json_decode($api_response, true);
+                                if ($api_result && isset($api_result['success']) && $api_result['success']) {
+                                    // Atualizar mensagem com ID do WhatsApp se disponível
+                                    if (isset($api_result['messageId'])) {
+                                        $mysqli->query("UPDATE mensagens_comunicacao SET whatsapp_message_id = '" . $mysqli->real_escape_string($api_result['messageId']) . "' WHERE id = " . $mysqli->insert_id);
+                                    }
+                                    
+                                    logWebhook('WHATSAPP_NOTIFICATION_SENT', [
+                                        'cliente_id' => $cliente_id,
+                                        'celular' => $cliente['celular'],
+                                        'asaas_id' => $asaas_id,
+                                        'status' => $status,
+                                        'whatsapp_response' => $api_result
+                                    ]);
+                                } else {
+                                    logWebhook('WHATSAPP_API_ERROR', [
+                                        'cliente_id' => $cliente_id,
+                                        'celular' => $cliente['celular'],
+                                        'asaas_id' => $asaas_id,
+                                        'api_response' => $api_response,
+                                        'http_code' => $http_code
+                                    ]);
+                                }
+                            } else {
+                                logWebhook('WHATSAPP_HTTP_ERROR', [
+                                    'cliente_id' => $cliente_id,
+                                    'celular' => $cliente['celular'],
+                                    'asaas_id' => $asaas_id,
+                                    'http_code' => $http_code,
+                                    'api_response' => $api_response
+                                ]);
+                            }
+                        } catch (Exception $whatsapp_error) {
+                            logWebhook('WHATSAPP_EXCEPTION', [
+                                'cliente_id' => $cliente_id,
+                                'celular' => $cliente['celular'],
+                                'asaas_id' => $asaas_id,
+                                'error' => $whatsapp_error->getMessage()
+                            ]);
+                        }
+                    }
+                }
+            } catch (Exception $e) {
+                // Log do erro, mas não interrompe o processamento do webhook
+                logWebhook('WHATSAPP_NOTIFICATION_ERROR', [
+                    'cliente_id' => $cliente_id,
+                    'error' => $e->getMessage(),
+                    'asaas_id' => $asaas_id
+                ]);
+            }
         }
         
         logWebhook('PAYMENT_PROCESSED', [
