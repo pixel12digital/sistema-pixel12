@@ -494,11 +494,94 @@ function sincronizarFaturasClienteAsaas($cliente_id, $mysqli) {
             return ['success' => false, 'message' => 'Cliente sem ID do Asaas'];
         }
         
+        // 2. Buscar faturas locais do cliente (PENDING e OVERDUE)
+        $sql_faturas_locais = "SELECT asaas_payment_id, status, valor, vencimento 
+                               FROM cobrancas 
+                               WHERE cliente_id = $cliente_id 
+                               AND status IN ('PENDING', 'OVERDUE')";
+        $result_faturas_locais = $mysqli->query($sql_faturas_locais);
+        
+        $faturas_locais = [];
+        if ($result_faturas_locais) {
+            while ($fatura = $result_faturas_locais->fetch_assoc()) {
+                $faturas_locais[$fatura['asaas_payment_id']] = $fatura;
+            }
+        }
+        
+        // 3. Buscar faturas do Asaas
+        $faturas_asaas = buscarFaturasAsaas($asaas_customer_id);
+        
+        if (!$faturas_asaas['success']) {
+            return $faturas_asaas;
+        }
+        
+        $atualizacoes = 0;
+        $novas_faturas = 0;
+        
+        // 4. Processar faturas do Asaas
+        foreach ($faturas_asaas['payments'] as $payment) {
+            $asaas_payment_id = $payment['id'];
+            $status_asaas = $payment['status'];
+            $valor_asaas = $payment['value'];
+            $vencimento_asaas = $payment['dueDate'];
+            
+            // Converter status do Asaas para nosso formato
+            $status_local = '';
+            switch ($status_asaas) {
+                case 'PENDING':
+                    $status_local = 'PENDING';
+                    break;
+                case 'OVERDUE':
+                    $status_local = 'OVERDUE';
+                    break;
+                case 'RECEIVED':
+                case 'CONFIRMED':
+                    $status_local = 'RECEIVED';
+                    break;
+                case 'CANCELLED':
+                    $status_local = 'CANCELLED';
+                    break;
+                default:
+                    $status_local = 'PENDING';
+            }
+            
+            // Verificar se a fatura já existe localmente
+            if (isset($faturas_locais[$asaas_payment_id])) {
+                $fatura_local = $faturas_locais[$asaas_payment_id];
+                
+                // Atualizar se houver diferenças
+                if ($fatura_local['status'] !== $status_local || 
+                    $fatura_local['valor'] != $valor_asaas ||
+                    $fatura_local['vencimento'] !== $vencimento_asaas) {
+                    
+                    $sql_update = "UPDATE cobrancas SET 
+                                   status = '$status_local',
+                                   valor = $valor_asaas,
+                                   vencimento = '$vencimento_asaas'
+                                   WHERE asaas_payment_id = '$asaas_payment_id'";
+                    
+                    if ($mysqli->query($sql_update)) {
+                        $atualizacoes++;
+                    }
+                }
+            } else {
+                // Inserir nova fatura
+                $sql_insert = "INSERT INTO cobrancas 
+                              (cliente_id, asaas_payment_id, status, valor, vencimento, url_fatura) 
+                              VALUES 
+                              ($cliente_id, '$asaas_payment_id', '$status_local', $valor_asaas, '$vencimento_asaas', 'https://www.asaas.com/i/$asaas_payment_id')";
+                
+                if ($mysqli->query($sql_insert)) {
+                    $novas_faturas++;
+                }
+            }
+        }
+        
         return [
             'success' => true,
             'message' => "Sincronização concluída",
-            'atualizacoes' => 0,
-            'novas_faturas' => 0
+            'atualizacoes' => $atualizacoes,
+            'novas_faturas' => $novas_faturas
         ];
         
     } catch (Exception $e) {
@@ -622,5 +705,61 @@ function buscarFaturasCliente($cliente_id, $mysqli) {
     $resposta .= "📞 Para conversar com nossa equipe, entre em contato: *47 997309525*";
     
     return $resposta;
+}
+
+/**
+ * Busca faturas do Asaas para um cliente específico
+ */
+function buscarFaturasAsaas($asaas_customer_id) {
+    try {
+        $url = ASAAS_API_URL . "/payments?customer=" . $asaas_customer_id;
+        
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "access_token: " . ASAAS_API_KEY,
+            "Content-Type: application/json"
+        ]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        
+        if ($error) {
+            return [
+                'success' => false,
+                'message' => 'Erro na comunicação com Asaas: ' . $error
+            ];
+        }
+        
+        if ($http_code !== 200) {
+            return [
+                'success' => false,
+                'message' => 'Erro HTTP do Asaas: ' . $http_code
+            ];
+        }
+        
+        $data = json_decode($response, true);
+        
+        if (!$data || !isset($data['data'])) {
+            return [
+                'success' => false,
+                'message' => 'Resposta inválida do Asaas'
+            ];
+        }
+        
+        return [
+            'success' => true,
+            'payments' => $data['data']
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'success' => false,
+            'message' => 'Exceção ao buscar faturas do Asaas: ' . $e->getMessage()
+        ];
+    }
 }
 ?> 
