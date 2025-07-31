@@ -3143,9 +3143,13 @@ function render_content() {
     
     // Adicionar timestamp para evitar cache
     const timestamp = new Date().getTime();
+    console.log('🔄 Carregando canais... Timestamp:', timestamp);
+    
     fetch(`api/listar_canais_whatsapp.php?t=${timestamp}`)
       .then(response => response.json())
       .then(data => {
+        console.log('📡 Dados recebidos da API:', data);
+        
         if (data.success && data.canais && data.canais.length > 0) {
           // Limpar opções
           canalSelector.innerHTML = '';
@@ -3155,6 +3159,8 @@ function render_content() {
           
           // Adicionar canais disponíveis
           data.canais.forEach(canal => {
+            console.log(`📋 Processando canal: ${canal.nome} - Status: "${canal.status}"`);
+            
             const option = document.createElement('option');
             option.value = canal.id;
             
@@ -3163,13 +3169,17 @@ function render_content() {
             const statusText = canal.status === 'conectado' ? 'Conectado' : 'Pendente';
             const numero = canal.numero !== 'Sem número' ? canal.numero : '';
             
-            option.textContent = `${statusIcon} ${canal.nome} ${numero ? `(${numero})` : ''} [${statusText}]`;
+            const optionText = `${statusIcon} ${canal.nome} ${numero ? `(${numero})` : ''} [${statusText}]`;
+            option.textContent = optionText;
             option.dataset.canalInfo = JSON.stringify(canal);
+            
+            console.log(`✅ Opção criada: ${optionText}`);
             
             // Desabilitar canais pendentes
             if (canal.status !== 'conectado') {
               option.disabled = true;
               option.style.color = '#9ca3af';
+              console.log(`⚠️ Canal ${canal.nome} desabilitado (pendente)`);
             }
             
             canalSelector.appendChild(option);
@@ -3180,11 +3190,13 @@ function render_content() {
           if (canalConectado) {
             canalSelector.value = canalConectado.id;
             atualizarInfoCanal(canalConectado);
+            console.log(`🎯 Canal selecionado por padrão: ${canalConectado.nome}`);
           } else if (data.canais.length > 0) {
             // Se não há canais conectados, selecionar o primeiro e mostrar aviso
             canalSelector.value = data.canais[0].id;
             atualizarInfoCanal(data.canais[0]);
             showToast('⚠️ Nenhum canal conectado. Os canais pendentes não podem enviar mensagens.', 'error');
+            console.log(`⚠️ Nenhum canal conectado encontrado`);
           }
           
           // Atualizar status geral
@@ -3194,10 +3206,11 @@ function render_content() {
           canalSelector.innerHTML = '<option value="">Nenhum canal disponível</option>';
           atualizarInfoCanal(null);
           showToast('❌ Nenhum canal WhatsApp encontrado no sistema.', 'error');
+          console.log('❌ Nenhum canal encontrado na API');
         }
       })
       .catch(error => {
-        console.error('Erro ao carregar canais:', error);
+        console.error('❌ Erro ao carregar canais:', error);
         canalSelector.innerHTML = '<option value="">Erro ao carregar canais</option>';
         atualizarInfoCanal(null);
         showToast('❌ Erro ao carregar canais. Tente recarregar a página.', 'error');
@@ -3289,6 +3302,40 @@ function render_content() {
       });
     }
   }
+  
+  /**
+   * Forçar atualização dos canais (função global para debug)
+   */
+  window.forcarAtualizacaoCanais = function() {
+    console.log('🔄 Forçando atualização dos canais...');
+    carregarCanaisDisponiveis();
+  };
+  
+  /**
+   * Debug dos canais (função global para debug)
+   */
+  window.debugCanais = function() {
+    const canalSelector = document.getElementById('canal-selector');
+    if (!canalSelector) {
+      console.log('❌ Seletor de canais não encontrado');
+      return;
+    }
+    
+    console.log('📊 Debug do seletor de canais:');
+    console.log('Elemento:', canalSelector);
+    console.log('Valor selecionado:', canalSelector.value);
+    console.log('Número de opções:', canalSelector.options.length);
+    
+    for (let i = 0; i < canalSelector.options.length; i++) {
+      const option = canalSelector.options[i];
+      console.log(`Opção ${i}:`, {
+        text: option.text,
+        value: option.value,
+        disabled: option.disabled,
+        selected: option.selected
+      });
+    }
+  };
   </script>
   
   <?php
