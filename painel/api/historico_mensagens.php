@@ -26,7 +26,7 @@ echo cache_remember("historico_html_{$cliente_id}", function() use ($cliente_id,
     
     // Buscar mensagens com cache específico
     $mensagens = cache_remember("mensagens_{$cliente_id}", function() use ($cliente_id, $mysqli) {
-        $sql = "SELECT m.*, c.nome_exibicao as canal_nome
+        $sql = "SELECT m.*, c.nome_exibicao as canal_nome, c.porta as canal_porta
                 FROM mensagens_comunicacao m
                 LEFT JOIN canais_comunicacao c ON m.canal_id = c.id
                 WHERE m.cliente_id = ?
@@ -65,6 +65,17 @@ echo cache_remember("historico_html_{$cliente_id}", function() use ($cliente_id,
                 }
             }
             
+            // Determinar o nome do canal para exibição
+            $canal_nome = $msg['canal_nome'] ?? 'WhatsApp';
+            $canal_porta = $msg['canal_porta'] ?? 0;
+            
+            // Formatar nome do canal baseado na porta
+            if ($canal_porta === 3001) {
+                $canal_nome = "Comercial - Pixel";
+            } elseif ($canal_porta === 3000) {
+                $canal_nome = "Financeiro - Pixel";
+            }
+            
             $conteudo = '';
             if (!empty($msg['anexo'])) {
                 // Filtrar apenas anexos reais, não respostas da API
@@ -92,6 +103,15 @@ echo cache_remember("historico_html_{$cliente_id}", function() use ($cliente_id,
             $conteudo .= htmlspecialchars($msg['mensagem']);
             
             echo '<div class="message ' . $message_class . '">';
+            
+            // Adicionar informação do canal para mensagens recebidas
+            if ($is_received && $canal_nome !== 'WhatsApp') {
+                echo '<div class="message-contact-info">';
+                echo '<span class="contact-name">' . strtoupper($canal_nome) . '</span>';
+                echo '<span class="channel-info">via ' . htmlspecialchars($canal_nome) . '</span>';
+                echo '</div>';
+            }
+            
             echo '<div class="message-bubble">';
             echo $conteudo;
             echo '<div class="message-time">' . date('H:i', strtotime($msg['data_hora'])) . ' ' . $status_icon . '</div>';
