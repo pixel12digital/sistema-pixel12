@@ -37,10 +37,10 @@ if ($http_code === 200) {
 echo "\n";
 
 // 2. Verificar status via ajax_whatsapp.php
-echo "🔧 TESTANDO AJAX_WHATSAPP.PHP (PORTA 3000):\n";
+echo "🔧 TESTANDO AJAX_WHATSAPP.PHP (PORTA 8080):\n";
 
 $ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, "http://localhost/loja-virtual-revenda/painel/ajax_whatsapp.php?action=status&porta=3000");
+curl_setopt($ch, CURLOPT_URL, "http://localhost:8080/loja-virtual-revenda/painel/ajax_whatsapp.php?action=status&porta=3000");
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
@@ -84,7 +84,7 @@ echo "\n";
 // 4. Testar envio de mensagem
 echo "📤 TESTANDO ENVIO DE MENSAGEM:\n";
 $ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, "http://localhost/loja-virtual-revenda/painel/ajax_whatsapp.php");
+curl_setopt($ch, CURLOPT_URL, "http://localhost:8080/loja-virtual-revenda/painel/ajax_whatsapp.php");
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
     'action' => 'send',
