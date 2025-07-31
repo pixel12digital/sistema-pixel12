@@ -12,8 +12,17 @@ if (!$cliente_id) {
 }
 
 try {
-    $sql = "SELECT m.*, 'WhatsApp' as canal_nome
+    $sql = "SELECT m.*, 
+                   c.nome_exibicao as canal_nome,
+                   c.porta as canal_porta,
+                   c.identificador as canal_identificador,
+                   CASE 
+                       WHEN m.direcao = 'enviado' THEN 'Você'
+                       WHEN m.direcao = 'recebido' THEN c.nome_exibicao
+                       ELSE 'Sistema'
+                   END as contato_interagiu
             FROM mensagens_comunicacao m
+            LEFT JOIN canais_comunicacao c ON m.canal_id = c.id
             WHERE m.cliente_id = ?
             ORDER BY m.data_hora ASC";
     
@@ -30,7 +39,11 @@ try {
             'direcao' => $msg['direcao'],
             'status' => $msg['status'],
             'data_hora' => $msg['data_hora'],
-            'anexo' => $msg['anexo']
+            'anexo' => $msg['anexo'],
+            'canal_nome' => $msg['canal_nome'] ?: 'WhatsApp',
+            'canal_porta' => $msg['canal_porta'] ?: 3000,
+            'canal_identificador' => $msg['canal_identificador'] ?: '',
+            'contato_interagiu' => $msg['contato_interagiu'] ?: 'Sistema'
         ];
     }
     $stmt->close();

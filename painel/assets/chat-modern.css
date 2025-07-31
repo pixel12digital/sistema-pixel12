@@ -1259,4 +1259,86 @@ body {
     padding: 0.4rem;
     height: 36px;
   }
+}
+
+/* ===== ESTILOS PARA IDENTIFICAÇÃO DO CONTATO ===== */
+
+.message-contact-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.message:hover .message-contact-info {
+  opacity: 1;
+}
+
+.contact-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--background-light);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.channel-info {
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  font-style: italic;
+  background: var(--primary-light);
+  padding: 0.15rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--primary-color);
+}
+
+/* Posicionamento específico para mensagens recebidas */
+.message.received .message-contact-info {
+  justify-content: flex-start;
+  margin-left: 0.5rem;
+}
+
+/* Posicionamento específico para mensagens enviadas */
+.message.sent .message-contact-info {
+  justify-content: flex-end;
+  margin-right: 0.5rem;
+}
+
+/* Estilo especial para "Você" */
+.message.sent .contact-name {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  border-color: var(--primary-color);
+}
+
+/* Estilo especial para canais específicos */
+.message.received .contact-name {
+  background: var(--success-color);
+  color: white;
+  border-color: var(--success-color);
+}
+
+/* Responsividade para identificação do contato */
+@media (max-width: 768px) {
+  .message-contact-info {
+    font-size: 0.7rem;
+    gap: 0.3rem;
+  }
+  
+  .contact-name {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
+  }
+  
+  .channel-info {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.3rem;
+  }
 } 

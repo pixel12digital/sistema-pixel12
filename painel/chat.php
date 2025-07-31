@@ -2217,8 +2217,19 @@ function render_content() {
               minute: '2-digit'
             });
             
+            // Identificação do contato que interagiu
+            const contatoInfo = msg.contato_interagiu ? 
+              `<div class="message-contact-info">
+                <span class="contact-name">${msg.contato_interagiu}</span>
+                ${msg.canal_nome && msg.canal_nome !== 'WhatsApp' ? 
+                  `<span class="channel-info">via ${msg.canal_nome}</span>` : 
+                  ''
+                }
+              </div>` : '';
+            
             html += `
               <div class="message ${isReceived ? 'received' : 'sent'} ${isUnread ? 'unread' : ''}" data-mensagem-id="${msg.id}">
+                ${contatoInfo}
                 <div class="message-bubble">
                   ${msg.mensagem}
                   <div class="message-time">
