@@ -412,7 +412,7 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     // Verificar se já existe conversa recente para este número específico (últimas 24 horas)
     $numero_escaped = $mysqli->real_escape_string($numero);
     
-    // Buscar conversa por número WhatsApp (mais preciso)
+    // Buscar conversa por número WhatsApp (mais preciso) - ANTES de salvar a mensagem atual
     $sql_conversa_recente = "SELECT COUNT(*) as total_mensagens, 
                                    MAX(data_hora) as ultima_mensagem,
                                    MIN(data_hora) as primeira_mensagem,
@@ -464,8 +464,9 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     // Preparar resposta automática baseada na situação
     $resposta_automatica = '';
     $enviar_resposta = false;
+    $resposta_enviada = false; // Inicializar como false
     
-    // ===== NOVA LÓGICA COM CONTROLE DE CONTEXTO CONVERSACIONAL =====
+    // ===== NOVA LÓGICA SIMPLIFICADA PARA CANAL FINANCEIRO =====
     
     // 0. 🔄 VERIFICAR REABERTURA AUTOMÁTICA (ANTES DE TUDO)
     if ($cliente_id) {
@@ -481,215 +482,64 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         }
     }
     
-    // 1. Verificar contexto conversacional (apenas se não foi reaberta automaticamente)
+    // 1. LÓGICA SIMPLIFICADA - SEMPRE RESPONDER
     if (!$enviar_resposta) {
-        // 1.1. Verificar se automação está pausada por atendente
-        $automacao_pausada = verificarAutomacaoPausada($numero, $cliente_id, $mysqli);
-        if ($automacao_pausada['pausada']) {
-            error_log("[WEBHOOK WHATSAPP] ⏸️ Automação pausada por atendente - não processando respostas automáticas");
-            // Não enviar resposta automática - deixar atendente responder
-            $enviar_resposta = false;
-        } else {
-            $contexto = verificarContextoConversacional($numero, $cliente_id, $texto, $mysqli);
-            error_log("[WEBHOOK WHATSAPP] 🔍 Contexto analisado: " . json_encode($contexto));
-        
-            // 2. Verificar se é solicitação de atendente (digite 1)
-            if (trim($texto) === '1' || strtolower(trim($texto)) === 'um') {
-                $resposta_automatica = processarSolicitacaoAtendente($numero, $cliente_id, $mysqli);
-                $enviar_resposta = true;
-                error_log("[WEBHOOK WHATSAPP] 📞 Solicitação de atendente processada");
-            }
-            // 3. Verificar se a conversa está fechada
-            elseif ($contexto['eh_conversa_fechada']) {
-                $resposta_automatica = gerarFallbackInteligente($contexto, $cliente_id, $mysqli);
-                $enviar_resposta = true;
-                error_log("[WEBHOOK WHATSAPP] 🔒 Conversa fechada - não processando respostas automáticas");
-            }
-            // 4. Verificar se é solicitação fora do contexto ou consolidação
-            elseif ($contexto['eh_fora_contexto'] || $contexto['eh_solicitacao_consolidacao']) {
-                $resposta_automatica = gerarFallbackInteligente($contexto, $cliente_id, $mysqli);
-                $enviar_resposta = true;
-                error_log("[WEBHOOK WHATSAPP] 🔄 Fallback inteligente aplicado");
-            }
-            // 5. Verificar se faturas foram enviadas recentemente
-            elseif ($contexto['faturas_enviadas_recentemente']) {
-                $resposta_automatica = gerarFallbackInteligente($contexto, $cliente_id, $mysqli);
-                $enviar_resposta = true;
-                error_log("[WEBHOOK WHATSAPP] ⏰ Faturas enviadas recentemente - evitando repetição");
-            }
-            // 6. Processar normalmente se não há conflitos de contexto
-            else {
-                // LÓGICA ORIGINAL MELHORADA PARA EVITAR LOOPS:
-                // 1. Se é a primeira mensagem da conversa (sem conversa recente)
-                // 2. Se a última mensagem foi há mais de 1 hora (nova sessão)
-                // 3. Se ainda não foi enviada resposta automática hoje
-                // 4. Se é uma mensagem que requer resposta específica (saudação, faturas, etc.)
-                
-                $texto_lower = strtolower(trim($texto));
-                $palavras_chave_saudacao = ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'hello', 'hi', 'oie'];
-                $palavras_chave_fatura = ['fatura', 'boleto', 'conta', 'pagamento', 'vencimento', 'pagar', 'consulta', 'consultas'];
-                $palavras_chave_cpf = ['cpf', 'documento', 'identificação', 'cadastro', 'cnpj'];
-                
-                $eh_saudacao = false;
-                $eh_fatura = false;
-                $eh_cpf = false;
-                
-                foreach ($palavras_chave_saudacao as $palavra) {
-                    if (strpos($texto_lower, $palavra) !== false) {
-                        $eh_saudacao = true;
-                        break;
-                    }
-                }
-                
-                foreach ($palavras_chave_fatura as $palavra) {
-                    if (strpos($texto_lower, $palavra) !== false) {
-                        $eh_fatura = true;
-                        break;
-                    }
-                }
-                
-                foreach ($palavras_chave_cpf as $palavra) {
-                    if (strpos($texto_lower, $palavra) !== false) {
-                        $eh_cpf = true;
-                        break;
-                    }
-                }
-                
-                // Decidir se deve enviar resposta automática
-                if (!$tem_conversa_recente) {
-                    // Primeira mensagem da conversa - sempre responder
-                    $enviar_resposta = true;
-                    error_log("[WEBHOOK WHATSAPP] 👋 Primeira mensagem da conversa - enviando resposta");
-                } else {
-                    // Verificar se já foi enviada resposta automática hoje
-                    if ($mensagens_automaticas == 0) {
-                        // Verificar se é uma mensagem que requer resposta específica
-                        if ($eh_saudacao || $eh_fatura || $eh_cpf) {
-                            $enviar_resposta = true;
-                            error_log("[WEBHOOK WHATSAPP] 👋 Mensagem específica detectada (saudação: $eh_saudacao, fatura: $eh_fatura, cpf: $eh_cpf) - enviando resposta");
-                        } else {
-                            error_log("[WEBHOOK WHATSAPP] 🔇 Conversa em andamento - não enviando resposta automática");
-                        }
-                    } else {
-                        error_log("[WEBHOOK WHATSAPP] 🔇 Resposta automática já enviada hoje - não enviando novamente");
-                    }
-                }
-            }
-        }
+        // SEMPRE enviar resposta para qualquer mensagem
+        $enviar_resposta = true;
+        error_log("[WEBHOOK WHATSAPP] 🔄 SEMPRE RESPONDER - Ativado para qualquer mensagem");
     }
     
-    // ===== FIM DA NOVA LÓGICA COM CONTROLE DE CONTEXTO =====
+    // Debug: Log do status da decisão
+    error_log("[WEBHOOK WHATSAPP] 🔍 DEBUG - Status da decisão:");
+    error_log("[WEBHOOK WHATSAPP] 🔍 - enviar_resposta: " . ($enviar_resposta ? 'true' : 'false'));
+    error_log("[WEBHOOK WHATSAPP] 🔍 - tem_conversa_recente: " . ($tem_conversa_recente ? 'true' : 'false'));
+    error_log("[WEBHOOK WHATSAPP] 🔍 - mensagens_automaticas: $mensagens_automaticas");
+    error_log("[WEBHOOK WHATSAPP] 🔍 - total_mensagens: $total_mensagens");
+    error_log("[WEBHOOK WHATSAPP] 🔍 - tipo_mensagem: $tipo");
     
     if ($enviar_resposta) {
         // Processar IA diretamente em vez de usar cURL
         try {
-            error_log("[WEBHOOK WHATSAPP] 🤖 Processando IA diretamente para: $numero, texto: '$texto'");
+            error_log("[WEBHOOK WHATSAPP] 🤖 Processando IA diretamente para: $numero, texto: '$texto', tipo: '$tipo'");
             
-            // Análise de intenção
-            $texto_lower = strtolower(trim($texto));
-            $palavras_chave = [
-                'fatura' => ['fatura', 'boleto', 'conta', 'pagamento', 'vencimento', 'pagar', 'consulta', 'consultas'],
-                'plano' => ['plano', 'pacote', 'serviço', 'assinatura', 'mensalidade'],
-                'suporte' => ['suporte', 'ajuda', 'problema', 'erro', 'não funciona', 'bug'],
-                'comercial' => ['comercial', 'venda', 'preço', 'orçamento', 'proposta', 'site'],
-                'cpf' => ['cpf', 'documento', 'identificação', 'cadastro', 'cnpj'],
-                'saudacao' => ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'hello', 'hi', 'oie']
-            ];
-            
-            $intencao = 'geral';
-            foreach ($palavras_chave as $intencao_tipo => $palavras) {
-                foreach ($palavras as $palavra) {
-                    if (strpos($texto_lower, $palavra) !== false) {
-                        $intencao = $intencao_tipo;
-                        break 2;
-                    }
-                }
+            // Verificar se é mídia e gerar resposta específica
+            if ($tipo === 'audio' || $tipo === 'image' || $tipo === 'video' || $tipo === 'document') {
+                $resposta_automatica = gerarMensagemReforco();
+                error_log("[WEBHOOK WHATSAPP] 🎵 Gerando resposta específica para mídia ($tipo)");
+            } else {
+                // SIMPLIFICAR: Sempre gerar resposta padrão para testar
+                $resposta_automatica = gerarRespostaPadrao($cliente_id, $cliente);
+                error_log("[WEBHOOK WHATSAPP] 🤖 Gerando resposta padrão para texto");
             }
             
-            error_log("[WEBHOOK WHATSAPP] 🤖 Intenção detectada: $intencao");
-            
-            // Gerar resposta baseada na intenção
-            switch ($intencao) {
-                case 'fatura':
-                    if ($cliente_id) {
-                        error_log("[WEBHOOK WHATSAPP] 🤖 Processando consulta de faturas para cliente $cliente_id");
-                        $resposta_automatica = buscarFaturasCliente($cliente_id, $mysqli);
-                    } else {
-                        $resposta_automatica = "Olá! Para verificar suas faturas, preciso localizar seu cadastro.\n\n";
-                        $resposta_automatica .= "📋 *Por favor, informe:*\n";
-                        $resposta_automatica .= "• Seu CPF ou CNPJ (apenas números, sem espaços)\n\n";
-                        $resposta_automatica .= "Assim posso buscar suas informações e repassar o status das faturas! 😊";
-                    }
-                    break;
-                    
-                case 'plano':
-                    if ($cliente_id) {
-                        $resposta_automatica = "Olá! Vejo que você tem dúvidas sobre seu plano. 📊\n\n";
-                        $resposta_automatica .= "Para verificar os detalhes do seu plano, preciso do seu CPF. ";
-                        $resposta_automatica .= "Pode me informar o número do seu CPF?";
-                    } else {
-                        $resposta_automatica = "Olá! Para verificar informações sobre planos, preciso do seu CPF. ";
-                        $resposta_automatica .= "Pode me informar o número do seu CPF?";
-                    }
-                    break;
-                    
-                case 'suporte':
-                    $resposta_automatica = "Olá! Vejo que você precisa de suporte técnico. 🔧\n\n";
-                    $resposta_automatica .= "Para suporte técnico, entre em contato através do número: *47 997309525*\n\n";
-                    $resposta_automatica .= "Nossa equipe técnica está pronta para ajudá-lo!";
-                    break;
-                    
-                case 'comercial':
-                    $resposta_automatica = "Olá! Vejo que você tem interesse em nossos serviços comerciais. 💼\n\n";
-                    $resposta_automatica .= "Para atendimento comercial, entre em contato através do número: *47 997309525*\n\n";
-                    $resposta_automatica .= "Nossa equipe comercial ficará feliz em atendê-lo!";
-                    break;
-                    
-                case 'cpf':
-                    $cpf_limpo = preg_replace('/\D/', '', $texto);
-                    if (strlen($cpf_limpo) >= 11 && strlen($cpf_limpo) <= 14) {
-                        $cliente_cpf = buscarClientePorCPF($cpf_limpo, $mysqli);
-                        
-                        if ($cliente_cpf) {
-                            $resposta_automatica = "Olá {$cliente_cpf['contact_name']}! 👋\n\n";
-                            $resposta_automatica .= "✅ Encontrei seu cadastro! Como posso ajudá-lo hoje?\n\n";
-                            $resposta_automatica .= "📋 *Opções disponíveis:*\n";
-                            $resposta_automatica .= "• Verificar faturas (digite 'faturas' ou 'consulta')\n";
-                            $resposta_automatica .= "• Informações do plano\n";
-                            $resposta_automatica .= "• Suporte técnico\n";
-                            $resposta_automatica .= "• Atendimento comercial";
-                        } else {
-                            $resposta_automatica = "❌ CPF/CNPJ não encontrado em nossa base de dados.\n\n";
-                            $resposta_automatica .= "📞 Para atendimento personalizado, entre em contato: *47 997309525*\n\n";
-                            $resposta_automatica .= "Nossa equipe ficará feliz em ajudá-lo! 😊";
-                        }
-                    } else {
-                        $resposta_automatica = "Por favor, informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido, apenas números.";
-                    }
-                    break;
-                    
-                case 'saudacao':
-                default:
-                    $resposta_automatica = gerarRespostaPadrao($cliente_id, $cliente);
-                    break;
-            }
-            
-            error_log("[WEBHOOK WHATSAPP] 🤖 Resposta gerada com sucesso - Intenção: $intencao");
+            error_log("[WEBHOOK WHATSAPP] 🤖 Resposta gerada: " . substr($resposta_automatica, 0, 100) . "...");
+            error_log("[WEBHOOK WHATSAPP] 🤖 Tamanho da resposta: " . strlen($resposta_automatica));
             
         } catch (Exception $e) {
             error_log("[WEBHOOK WHATSAPP] ❌ Exceção ao processar IA: " . $e->getMessage());
             // Fallback para resposta padrão
             $resposta_automatica = gerarRespostaPadrao($cliente_id, $cliente);
         }
+    } else {
+        error_log("[WEBHOOK WHATSAPP] 🔇 Não processando IA - enviar_resposta = false");
     }
     
+    // Debug: Log do status da resposta
+    error_log("[WEBHOOK WHATSAPP] 🔍 DEBUG - Status da resposta:");
+    error_log("[WEBHOOK WHATSAPP] 🔍 - enviar_resposta: " . ($enviar_resposta ? 'true' : 'false'));
+    error_log("[WEBHOOK WHATSAPP] 🔍 - resposta_automatica vazia: " . (empty($resposta_automatica) ? 'true' : 'false'));
+    error_log("[WEBHOOK WHATSAPP] 🔍 - tamanho resposta: " . strlen($resposta_automatica));
+    
     // Enviar resposta automática via WhatsApp
+    error_log("[WEBHOOK WHATSAPP] 🔍 VERIFICANDO ENVIO - resposta_automatica: " . (empty($resposta_automatica) ? 'vazia' : 'preenchida') . ", enviar_resposta: " . ($enviar_resposta ? 'true' : 'false'));
+    
     if ($resposta_automatica && $enviar_resposta) {
+        error_log("[WEBHOOK WHATSAPP] 📤 INICIANDO ENVIO - Resposta: " . substr($resposta_automatica, 0, 50) . "...");
         try {
             // Usar URL do WhatsApp configurada no config.php
-            $api_url = WHATSAPP_ROBOT_URL . "/send/text";
+            $api_url = WHATSAPP_ROBOT_URL . "/send";
             $data_envio = [
-                "number" => $numero,
+                "to" => $numero,
                 "message" => $resposta_automatica
             ];
             
@@ -720,6 +570,8 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
                     $sql_resposta = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status, numero_whatsapp) 
                                     VALUES ($canal_id, " . ($cliente_id ? $cliente_id : "NULL") . ", \"$resposta_escaped\", \"texto\", \"$data_hora\", \"enviado\", \"enviado\", \"$numero_escaped\")";
                     $mysqli->query($sql_resposta);
+                    $resposta_enviada = true; // Definir como true quando a resposta é enviada com sucesso
+                    error_log("[WEBHOOK WHATSAPP] ✅ Resposta salva no banco e marcada como enviada");
                 } else {
                     error_log("[WEBHOOK WHATSAPP] ❌ Erro ao enviar resposta automática: " . $api_response);
                 }
@@ -730,7 +582,7 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
             error_log("[WEBHOOK WHATSAPP] ❌ Exceção ao enviar resposta: " . $e->getMessage());
         }
     } else {
-        error_log("[WEBHOOK WHATSAPP] 🔇 Não enviando resposta automática - Condições não atendidas");
+        error_log("[WEBHOOK WHATSAPP] 🔇 Não enviando resposta automática - Resposta: " . ($resposta_automatica ? 'Sim' : 'Não') . ", Enviar: " . ($enviar_resposta ? 'Sim' : 'Não'));
     }
     
     // Responder sucesso
@@ -742,7 +594,7 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         'formato_encontrado' => $formato_encontrado,
         'canal_id' => $canal_id,
         'mensagem_id' => $mensagem_id ?? null,
-        'resposta_enviada' => $enviar_resposta,
+        'resposta_enviada' => $resposta_enviada,
         'tem_conversa_recente' => $tem_conversa_recente,
         'total_mensagens_24h' => $total_mensagens,
         'respostas_automaticas_24h' => $respostas_automaticas,
@@ -863,29 +715,36 @@ function gerarRespostaPadrao($cliente_id, $cliente) {
     if ($cliente_id && $cliente) {
         $nome_cliente = $cliente['contact_name'] ?: $cliente['nome'];
         $resposta = "Olá $nome_cliente! 👋\n\n";
-        $resposta .= "🤖 *Este é um atendimento automático* do canal exclusivo da *Pixel12Digital* para assuntos financeiros.\n\n";
-        $resposta .= "📞 *Para outras informações ou falar com nossa equipe:*\n";
-        $resposta .= "Entre em contato: *47 997309525*\n\n";
-        $resposta .= "💰 *Para assuntos financeiros:*\n";
-        $resposta .= "• Digite 'faturas' para consultar suas faturas em aberto\n";
-        $resposta .= "• Verificar status de pagamentos\n";
-        $resposta .= "• Informações sobre planos\n\n";
+        $resposta .= "🤖 Este é um canal exclusivo da Pixel12Digital para cobranças automatizadas.\n\n";
+        $resposta .= "💰 Para consultar suas faturas, digite: faturas\n\n";
+        $resposta .= "📞 Para outros assuntos ou falar com nossa equipe:\n";
+        $resposta .= "Entre em contato diretamente: 47 997309525\n\n";
         $resposta .= "Como posso ajudá-lo hoje? 😊";
         
         return $resposta;
     } else {
         $resposta = "Olá! 👋\n\n";
-        $resposta .= "🤖 *Este é um atendimento automático* do canal exclusivo da *Pixel12Digital* para assuntos financeiros.\n\n";
-        $resposta .= "📞 *Para outras informações ou falar com nossa equipe:*\n";
-        $resposta .= "Entre em contato: *47 997309525*\n\n";
-        $resposta .= "💰 *Para assuntos financeiros:*\n";
-        $resposta .= "• Digite 'faturas' para consultar suas faturas em aberto\n";
-        $resposta .= "• Verificar status de pagamentos\n";
-        $resposta .= "• Informações sobre planos\n\n";
+        $resposta .= "🤖 Este é um canal exclusivo da Pixel12Digital para cobranças automatizadas.\n\n";
+        $resposta .= "💰 Para consultar suas faturas, digite: faturas\n\n";
+        $resposta .= "📞 Para outros assuntos ou falar com nossa equipe:\n";
+        $resposta .= "Entre em contato diretamente: 47 997309525\n\n";
         $resposta .= "Se não encontrar seu cadastro, informe seu CPF ou CNPJ (apenas números).";
         
         return $resposta;
     }
+}
+
+/**
+ * Gera mensagem de reforço para mensagens subsequentes
+ */
+function gerarMensagemReforco() {
+    $resposta = "🤖 Este é um canal exclusivo para cobranças automatizadas.\n\n";
+    $resposta .= "💰 Para consultar faturas: digite \"faturas\"\n";
+    $resposta .= "📞 Para outros assuntos: entre em contato diretamente com nossa equipe\n";
+    $resposta .= "📱 Telefone: 47 997309525\n\n";
+    $resposta .= "Nossa equipe está pronta para atendê-lo! 😊";
+    
+    return $resposta;
 }
 
 /**
