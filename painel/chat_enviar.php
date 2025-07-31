@@ -145,7 +145,23 @@ $enviado_api = false;
 
 try {
     file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Antes do envio via API do robô\n", FILE_APPEND);
-    $api_url = WHATSAPP_ROBOT_URL . "/send/text";
+    
+    // Buscar informações do canal selecionado
+    $canal_info = $mysqli->query("SELECT porta, nome_exibicao FROM canais_comunicacao WHERE id = $canal_id")->fetch_assoc();
+    $porta_canal = $canal_info ? $canal_info['porta'] : 3000; // Fallback para porta 3000
+    $nome_canal = $canal_info ? $canal_info['nome_exibicao'] : 'Financeiro';
+    
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Canal selecionado: $nome_canal (Porta: $porta_canal)\n", FILE_APPEND);
+    
+    // Determinar a URL da API baseada na porta do canal
+    $api_url = WHATSAPP_ROBOT_URL;
+    if ($porta_canal == 3001) {
+        $api_url = str_replace(':3000', ':3001', WHATSAPP_ROBOT_URL);
+    }
+    $api_url .= "/send/text";
+    
+    file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - URL da API: $api_url\n", FILE_APPEND);
+    
     $api_data = [
         'sessionName' => 'default',
         'number' => $numero,

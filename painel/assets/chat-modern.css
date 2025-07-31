@@ -560,7 +560,7 @@ body {
   border-top: 1px solid var(--border-color);
   background: var(--background-white);
   flex-shrink: 0; /* Não diminui */
-  height: 100px; /* Altura aumentada para acomodar duas linhas */
+  min-height: 120px; /* Altura mínima aumentada para acomodar seletor de canal + input */
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -579,16 +579,17 @@ body {
 
 .chat-input {
   width: 100%;
-  min-height: 44px;
-  max-height: 44px; /* Altura fixa para uma linha */
+  min-height: 60px; /* Altura mínima aumentada */
+  max-height: 120px; /* Altura máxima aumentada para permitir múltiplas linhas */
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   font-size: 0.875rem;
-  resize: none;
+  resize: vertical; /* Permitir redimensionamento vertical */
   outline: none;
   transition: all 0.2s ease;
   font-family: inherit;
+  line-height: 1.4; /* Melhor espaçamento entre linhas */
 }
 
 .chat-input:focus {
@@ -604,7 +605,7 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-secondary);
-  height: 44px; /* Mesma altura do input */
+  min-height: 60px; /* Altura mínima ajustada para alinhar com o input */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -629,7 +630,7 @@ body {
   justify-content: center;
   gap: 0.5rem;
   width: 100%; /* Ocupa toda a largura */
-  height: 44px; /* Altura consistente */
+  min-height: 60px; /* Altura mínima ajustada para alinhar com o input */
 }
 
 .chat-send-btn:hover {
@@ -1160,5 +1161,102 @@ body {
 @media (max-height: 500px) {
   .chat-conversations {
     max-height: calc(100vh - 220px); /* Altura ainda menor para telas muito pequenas */
+  }
+} 
+
+/* ===== ESTILOS PARA O SELETOR DE CANAIS ===== */
+
+.canal-selector-container {
+  transition: all 0.3s ease;
+  border: 1px solid var(--border-color);
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background: var(--background-light);
+  border-radius: 8px;
+  flex-shrink: 0; /* Não diminui */
+}
+
+.canal-selector-container:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+}
+
+.canal-selector {
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-color);
+  background: white;
+  font-size: 0.9rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  width: 100%;
+  cursor: pointer;
+  height: 40px; /* Altura fixa para não ocupar muito espaço */
+}
+
+.canal-selector:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.canal-selector:hover {
+  border-color: var(--primary-color);
+}
+
+.canal-status-indicator {
+  transition: background-color 0.3s ease;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.canal-info {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+  transition: color 0.3s ease;
+}
+
+/* Estados do canal */
+.canal-selector option {
+  padding: 0.5rem;
+}
+
+.canal-selector option:checked {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  color: white;
+}
+
+/* Animação de loading */
+.canal-selector-container.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.canal-selector-container.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f4f6;
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Responsividade para o seletor de canais */
+@media (max-width: 768px) {
+  .canal-selector-container {
+    margin-bottom: 0.5rem;
+    padding: 0.4rem;
+  }
+  
+  .canal-selector {
+    font-size: 0.85rem;
+    padding: 0.4rem;
+    height: 36px;
   }
 } 

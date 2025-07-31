@@ -232,9 +232,19 @@ function render_content() {
         <div class="chat-input-area">
           <form id="form-chat-enviar" enctype="multipart/form-data">
             <input type="hidden" name="cliente_id" value="<?= $cliente_selecionado['id'] ?>">
-            <input type="hidden" name="canal_id" value="36">
             
-            <!-- Primeira linha: Campo de digitação + Anexo -->
+            <!-- Seleção de Canal -->
+            <div class="canal-selector-container" style="margin-bottom: 0.75rem; padding: 0.5rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary);">📱 Canal de Envio:</span>
+                <div class="canal-status-indicator" id="canalStatusIndicator" style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></div>
+              </div>
+              <select name="canal_id" id="canal-selector" class="canal-selector" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; background: white; font-size: 0.9rem;">
+                <option value="">Carregando canais...</option>
+              </select>
+              <div class="canal-info" id="canalInfo" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;"></div>
+            </div>
+            
             <div class="chat-input-container">
               <div class="chat-input-wrapper">
                 <textarea 
@@ -249,12 +259,10 @@ function render_content() {
                 <input type="file" id="anexo" name="anexo" style="display: none;" accept="image/*,.pdf,.doc,.docx,.txt">
               </label>
             </div>
-              
-            <!-- Segunda linha: Botão Enviar -->
-              <button type="submit" class="chat-send-btn">
-                Enviar
-                <span>➤</span>
-              </button>
+            <button type="submit" class="chat-send-btn">
+              Enviar
+              <span>➤</span>
+            </button>
           </form>
         </div>
       <?php else: ?>
@@ -2098,7 +2106,19 @@ function render_content() {
           <div class="chat-input-area">
             <form id="form-chat-enviar" enctype="multipart/form-data">
               <input type="hidden" name="cliente_id" value="${clienteId}">
-              <input type="hidden" name="canal_id" value="36">
+              
+              <!-- Seleção de Canal -->
+              <div class="canal-selector-container" style="margin-bottom: 0.75rem; padding: 0.5rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                  <span style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary);">📱 Canal de Envio:</span>
+                  <div class="canal-status-indicator" id="canalStatusIndicator" style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></div>
+                </div>
+                <select name="canal_id" id="canal-selector" class="canal-selector" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; background: white; font-size: 0.9rem;">
+                  <option value="">Carregando canais...</option>
+                </select>
+                <div class="canal-info" id="canalInfo" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;"></div>
+              </div>
+              
               <div class="chat-input-container">
                 <div class="chat-input-wrapper">
                   <textarea 
@@ -2154,6 +2174,12 @@ function render_content() {
         setTimeout(inicializarAbasIframe, 200);
       };
     }
+    
+    // 🚀 NOVA FUNCIONALIDADE: Carregar canais disponíveis
+    setTimeout(() => {
+      carregarCanaisDisponiveis();
+      configurarEventoMudancaCanal();
+    }, 500);
   }
   
   // Função para forçar atualização das abas
@@ -2292,6 +2318,7 @@ function render_content() {
     const formData = new FormData(form);
     const mensagem = formData.get('mensagem');
     const clienteId = formData.get('cliente_id');
+    const canalId = formData.get('canal_id');
     
     if (!mensagem.trim()) {
       alert('Digite uma mensagem');
@@ -2301,6 +2328,38 @@ function render_content() {
     if (!clienteId) {
       alert('Cliente não selecionado');
       return;
+    }
+    
+    // 🚀 NOVA VALIDAÇÃO: Verificar se canal foi selecionado
+    if (!canalId) {
+      alert('Selecione um canal para enviar a mensagem');
+      const canalSelector = document.getElementById('canal-selector');
+      if (canalSelector) {
+        canalSelector.focus();
+        canalSelector.style.borderColor = '#ef4444';
+        canalSelector.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+        
+        // Remover destaque após 3 segundos
+        setTimeout(() => {
+          canalSelector.style.borderColor = '';
+          canalSelector.style.boxShadow = '';
+        }, 3000);
+      }
+      return;
+    }
+    
+    // 🚀 NOVA VALIDAÇÃO: Verificar se canal está conectado
+    const canalSelector = document.getElementById('canal-selector');
+    if (canalSelector) {
+      const selectedOption = canalSelector.options[canalSelector.selectedIndex];
+      if (selectedOption && selectedOption.dataset.canalInfo) {
+        const canalInfo = JSON.parse(selectedOption.dataset.canalInfo);
+        if (canalInfo.status !== 'conectado') {
+          alert('❌ Este canal não está conectado. Selecione um canal conectado para enviar mensagens.');
+          canalSelector.focus();
+          return;
+        }
+      }
     }
     
     // Desabilitar botão de envio
@@ -3058,6 +3117,165 @@ function render_content() {
       alert('Erro ao reabrir conversa: ' + error.message);
     });
   }
+  
+  // ===== FUNÇÕES DE GERENCIAMENTO DE CANAIS =====
+  
+  /**
+   * Carregar canais disponíveis no dropdown
+   */
+  function carregarCanaisDisponiveis() {
+    const canalSelector = document.getElementById('canal-selector');
+    if (!canalSelector) return;
+    
+    // Mostrar loading
+    canalSelector.innerHTML = '<option value="">Carregando canais...</option>';
+    
+    fetch('api/listar_canais_whatsapp.php')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && data.canais && data.canais.length > 0) {
+          // Limpar opções
+          canalSelector.innerHTML = '';
+          
+          // Adicionar opção padrão
+          canalSelector.innerHTML = '<option value="">Selecione um canal...</option>';
+          
+          // Adicionar canais disponíveis
+          data.canais.forEach(canal => {
+            const option = document.createElement('option');
+            option.value = canal.id;
+            
+            // Formatar texto do canal com status
+            const statusIcon = canal.status === 'conectado' ? '🟢' : '🟡';
+            const statusText = canal.status === 'conectado' ? 'Conectado' : 'Pendente';
+            const numero = canal.numero !== 'Sem número' ? canal.numero : '';
+            
+            option.textContent = `${statusIcon} ${canal.nome} ${numero ? `(${numero})` : ''} [${statusText}]`;
+            option.dataset.canalInfo = JSON.stringify(canal);
+            
+            // Desabilitar canais pendentes
+            if (canal.status !== 'conectado') {
+              option.disabled = true;
+              option.style.color = '#9ca3af';
+            }
+            
+            canalSelector.appendChild(option);
+          });
+          
+          // Selecionar primeiro canal conectado por padrão
+          const canalConectado = data.canais.find(c => c.status === 'conectado');
+          if (canalConectado) {
+            canalSelector.value = canalConectado.id;
+            atualizarInfoCanal(canalConectado);
+          } else if (data.canais.length > 0) {
+            // Se não há canais conectados, selecionar o primeiro e mostrar aviso
+            canalSelector.value = data.canais[0].id;
+            atualizarInfoCanal(data.canais[0]);
+            showToast('⚠️ Nenhum canal conectado. Os canais pendentes não podem enviar mensagens.', 'error');
+          }
+          
+          // Atualizar status geral
+          atualizarStatusCanais();
+          
+        } else {
+          canalSelector.innerHTML = '<option value="">Nenhum canal disponível</option>';
+          atualizarInfoCanal(null);
+          showToast('❌ Nenhum canal WhatsApp encontrado no sistema.', 'error');
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao carregar canais:', error);
+        canalSelector.innerHTML = '<option value="">Erro ao carregar canais</option>';
+        atualizarInfoCanal(null);
+        showToast('❌ Erro ao carregar canais. Tente recarregar a página.', 'error');
+      });
+  }
+  
+  /**
+   * Atualizar informações do canal selecionado
+   */
+  function atualizarInfoCanal(canal) {
+    const canalInfo = document.getElementById('canalInfo');
+    const statusIndicator = document.getElementById('canalStatusIndicator');
+    
+    if (!canal) {
+      if (canalInfo) canalInfo.textContent = 'Nenhum canal selecionado';
+      if (statusIndicator) statusIndicator.style.background = '#ef4444';
+      return;
+    }
+    
+    if (canalInfo) {
+      canalInfo.innerHTML = `
+        <span style="color: ${canal.status === 'conectado' ? '#10b981' : '#f59e0b'}">
+          ${canal.status === 'conectado' ? '🟢 Conectado' : '🟡 Pendente'}
+        </span>
+        ${canal.numero ? ` • ${canal.numero}` : ''}
+      `;
+    }
+    
+    if (statusIndicator) {
+      statusIndicator.style.background = canal.status === 'conectado' ? '#10b981' : '#f59e0b';
+    }
+  }
+  
+  /**
+   * Atualizar status geral dos canais
+   */
+  function atualizarStatusCanais() {
+    fetch('api/status_canais.php')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && data.canais) {
+          // Atualizar dropdown com novos status
+          const canalSelector = document.getElementById('canal-selector');
+          if (canalSelector) {
+            const selectedValue = canalSelector.value;
+            
+            // Recarregar opções com status atualizado
+            canalSelector.innerHTML = '<option value="">Selecione um canal...</option>';
+            
+            data.canais.forEach(canal => {
+              const option = document.createElement('option');
+              option.value = canal.id;
+              option.textContent = `${canal.nome_exibicao} (${canal.identificador || 'Sem número'})`;
+              option.dataset.canalInfo = JSON.stringify(canal);
+              canalSelector.appendChild(option);
+            });
+            
+            // Restaurar seleção anterior
+            if (selectedValue) {
+              canalSelector.value = selectedValue;
+              const selectedOption = canalSelector.querySelector(`option[value="${selectedValue}"]`);
+              if (selectedOption) {
+                const canalInfo = JSON.parse(selectedOption.dataset.canalInfo);
+                atualizarInfoCanal(canalInfo);
+              }
+            }
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao atualizar status dos canais:', error);
+      });
+  }
+  
+  /**
+   * Event listener para mudança de canal
+   */
+  function configurarEventoMudancaCanal() {
+    const canalSelector = document.getElementById('canal-selector');
+    if (canalSelector) {
+      canalSelector.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption && selectedOption.dataset.canalInfo) {
+          const canalInfo = JSON.parse(selectedOption.dataset.canalInfo);
+          atualizarInfoCanal(canalInfo);
+        } else {
+          atualizarInfoCanal(null);
+        }
+      });
+    }
+  }
   </script>
   
   <?php
@@ -3165,5 +3383,100 @@ document.addEventListener('DOMContentLoaded', function() {
   margin: 0;
   font-size: 1.2rem;
   color: var(--text-primary);
+}
+
+/* ===== ESTILOS PARA O SELETOR DE CANAIS ===== */
+
+.canal-selector-container {
+  transition: all 0.3s ease;
+  border: 1px solid var(--border-color);
+}
+
+.canal-selector-container:hover {
+  border-color: #7c3aed;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.1);
+}
+
+.canal-selector {
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-color);
+  background: white;
+  font-size: 0.9rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  width: 100%;
+  cursor: pointer;
+}
+
+.canal-selector:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.canal-selector:hover {
+  border-color: #7c3aed;
+}
+
+.canal-status-indicator {
+  transition: background-color 0.3s ease;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.canal-info {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+  transition: color 0.3s ease;
+}
+
+/* Estados do canal */
+.canal-selector option {
+  padding: 0.5rem;
+}
+
+.canal-selector option:checked {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: white;
+}
+
+/* Animação de loading */
+.canal-selector-container.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.canal-selector-container.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f4f6;
+  border-top: 2px solid #7c3aed;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: translateY(-50%) rotate(0deg); }
+  100% { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .canal-selector-container {
+    margin-bottom: 0.5rem;
+    padding: 0.4rem;
+  }
+  
+  .canal-selector {
+    font-size: 0.85rem;
+    padding: 0.4rem;
+  }
 }
 </style>
