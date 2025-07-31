@@ -27,10 +27,35 @@ $timestamp = isset($data['timestamp']) ? intval($data['timestamp']) : time();
 $numero = preg_replace('/\D/', '', $from);
 error_log("[RECEBIMENTO] Número limpo: " . $numero);
 
-// Buscar canal pelo número do robô (554797146908)
-$canal = $mysqli->query("SELECT id, nome_exibicao FROM canais_comunicacao WHERE identificador LIKE '%554797146908%' OR identificador LIKE '%4797146908%' LIMIT 1")->fetch_assoc();
-$canal_id = $canal ? intval($canal['id']) : 36; // Usar canal 36 (Financeiro) como padrão
-error_log("[RECEBIMENTO] Canal encontrado: " . ($canal ? $canal['nome_exibicao'] . ' (ID: ' . $canal['id'] . ')' : 'NÃO ENCONTRADO, usando ID 36'));
+// NOVA LÓGICA: Buscar canal pelo número de destino (to) se disponível
+$canal_id = 36; // Padrão: Financeiro
+$canal_nome = "Financeiro";
+
+if (isset($data['to'])) {
+    $to = $mysqli->real_escape_string($data['to']);
+    error_log("[RECEBIMENTO] Número de destino (to): " . $to);
+    
+    // Buscar canal pelo identificador de destino
+    $canal = $mysqli->query("SELECT id, nome_exibicao FROM canais_comunicacao WHERE identificador = '$to' LIMIT 1")->fetch_assoc();
+    
+    if ($canal) {
+        $canal_id = intval($canal['id']);
+        $canal_nome = $canal['nome_exibicao'];
+        error_log("[RECEBIMENTO] Canal encontrado pelo destino: " . $canal_nome . " (ID: " . $canal_id . ")");
+    } else {
+        error_log("[RECEBIMENTO] Canal não encontrado pelo destino '$to', usando padrão Financeiro");
+    }
+} else {
+    // Fallback: Buscar canal pelo número do robô (554797146908) - lógica antiga
+    $canal = $mysqli->query("SELECT id, nome_exibicao FROM canais_comunicacao WHERE identificador LIKE '%554797146908%' OR identificador LIKE '%4797146908%' LIMIT 1")->fetch_assoc();
+    if ($canal) {
+        $canal_id = intval($canal['id']);
+        $canal_nome = $canal['nome_exibicao'];
+        error_log("[RECEBIMENTO] Canal encontrado pelo robô: " . $canal_nome . " (ID: " . $canal_id . ")");
+    } else {
+        error_log("[RECEBIMENTO] Canal não encontrado, usando ID 36 (Financeiro) como padrão");
+    }
+}
 
 // Opcional: tentar encontrar cliente pelo número
 $numero_limpo = preg_replace('/\D/', '', $from);
@@ -70,10 +95,10 @@ $data_hora = date('Y-m-d H:i:s', $timestamp);
 
 if ($cliente_id) {
   // Cliente existe, salva normalmente
-  error_log("[RECEBIMENTO] Salvando mensagem para cliente existente ID: " . $cliente_id);
+  error_log("[RECEBIMENTO] Salvando mensagem para cliente existente ID: " . $cliente_id . " no canal: " . $canal_nome . " (ID: " . $canal_id . ")");
   $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) VALUES ($canal_id, $cliente_id, '$body', 'texto', '$data_hora', 'recebido', 'recebido')";
   if ($mysqli->query($sql)) {
-    error_log("[RECEBIMENTO] SUCESSO: Mensagem salva no banco, ID: " . $mysqli->insert_id);
+    error_log("[RECEBIMENTO] SUCESSO: Mensagem salva no banco, ID: " . $mysqli->insert_id . " no canal: " . $canal_nome);
     invalidate_message_cache($cliente_id);
     // Forçar limpeza de todos os caches relevantes
     if (function_exists('cache_forget')) {
@@ -81,18 +106,18 @@ if ($cliente_id) {
         cache_forget("historico_html_{$cliente_id}");
         cache_forget("mensagens_html_{$cliente_id}");
     }
-    echo json_encode(['success' => true, 'mensagem_id' => $mysqli->insert_id]);
+    echo json_encode(['success' => true, 'mensagem_id' => $mysqli->insert_id, 'canal' => $canal_nome]);
   } else {
     error_log("[RECEBIMENTO] ERRO SQL: " . $mysqli->error);
     echo json_encode(['success' => false, 'error' => $mysqli->error]);
   }
 } else {
   // Cliente não existe, salva na tabela temporária
-  error_log("[RECEBIMENTO] Cliente não encontrado, salvando em mensagens_pendentes");
+  error_log("[RECEBIMENTO] Cliente não encontrado, salvando em mensagens_pendentes no canal: " . $canal_nome . " (ID: " . $canal_id . ")");
   $sql = "INSERT INTO mensagens_pendentes (canal_id, numero, mensagem, tipo, data_hora) VALUES ($canal_id, '$numero', '$body', 'texto', '$data_hora')";
   if ($mysqli->query($sql)) {
-    error_log("[RECEBIMENTO] SUCESSO: Mensagem salva em pendentes, ID: " . $mysqli->insert_id);
-    echo json_encode(['success' => true, 'pendente' => true, 'mensagem_id' => $mysqli->insert_id]);
+    error_log("[RECEBIMENTO] SUCESSO: Mensagem salva em pendentes, ID: " . $mysqli->insert_id . " no canal: " . $canal_nome);
+    echo json_encode(['success' => true, 'pendente' => true, 'mensagem_id' => $mysqli->insert_id, 'canal' => $canal_nome]);
   } else {
     error_log("[RECEBIMENTO] ERRO SQL pendentes: " . $mysqli->error);
     echo json_encode(['success' => false, 'error' => $mysqli->error]);
