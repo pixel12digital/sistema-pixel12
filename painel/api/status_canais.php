@@ -26,56 +26,104 @@ foreach ($canais as $canal) {
     $conectado = false;
     $lastSession = null;
     
-    // CORREÇÃO: Verificar cada canal individualmente pela sua porta
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, "http://localhost:8080/loja-virtual-revenda/painel/ajax_whatsapp.php?action=status&porta=$porta");
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'User-Agent: Status-Canais-API/1.0'
-    ]);
-        
-    $result = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    file_put_contents(__DIR__.'/debug_status_update.log', date('Y-m-d H:i:s')." - Canal $canal_id (Porta $porta) - Resposta ajax_whatsapp: $result\n", FILE_APPEND);
-    curl_close($ch);
+    // CORREÇÃO: Usar VPS em produção, localhost em desenvolvimento
+    $vps_url = "http://212.85.11.238:$porta/status";
     
-    if ($result && $httpCode === 200) {
-        $json = json_decode($result, true);
+    // Verificar se estamos em produção ou desenvolvimento
+    $is_production = (strpos($_SERVER['HTTP_HOST'] ?? '', 'pixel12digital.com.br') !== false);
+    
+    if ($is_production) {
+        // PRODUÇÃO: Verificar diretamente no VPS
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $vps_url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'User-Agent: Status-Canais-API/1.0'
+        ]);
+            
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
         
-        // CORREÇÃO: Usar a mesma lógica do frontend
-        if ($json) {
-            // Verificar se está conectado usando múltiplos campos
-            $isConnected = false;
+        if ($result && $httpCode === 200) {
+            $json = json_decode($result, true);
             
-            // 1. Verificar campo ready
-            if (isset($json['ready']) && $json['ready'] === true) {
-                $isConnected = true;
-            }
-            
-            // 2. Verificar status direto
-            if (isset($json['status']) && in_array($json['status'], ['connected', 'already_connected', 'authenticated', 'ready'])) {
-                $isConnected = true;
-            }
-            
-            // 3. Verificar raw_response_preview (mesma lógica do frontend)
-            if (isset($json['debug']['raw_response_preview'])) {
-                try {
-                    $parsedResponse = json_decode($json['debug']['raw_response_preview'], true);
-                    if ($parsedResponse) {
-                        $realStatus = $parsedResponse['status']['status'] ?? $parsedResponse['status'] ?? null;
-                        if (in_array($realStatus, ['connected', 'already_connected', 'authenticated', 'ready'])) {
-                            $isConnected = true;
-                        }
-                    }
-                } catch (Exception $e) {
-                    // Ignorar erro de parse
+            if ($json) {
+                // Verificar se está conectado
+                $isConnected = false;
+                
+                // 1. Verificar campo ready
+                if (isset($json['ready']) && $json['ready'] === true) {
+                    $isConnected = true;
                 }
+                
+                // 2. Verificar status direto
+                if (isset($json['status']) && in_array($json['status'], ['connected', 'already_connected', 'authenticated', 'ready'])) {
+                    $isConnected = true;
+                }
+                
+                // 3. Verificar clients_status
+                if (isset($json['clients_status']['default']['status']) && 
+                    in_array($json['clients_status']['default']['status'], ['connected', 'already_connected', 'authenticated', 'ready'])) {
+                    $isConnected = true;
+                }
+                
+                $conectado = $isConnected;
+                $lastSession = $json['timestamp'] ?? null;
             }
+        }
+    } else {
+        // DESENVOLVIMENTO: Usar ajax_whatsapp.php local
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, "http://localhost:8080/loja-virtual-revenda/painel/ajax_whatsapp.php?action=status&porta=$porta");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'User-Agent: Status-Canais-API/1.0'
+        ]);
             
-            $conectado = $isConnected;
-            $lastSession = $json['lastSession'] ?? null;
+        $result = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($result && $httpCode === 200) {
+            $json = json_decode($result, true);
+            
+            if ($json) {
+                // Verificar se está conectado usando múltiplos campos
+                $isConnected = false;
+                
+                // 1. Verificar campo ready
+                if (isset($json['ready']) && $json['ready'] === true) {
+                    $isConnected = true;
+                }
+                
+                // 2. Verificar status direto
+                if (isset($json['status']) && in_array($json['status'], ['connected', 'already_connected', 'authenticated', 'ready'])) {
+                    $isConnected = true;
+                }
+                
+                // 3. Verificar raw_response_preview (mesma lógica do frontend)
+                if (isset($json['debug']['raw_response_preview'])) {
+                    try {
+                        $parsedResponse = json_decode($json['debug']['raw_response_preview'], true);
+                        if ($parsedResponse) {
+                            $realStatus = $parsedResponse['status']['status'] ?? $parsedResponse['status'] ?? null;
+                            if (in_array($realStatus, ['connected', 'already_connected', 'authenticated', 'ready'])) {
+                                $isConnected = true;
+                            }
+                        }
+                    } catch (Exception $e) {
+                        // Ignorar erro de parse
+                    }
+                }
+                
+                $conectado = $isConnected;
+                $lastSession = $json['lastSession'] ?? null;
+            }
         }
     }
     
@@ -86,9 +134,6 @@ foreach ($canais as $canal) {
     // Só atualizar se o status realmente mudou
     if ($novo_status !== $status_atual) {
         $mysqli->query("UPDATE canais_comunicacao SET status = '" . $mysqli->real_escape_string($novo_status) . "' WHERE id = $canal_id");
-        file_put_contents(__DIR__.'/debug_status_update.log', date('Y-m-d H:i:s')." - Canal $canal_id (Porta $porta) atualizado de '$status_atual' para '$novo_status' | Linhas afetadas: ".$mysqli->affected_rows."\n", FILE_APPEND);
-    } else {
-        file_put_contents(__DIR__.'/debug_status_update.log', date('Y-m-d H:i:s')." - Canal $canal_id (Porta $porta) mantém status '$status_atual' (sem mudança)\n", FILE_APPEND);
     }
     
     // Ajuste de fuso horário para lastSession
@@ -102,16 +147,26 @@ foreach ($canais as $canal) {
         }
     }
     
+    // Formatar nome do canal para diferenciar
+    $nome_canal = $canal['nome_exibicao'];
+    if ($porta === 3001) {
+        $nome_canal = "Comercial - Pixel";
+    } elseif ($porta === 3000) {
+        $nome_canal = "Financeiro - Pixel";
+    }
+    
     $status[] = [
         'id' => $canal['id'],
-        'nome' => $canal['nome_exibicao'],
+        'nome' => $nome_canal,
         'porta' => $porta,
+        'status' => $novo_status, // Usar 'status' em vez de 'conectado' para compatibilidade
         'conectado' => $conectado,
         'lastSession' => $lastSession,
         'tipo' => $canal['tipo'] ?? null,
-        'identificador' => $canal['identificador'] ?? null
+        'identificador' => $canal['identificador'] ?? null,
+        'numero' => $canal['identificador'] ? str_replace('@c.us', '', $canal['identificador']) : 'Sem número'
     ];
 }
 
-echo json_encode($status);
+echo json_encode(['canais' => $status]);
 ?> 
