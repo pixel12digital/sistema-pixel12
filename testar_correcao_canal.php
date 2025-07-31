@@ -37,7 +37,7 @@ if ($canal) {
     $canal_id = intval($canal['id']);
     $canal_nome = $canal['nome_exibicao'];
     echo "✅ Canal encontrado: $canal_nome (ID: $canal_id)\n";
-} else {
+    } else {
     echo "❌ Canal não encontrado pelo destino '$to', usando padrão Financeiro\n";
 }
 
@@ -77,7 +77,7 @@ if ($insert) {
     echo "✅ Mensagens para 4797309525@c.us vão para o canal Comercial\n";
     echo "✅ Mensagens para 554797146908@c.us vão para o canal Financeiro\n";
     
-} else {
+        } else {
     echo "❌ Erro ao salvar mensagem: " . $mysqli->error . "\n";
 }
 

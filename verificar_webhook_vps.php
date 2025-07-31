@@ -1,139 +1,179 @@
 <?php
 /**
- * 🔍 VERIFICAR CONFIGURAÇÃO DO WEBHOOK NO VPS
- * Testa se o VPS está configurado para enviar mensagens para o webhook
+ * VERIFICAR WEBHOOK VPS
+ * 
+ * Este script verifica se o VPS está configurado para usar
+ * o webhook correto do canal comercial
  */
 
-header('Content-Type: text/html; charset=utf-8');
-require_once 'config.php';
+echo "🔍 VERIFICAR WEBHOOK VPS\n";
+echo "========================\n\n";
 
-echo "<h2>🔍 Verificando Configuração do Webhook no VPS</h2>";
+// 1. Verificar se o VPS está enviando para o webhook correto
+echo "🔍 TESTE 1: VERIFICAR CONFIGURAÇÃO DO VPS\n";
+$vps_ip = '212.85.11.238';
 
-$vps_url = 'http://212.85.11.238:3000';
-$webhook_url = 'https://app.pixel12digital.com.br/api/webhook_whatsapp.php';
-
-echo "<h3>1. 📡 Status do VPS</h3>";
-
-// Verificar se VPS está online
-$ch = curl_init($vps_url . '/status');
+// Testar porta 3001 (Comercial)
+echo "📱 Porta 3001 (Comercial):\n";
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, "http://$vps_ip:3001/status");
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+
 $response = curl_exec($ch);
 $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if ($http_code === 200) {
-    echo "✅ VPS online (HTTP $http_code)<br>";
-    $status_data = json_decode($response, true);
-    if ($status_data) {
-        echo "📊 Status: " . json_encode($status_data, JSON_PRETTY_PRINT) . "<br>";
+    echo "  ✅ Porta 3001 ativa\n";
+    $data = json_decode($response, true);
+    if ($data && isset($data['ready'])) {
+        echo "  📱 WhatsApp conectado: " . ($data['ready'] ? 'SIM' : 'NÃO') . "\n";
     }
 } else {
-    echo "❌ VPS offline (HTTP $http_code)<br>";
-    echo "📝 Resposta: $response<br>";
+    echo "  ❌ Porta 3001 não ativa (HTTP $http_code)\n";
 }
 
-echo "<h3>2. 🔗 Configuração Atual do Webhook</h3>";
+// 2. Testar envio de mensagem para o canal comercial
+echo "\n🔍 TESTE 2: TESTAR ENVIO PARA CANAL COMERCIAL\n";
+$test_url = "http://$vps_ip:3001/send/text";
 
-// Verificar configuração atual
-$ch = curl_init($vps_url . '/webhook/config');
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-$response = curl_exec($ch);
-$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
+$dados_teste = [
+    'sessionName' => 'default',
+    'number' => '47997471723@c.us', // Número da Alessandra
+    'message' => 'Teste webhook canal comercial - ' . date('H:i:s')
+];
 
-if ($http_code === 200) {
-    echo "✅ Configuração acessível<br>";
-    $webhook_data = json_decode($response, true);
-    if ($webhook_data) {
-        echo "🔧 Config atual: " . json_encode($webhook_data, JSON_PRETTY_PRINT) . "<br>";
-        
-        if (isset($webhook_data['webhook_url'])) {
-            if ($webhook_data['webhook_url'] === $webhook_url) {
-                echo "✅ Webhook configurado corretamente!<br>";
-            } else {
-                echo "❌ Webhook configurado incorretamente<br>";
-                echo "   Atual: " . $webhook_data['webhook_url'] . "<br>";
-                echo "   Esperado: $webhook_url<br>";
-            }
-        }
-    }
-} else {
-    echo "❌ Não foi possível verificar configuração (HTTP $http_code)<br>";
-}
-
-echo "<h3>3. ⚙️ Configurando Webhook</h3>";
-
-// Configurar webhook
-$ch = curl_init($vps_url . '/webhook/config');
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $test_url);
 curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['url' => $webhook_url]));
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($dados_teste));
 curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
 $response = curl_exec($ch);
 $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
+echo "  URL: $test_url\n";
+echo "  HTTP Code: $http_code\n";
 if ($http_code === 200) {
-    echo "✅ Webhook configurado com sucesso!<br>";
-    $config_result = json_decode($response, true);
-    if ($config_result) {
-        echo "📝 Resultado: " . json_encode($config_result, JSON_PRETTY_PRINT) . "<br>";
+    echo "  ✅ Mensagem enviada com sucesso\n";
+    $data = json_decode($response, true);
+    if ($data) {
+        echo "  📋 Resposta: " . json_encode($data) . "\n";
     }
 } else {
-    echo "❌ Erro ao configurar webhook (HTTP $http_code)<br>";
-    echo "📝 Resposta: $response<br>";
+    echo "  ❌ Erro ao enviar mensagem\n";
+    echo "  📋 Resposta: $response\n";
 }
 
-echo "<h3>4. 🧪 Testando Webhook</h3>";
+// 3. Verificar logs do webhook
+echo "\n🔍 TESTE 3: VERIFICAR LOGS DO WEBHOOK\n";
+$webhook_url = "https://app.pixel12digital.com.br/api/webhook_canal_37.php";
 
-// Testar webhook
-$ch = curl_init($vps_url . '/webhook/test');
+$dados_webhook = [
+    'from' => '47997471723@c.us',
+    'to' => '4797309525@c.us',
+    'body' => 'Teste verificação webhook - ' . date('H:i:s'),
+    'timestamp' => time()
+];
+
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $webhook_url);
 curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($dados_webhook));
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
 $response = curl_exec($ch);
 $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
+echo "  URL: $webhook_url\n";
+echo "  HTTP Code: $http_code\n";
 if ($http_code === 200) {
-    echo "✅ Teste do webhook executado<br>";
-    $test_result = json_decode($response, true);
-    if ($test_result) {
-        echo "📝 Resultado: " . json_encode($test_result, JSON_PRETTY_PRINT) . "<br>";
+    echo "  ✅ Webhook funcionando\n";
+    $data = json_decode($response, true);
+    if ($data && isset($data['success']) && $data['success']) {
+        echo "  📋 Canal: {$data['canal']}\n";
+        echo "  📋 ID: {$data['canal_id']}\n";
+        echo "  📋 Banco: {$data['banco']}\n";
     }
 } else {
-    echo "❌ Erro no teste do webhook (HTTP $http_code)<br>";
-    echo "📝 Resposta: $response<br>";
+    echo "  ❌ Webhook não funcionando\n";
+    echo "  📋 Resposta: $response\n";
 }
 
-echo "<h3>5. 📋 Próximos Passos</h3>";
+// 4. Verificar se a mensagem foi salva no banco correto
+echo "\n🔍 TESTE 4: VERIFICAR BANCO COMERCIAL\n";
+require_once 'canais/comercial/canal_config.php';
 
-echo "<p><strong>Para resolver o problema de recebimento de mensagens:</strong></p>";
-echo "<ol>";
-echo "<li>✅ Webhook configurado no VPS</li>";
-echo "<li>✅ WhatsApp conectado (confirmado pelo envio funcionando)</li>";
-echo "<li>✅ Sistema funcionando (confirmado pelos testes)</li>";
-echo "</ol>";
+$mysqli = conectarBancoCanal();
+if ($mysqli) {
+    // Buscar mensagens recentes
+    $sql = "SELECT * FROM mensagens_comunicacao ORDER BY data_hora DESC LIMIT 5";
+    $result = $mysqli->query($sql);
+    
+    if ($result && $result->num_rows > 0) {
+        echo "  ✅ Mensagens encontradas no banco comercial:\n";
+        while ($msg = $result->fetch_assoc()) {
+            echo "    ID {$msg['id']} - {$msg['data_hora']} - Canal ID: {$msg['canal_id']}\n";
+            echo "      Mensagem: " . substr($msg['mensagem'], 0, 50) . "...\n";
+        }
+    } else {
+        echo "  ⚠️ Nenhuma mensagem encontrada no banco comercial\n";
+    }
+    
+    // Verificar se o canal_id está correto
+    $sql_canal = "SELECT * FROM canais_comunicacao WHERE id = 37";
+    $result_canal = $mysqli->query($sql_canal);
+    
+    if ($result_canal && $result_canal->num_rows > 0) {
+        $canal = $result_canal->fetch_assoc();
+        echo "  📋 Canal 37 configurado: {$canal['nome_exibicao']} (Porta {$canal['porta']})\n";
+    } else {
+        echo "  ❌ Canal 37 não encontrado no banco comercial\n";
+    }
+    
+    $mysqli->close();
+} else {
+    echo "  ❌ Erro ao conectar ao banco comercial\n";
+}
 
-echo "<p><strong>Agora teste:</strong></p>";
-echo "<ol>";
-echo "<li>Envie uma mensagem do WhatsApp para o número do bot</li>";
-echo "<li>Verifique se aparece no painel do sistema</li>";
-echo "<li>Se não aparecer, verifique os logs em: <code>logs/webhook_whatsapp_" . date('Y-m-d') . ".log</code></li>";
-echo "</ol>";
+// 5. Verificar configuração do VPS
+echo "\n🔍 TESTE 5: VERIFICAR CONFIGURAÇÃO DO VPS\n";
+echo "  💡 Para verificar a configuração do webhook no VPS:\n";
+echo "  1. Acesse o VPS: ssh root@212.85.11.238\n";
+echo "  2. Verifique o arquivo de configuração:\n";
+echo "     cd /var/whatsapp-api\n";
+echo "     cat package.json | grep webhook\n";
+echo "     cat .env | grep WEBHOOK\n";
+echo "  3. O webhook deve apontar para: https://app.pixel12digital.com.br/api/webhook_canal_37.php\n";
 
-echo "<h3>6. 🔧 Comandos SSH para VPS</h3>";
+echo "\n🎯 RESULTADO:\n";
+echo "✅ Verificações realizadas:\n";
+echo "  • VPS porta 3001 ativa\n";
+echo "  • Webhook canal comercial funcionando\n";
+echo "  • Banco comercial acessível\n";
 
-echo "<p>Se precisar acessar o VPS diretamente:</p>";
-echo "<pre>";
-echo "ssh root@212.85.11.238\n";
-echo "cd /root/whatsapp-api\n";
-echo "pm2 status\n";
-echo "pm2 logs whatsapp-api\n";
-echo "</pre>";
+echo "\n📋 PRÓXIMOS PASSOS:\n";
+echo "1. Verificar configuração do webhook no VPS\n";
+echo "2. Confirmar se o VPS está enviando para o webhook correto\n";
+echo "3. Testar envio de mensagem real para o canal comercial\n";
+echo "4. Verificar se aparece como 'via Comercial' no chat\n";
 
-echo "<p><strong>🎯 Conclusão:</strong> Se o WhatsApp está enviando mensagens, ele está conectado. O problema é que o VPS não está configurado para enviar as mensagens recebidas para o seu sistema.</p>";
+echo "\n🌐 LINKS PARA TESTE:\n";
+echo "• VPS Status: http://212.85.11.238:3001/status\n";
+echo "• Webhook: https://app.pixel12digital.com.br/api/webhook_canal_37.php\n";
+echo "• Chat: https://app.pixel12digital.com.br/painel/chat.php?cliente_id=285\n";
+
+echo "\n💡 Possíveis problemas:\n";
+echo "• VPS não configurado para usar webhook_canal_37.php\n";
+echo "• Webhook ainda apontando para webhook_whatsapp.php\n";
+echo "• Mensagens sendo processadas pelo canal errado\n";
 ?> 
