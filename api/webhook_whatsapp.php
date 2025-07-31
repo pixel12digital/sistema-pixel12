@@ -718,8 +718,7 @@ function gerarRespostaPadrao($cliente_id, $cliente) {
         $resposta .= "🤖 Este é um canal exclusivo da Pixel12Digital para cobranças automatizadas.\n\n";
         $resposta .= "💰 Para consultar suas faturas, digite: faturas\n\n";
         $resposta .= "📞 Para outros assuntos ou falar com nossa equipe:\n";
-        $resposta .= "Entre em contato diretamente: 47 997309525\n\n";
-        $resposta .= "Como posso ajudá-lo hoje? 😊";
+        $resposta .= "Entre em contato diretamente: 47 997309525";
         
         return $resposta;
     } else {
@@ -741,8 +740,7 @@ function gerarMensagemReforco() {
     $resposta = "🤖 Este é um canal exclusivo para cobranças automatizadas.\n\n";
     $resposta .= "💰 Para consultar faturas: digite \"faturas\"\n";
     $resposta .= "📞 Para outros assuntos: entre em contato diretamente com nossa equipe\n";
-    $resposta .= "📱 Telefone: 47 997309525\n\n";
-    $resposta .= "Nossa equipe está pronta para atendê-lo! 😊";
+    $resposta .= "📱 Telefone: 47 997309525";
     
     return $resposta;
 }
