@@ -3141,7 +3141,9 @@ function render_content() {
     // Mostrar loading
     canalSelector.innerHTML = '<option value="">Carregando canais...</option>';
     
-    fetch('api/listar_canais_whatsapp.php')
+    // Adicionar timestamp para evitar cache
+    const timestamp = new Date().getTime();
+    fetch(`api/listar_canais_whatsapp.php?t=${timestamp}`)
       .then(response => response.json())
       .then(data => {
         if (data.success && data.canais && data.canais.length > 0) {
