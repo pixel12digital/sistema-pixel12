@@ -372,8 +372,15 @@ function makeWhatsAppRequest(action, additionalData = {}) {
   const formData = new FormData();
   formData.append('action', action);
   
+  // CORREÇÃO: Adicionar porta se fornecida
+  if (additionalData.porta) {
+    formData.append('porta', additionalData.porta);
+  }
+  
   Object.keys(additionalData).forEach(key => {
-    formData.append(key, additionalData[key]);
+    if (key !== 'porta') { // Não duplicar porta
+      formData.append(key, additionalData[key]);
+    }
   });
   
   return fetch(AJAX_WHATSAPP_URL + '?_=' + Date.now(), {
@@ -387,38 +394,6 @@ function makeWhatsAppRequest(action, additionalData = {}) {
     return r.json();
   });
 }
-
-// Verificar se URL contém localhost (indicador de cache antigo)
-// if (WHATSAPP_API_URL.includes('localhost')) {
-//     console.error('❌ ERRO: URL ainda contém localhost! Cache não foi limpo.');
-    
-//     // Tentar forçar reload automático
-//     console.log('🔄 Tentando forçar limpeza de cache...');
-    
-//     // Limpar todos os tipos de cache possíveis
-//     if ('caches' in window) {
-//         caches.keys().then(function(cacheNames) {
-//             cacheNames.forEach(function(cacheName) {
-//                 caches.delete(cacheName);
-//             });
-//         });
-//     }
-    
-//     // Limpar storage
-//     try {
-//         localStorage.clear();
-//         sessionStorage.clear();
-//     } catch(e) {}
-    
-//     // Mostrar aviso e forçar reload
-//     setTimeout(function() {
-//         if (confirm('⚠️ CACHE DETECTADO: O sistema detectou cache antigo. Deseja forçar atualização? (Recomendado: SIM)')) {
-//             window.location.href = window.location.href + (window.location.href.includes('?') ? '&' : '?') + '_force_refresh=' + Date.now();
-//         }
-//     }, 1000);
-// } else {
-//     console.log('✅ URL correta da VPS detectada');
-// }
 
 function exibirErro(titulo, msg) {
   document.getElementById('modal-erro-titulo').textContent = titulo || 'Erro';
@@ -486,7 +461,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function atualizarStatus() {
       // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
-      makeWhatsAppRequest('status')
+      makeWhatsAppRequest('status', { porta: porta })
         .then(resp => {
           // DEBUG: Mostrar resposta completa
           debug('🟦 Resposta completa do status: ' + JSON.stringify(resp), 'info');
@@ -571,7 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (e.target.classList.contains('btn-desconectar-canal')) {
           // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
-          makeWhatsAppRequest('logout')
+          makeWhatsAppRequest('logout', { porta: porta })
             .then(resp => {
               if (resp.success) {
                 statusText.textContent = 'Desconectado';
@@ -670,7 +645,7 @@ document.addEventListener('DOMContentLoaded', function() {
       btnForcar.onclick = function() {
         debug('🆕 Usuário clicou em Forçar Novo QR', 'info');
         // Forçar nova geração de QR no VPS
-        makeWhatsAppRequest('logout')
+        makeWhatsAppRequest('logout', { porta: porta })
           .then(() => {
             debug('✅ Logout realizado, gerando novo QR...', 'success');
             setTimeout(() => exibirQrCode(porta), 1000);
@@ -695,7 +670,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Mostrar loading
     qrArea.innerHTML = '<div style="text-align:center;padding:20px;color:#666;"><div style="font-size:2rem;margin-bottom:10px;">⏳</div><div>Carregando QR Code...</div></div>';
     
-    makeWhatsAppRequest('qr')
+    makeWhatsAppRequest('qr', { porta: porta })
       .then(resp => {
         // Limpar área do QR Code
         while (qrArea.firstChild) qrArea.removeChild(qrArea.firstChild);
@@ -805,7 +780,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Ajuste: aceita qrInterval para garantir que sempre limpa ao conectar
   function checarStatus(porta, qrInterval) {
     // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
-    makeWhatsAppRequest('status')
+    makeWhatsAppRequest('status', { porta: porta })
       .then(resp => {
         // DEBUG: Mostrar resposta completa
         debug('🟦 Resposta completa do status: ' + JSON.stringify(resp), 'info');
@@ -1059,7 +1034,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const dataConexaoTd = document.querySelector('.canal-data-conexao[data-canal-id="' + canalId + '"]');
     statusText.textContent = 'Verificando...';
     td.className = 'canal-status-area status-verificando';
-    makeWhatsAppRequest('status')
+    
+    // CORREÇÃO: Passar a porta específica do canal
+    makeWhatsAppRequest('status', { porta: porta })
       .then(resp => {
         // DEBUG: Mostrar resposta completa
         debug('🟦 Resposta completa do status: ' + JSON.stringify(resp), 'info');
@@ -1238,7 +1215,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (e.target.classList.contains('btn-desconectar-canal')) {
         const porta = e.target.getAttribute('data-porta');
         // CORREÇÃO CORS: Usar proxy PHP ao invés de VPS direta
-        makeWhatsAppRequest('logout')
+        makeWhatsAppRequest('logout', { porta: porta })
           .then(resp => {
             if (resp.success) {
               alert('Robô desconectado com sucesso!');
@@ -1364,7 +1341,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Atualizar status dos canais após iniciar sessão
         setTimeout(() => {
-          debug('🔄 Atualizando status após iniciar sessão...', 'info');
+          debug('�� Atualizando status após iniciar sessão...', 'info');
           atualizarStatusCanais();
         }, 3000);
         

@@ -1,0 +1,48 @@
+🔧 COMANDOS PARA DESCONECTAR COMPLETAMENTE NA VPS
+================================================
+
+1. CONECTAR NA VPS:
+   ssh root@212.85.11.238
+
+2. PARAR E DELETAR O SERVIDOR COMERCIAL:
+   pm2 stop whatsapp-comercial
+   pm2 delete whatsapp-comercial
+
+3. LIMPAR TODAS AS SESSÕES E CACHE:
+   cd /var/whatsapp-api-comercial/whatsapp-api
+   rm -rf sessions/*
+   rm -rf .wwebjs_auth
+   rm -rf .wwebjs_cache
+   rm -rf tmp/*
+   rm -rf logs/*
+
+4. REINICIAR O SERVIDOR:
+   pm2 start whatsapp-api-server.js --name whatsapp-comercial
+
+5. VERIFICAR SE ESTÁ DESCONECTADO:
+   curl http://localhost:3001/status
+   curl http://localhost:3001/qr
+
+6. SE AINDA MOSTRAR CONECTADO, FORÇAR DESCONEXÃO:
+   curl -X POST http://localhost:3001/session/default/disconnect
+
+📋 COMANDOS RÁPIDOS (copie e cole):
+
+# Parar e deletar
+pm2 stop whatsapp-comercial
+pm2 delete whatsapp-comercial
+
+# Limpar tudo
+cd /var/whatsapp-api-comercial/whatsapp-api
+rm -rf sessions/*
+rm -rf .wwebjs_auth
+rm -rf .wwebjs_cache
+rm -rf tmp/*
+rm -rf logs/*
+
+# Reiniciar
+pm2 start whatsapp-api-server.js --name whatsapp-comercial
+
+# Verificar
+curl http://localhost:3001/status
+curl http://localhost:3001/qr 

@@ -266,32 +266,66 @@ try {
                 break;
             }
             
-            // CORREÇÃO: Usar o endpoint correto /send/text com formato correto
-            $endpoint = '/send/text';
-            $data = [
-                'sessionName' => 'default',
-                'number' => $to,
-                'message' => $message
+            // REVERTER: Usar a URL original que funcionava antes das mudanças
+            // Em vez de tentar usar endpoints que não existem, vamos usar a URL original
+            $original_vps_url = 'http://212.85.11.238:3000'; // URL original que funcionava
+            
+            // Tentar diferentes endpoints que podem existir na API original
+            $possible_endpoints = [
+                '/send',
+                '/message',
+                '/api/send',
+                '/api/message',
+                '/whatsapp/send',
+                '/whatsapp/message'
             ];
             
-            $result = makeVPSRequest($endpoint, 'POST', $data);
+            $success = false;
+            $last_error = '';
             
-            if ($result['success'] && $result['data']) {
-                echo json_encode([
-                    'success' => $result['data']['success'] ?? false,
-                    'messageId' => $result['data']['messageId'] ?? null,
-                    'message' => $result['data']['message'] ?? 'Mensagem enviada'
+            foreach ($possible_endpoints as $endpoint) {
+                $data = [
+                    'to' => $to,
+                    'message' => $message
+                ];
+                
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $original_vps_url . $endpoint);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json'
                 ]);
-            } else {
+                
+                $response = curl_exec($ch);
+                $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                
+                if ($http_code === 200) {
+                    $result_data = json_decode($response, true);
+                    if ($result_data && isset($result_data['success']) && $result_data['success']) {
+                        echo json_encode([
+                            'success' => true,
+                            'message' => 'Mensagem enviada com sucesso',
+                            'messageId' => $result_data['messageId'] ?? null,
+                            'endpoint_used' => $endpoint
+                        ]);
+                        $success = true;
+                        break;
+                    }
+                }
+                
+                $last_error = "HTTP $http_code: $response";
+            }
+            
+            if (!$success) {
                 echo json_encode([
                     'success' => false,
-                    'error' => $result['error'] ?: 'Erro ao enviar mensagem',
-                    'http_code' => $result['http_code'],
-                    'debug' => [
-                        'endpoint_used' => $endpoint,
-                        'data_sent' => $data,
-                        'raw_response' => $result['raw_response']
-                    ]
+                    'error' => 'Não foi possível enviar a mensagem. Endpoints testados: ' . implode(', ', $possible_endpoints),
+                    'last_error' => $last_error,
+                    'note' => 'Sistema pode precisar de configuração adicional para envio de mensagens'
                 ]);
             }
             break;

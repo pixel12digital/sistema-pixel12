@@ -1,0 +1,135 @@
+🔧 COMANDOS PARA EXECUTAR NA VPS - CANAL FINANCEIRO
+==================================================
+
+⚠️ IMPORTANTE: Execute estes comandos na VPS via SSH, não no Windows local!
+
+1. CONECTAR NA VPS:
+   ssh root@212.85.11.238
+
+2. NAVEGAR PARA O DIRETÓRIO:
+   cd /var/whatsapp-api
+
+3. VERIFICAR SE O ARQUIVO EXISTE:
+   ls -la whatsapp-api-server.js
+
+4. FAZER BACKUP:
+   cp whatsapp-api-server.js whatsapp-api-server.js.backup.$(date +%Y%m%d_%H%M%S)
+
+5. ADICIONAR O ENDPOINT /send:
+   cat >> whatsapp-api-server.js << 'EOF'
+
+// Endpoint para envio de mensagens WhatsApp
+app.post('/send', async (req, res) => {
+    try {
+        const { to, message } = req.body;
+        
+        // Validar parâmetros
+        if (!to || !message) {
+            return res.status(400).json({
+                success: false,
+                error: 'Parâmetros obrigatórios: to, message'
+            });
+        }
+        
+        console.log(`[SEND] Tentando enviar mensagem para ${to}: ${message}`);
+        
+        // Verificar se o cliente está conectado
+        const client = whatsappClients['default'];
+        if (!client || !clientStatus['default'] || clientStatus['default'].status !== 'connected') {
+            return res.status(503).json({
+                success: false,
+                error: 'WhatsApp não está conectado'
+            });
+        }
+        
+        // Formatar número
+        let formattedNumber = to;
+        if (!formattedNumber.includes('@')) {
+            formattedNumber = formattedNumber + '@c.us';
+        }
+        
+        // Enviar mensagem
+        const result = await client.sendMessage(formattedNumber, message);
+        
+        console.log(`[SEND] Mensagem enviada com sucesso. ID: ${result.id._serialized}`);
+        
+        res.json({
+            success: true,
+            messageId: result.id._serialized,
+            message: 'Mensagem enviada com sucesso'
+        });
+        
+    } catch (error) {
+        console.error('[SEND] Erro ao enviar mensagem:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Erro interno do servidor'
+        });
+    }
+});
+EOF
+
+6. VERIFICAR SE FOI ADICIONADO:
+   tail -20 whatsapp-api-server.js
+
+7. REINICIAR O SERVIDOR:
+   pm2 restart whatsapp-bot
+
+8. VERIFICAR STATUS:
+   pm2 status
+
+9. TESTAR O ENDPOINT:
+   curl -X POST http://localhost:3000/send \
+     -H 'Content-Type: application/json' \
+     -d '{"to":"554797146908","message":"Teste após correção"}'
+
+10. VERIFICAR LOGS:
+    pm2 logs whatsapp-bot --lines 10
+
+11. TESTAR STATUS GERAL:
+    curl -X GET http://localhost:3000/status
+
+ALTERNATIVA: USAR O SCRIPT AUTOMATIZADO
+=======================================
+
+Se preferir, você pode usar o script automatizado:
+
+1. Fazer upload do arquivo corrigir_canal_financeiro_vps.sh para a VPS
+2. Dar permissão de execução:
+   chmod +x corrigir_canal_financeiro_vps.sh
+
+3. Executar o script:
+   ./corrigir_canal_financeiro_vps.sh
+
+VERIFICAÇÃO PÓS-CORREÇÃO
+========================
+
+Após executar os comandos, execute no Windows local:
+
+php teste_final_canal_financeiro.php
+
+Isso irá verificar se tudo está funcionando corretamente.
+
+TROUBLESHOOTING
+===============
+
+Se algo der errado:
+
+1. Verificar se o arquivo existe:
+   ls -la /var/whatsapp-api/whatsapp-api-server.js
+
+2. Verificar se o PM2 está rodando:
+   pm2 status
+
+3. Verificar logs:
+   pm2 logs whatsapp-bot
+
+4. Restaurar backup se necessário:
+   cp whatsapp-api-server.js.backup.* whatsapp-api-server.js
+   pm2 restart whatsapp-bot
+
+5. Verificar se a porta 3000 está aberta:
+   netstat -tlnp | grep :3000
+
+6. Testar conectividade:
+   curl -X GET http://localhost:3000/status 

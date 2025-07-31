@@ -1,0 +1,103 @@
+🔧 COMANDOS PARA EXECUTAR NA VPS (PORTA 3001)
+==============================================
+
+📋 PASSO A PASSO:
+
+1. VERIFICAR CONFIGURAÇÃO ATUAL:
+   netstat -tulpn | grep :3000
+   ps aux | grep node
+   ls -la /var/whatsapp-api/
+
+2. CRIAR DIRETÓRIO PARA SERVIDOR COMERCIAL:
+   cp -r /var/whatsapp-api /var/whatsapp-api-comercial
+   cd /var/whatsapp-api-comercial
+
+3. CONFIGURAR PORTA 3001:
+   # Verificar arquivo de configuração
+   cat package.json | grep port
+   cat .env | grep PORT
+   
+   # Editar configuração (escolha um método):
+   
+   MÉTODO 1 - Editar package.json:
+   nano package.json
+   # Mude a porta de 3000 para 3001
+   
+   MÉTODO 2 - Usar sed:
+   sed -i 's/:3000/:3001/g' package.json
+   sed -i 's/port.*3000/port: 3001/g' package.json
+   
+   MÉTODO 3 - Usar variável de ambiente:
+   export PORT=3001
+
+4. INSTALAR PM2 (se não estiver instalado):
+   npm install -g pm2
+
+5. INICIAR SERVIDOR NA PORTA 3001:
+   pm2 start whatsapp-api-server.js --name whatsapp-comercial -- --port 3001
+
+6. VERIFICAR SE ESTÁ FUNCIONANDO:
+   curl http://localhost:3001/status
+   pm2 list
+   netstat -tulpn | grep :3001
+
+7. VER LOGS:
+   pm2 logs whatsapp-comercial
+
+📋 COMANDOS RÁPIDOS (copie e cole):
+
+# 1. Criar servidor comercial
+cp -r /var/whatsapp-api /var/whatsapp-api-comercial
+cd /var/whatsapp-api-comercial
+
+# 2. Configurar porta 3001
+sed -i 's/:3000/:3001/g' package.json
+sed -i 's/port.*3000/port: 3001/g' package.json
+
+# 3. Instalar PM2 (se necessário)
+npm install -g pm2
+
+# 4. Iniciar servidor
+pm2 start whatsapp-api-server.js --name whatsapp-comercial -- --port 3001
+
+# 5. Verificar
+curl http://localhost:3001/status
+pm2 list
+
+📋 COMANDOS DE GERENCIAMENTO:
+
+# Ver status
+pm2 list
+curl http://localhost:3001/status
+
+# Ver logs
+pm2 logs whatsapp-comercial
+
+# Parar servidor
+pm2 stop whatsapp-comercial
+
+# Reiniciar servidor
+pm2 restart whatsapp-comercial
+
+# Remover servidor
+pm2 delete whatsapp-comercial
+
+📋 TROUBLESHOOTING:
+
+# Se der erro de porta em uso:
+netstat -tulpn | grep :3001
+pkill -f "whatsapp-api-server.js.*3001"
+
+# Se der erro de permissão:
+chmod +x /var/whatsapp-api-comercial/whatsapp-api-server.js
+
+# Se der erro de dependências:
+cd /var/whatsapp-api-comercial
+npm install
+
+# Verificar se PM2 está funcionando:
+pm2 status
+pm2 startup
+
+✅ APÓS CONFIGURAR, EXECUTE LOCALMENTE:
+php monitor_continuo_comercial.php 
