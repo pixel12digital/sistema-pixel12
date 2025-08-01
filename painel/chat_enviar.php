@@ -163,7 +163,7 @@ try {
     file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - URL da API: $api_url\n", FILE_APPEND);
     
     $api_data = [
-        'sessionName' => 'default',
+        'sessionName' => ($porta_canal == 3001) ? 'comercial' : 'default',
         'number' => $numero,
         'message' => $mensagem
     ];
