@@ -436,12 +436,63 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     $texto_escaped = $mysqli->real_escape_string($texto);
     $tipo_escaped = $mysqli->real_escape_string($tipo);
     
-    $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status, numero_whatsapp) 
-            VALUES ($canal_id, " . ($cliente_id ? $cliente_id : 'NULL') . ", '$texto_escaped', '$tipo_escaped', '$data_hora', 'recebido', 'recebido', '$numero_escaped')";
+    // ===== IDENTIFICAÇÃO AUTOMÁTICA DO CANAL =====
+    $canal_id = null;
+    $canal_nome = null;
+    $numero_origem = null;
     
-    if ($mysqli->query($sql)) {
+    // Buscar todos os canais WhatsApp ativos
+    $canais_result = $mysqli->query("SELECT id, nome_exibicao, identificador FROM canais_comunicacao WHERE tipo = 'whatsapp' AND status <> 'excluido' ORDER BY id");
+    
+    if ($canais_result && $canais_result->num_rows > 0) {
+        while ($canal = $canais_result->fetch_assoc()) {
+            $identificador = $canal['identificador'];
+            
+            // Verificar se a mensagem veio deste canal específico
+            if ($identificador && strpos($numero, $identificador) !== false) {
+                $canal_id = $canal['id'];
+                $canal_nome = $canal['nome_exibicao'];
+                $numero_origem = $identificador;
+                error_log("[WEBHOOK WHATSAPP] 📡 Canal identificado: {$canal_nome} (ID: $canal_id) - Número: $identificador");
+                break;
+            }
+        }
+    }
+    
+    // Se não identificou canal específico, usar canal padrão baseado no número
+    if (!$canal_id) {
+        // Lógica para identificar canal baseado no número de destino
+        if (strpos($numero, '554797146908') !== false) {
+            $canal_id = 36; // Financeiro
+            $canal_nome = 'Financeiro';
+            $numero_origem = '554797146908@c.us';
+        } elseif (strpos($numero, '4797309525') !== false) {
+            $canal_id = 37; // Comercial
+            $canal_nome = 'Comercial - Pixel';
+            $numero_origem = '4797309525@c.us';
+        } else {
+            // Canal padrão (primeiro canal encontrado)
+            $canal_padrao = $mysqli->query("SELECT id, nome_exibicao FROM canais_comunicacao WHERE tipo = 'whatsapp' AND status <> 'excluido' ORDER BY id LIMIT 1");
+            if ($canal_padrao && $canal_padrao->num_rows > 0) {
+                $canal = $canal_padrao->fetch_assoc();
+                $canal_id = $canal['id'];
+                $canal_nome = $canal['nome_exibicao'];
+                $numero_origem = 'Canal Padrão';
+            }
+        }
+        
+        error_log("[WEBHOOK WHATSAPP] 📡 Usando canal padrão: {$canal_nome} (ID: $canal_id)");
+    }
+    
+    $sql = "INSERT INTO mensagens_comunicacao (cliente_id, mensagem, tipo, direcao, data_hora, status, numero_whatsapp, canal_id, canal_nome) 
+            VALUES (?, ?, ?, 'recebido', NOW(), 'nao_lido', ?, ?, ?)";
+    
+    $stmt = $mysqli->prepare($sql);
+    $stmt->bind_param('isssss', $cliente_id, $texto, $tipo, $numero, $canal_id, $canal_nome);
+    
+    if ($stmt->execute()) {
         $mensagem_id = $mysqli->insert_id;
-        error_log("[WEBHOOK WHATSAPP] ✅ Mensagem salva - ID: $mensagem_id, Cliente: $cliente_id, Número: $numero");
+        error_log("[WEBHOOK WHATSAPP] ✅ Mensagem salva - ID: $mensagem_id, Cliente: $cliente_id, Número: $numero, Canal: {$canal_nome}");
         
         // Invalidar cache se cliente existir
         if ($cliente_id) {
@@ -458,8 +509,10 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
             enviarNotificacaoPush($cliente_id, $numero, $texto, $mensagem_id, $tipo);
         }
     } else {
-        error_log("[WEBHOOK WHATSAPP] ❌ Erro ao salvar mensagem: " . $mysqli->error);
+        error_log("[WEBHOOK WHATSAPP] ❌ Erro ao salvar mensagem: " . $stmt->error);
     }
+    
+    $stmt->close();
     
     // Preparar resposta automática baseada na situação
     $resposta_automatica = '';
