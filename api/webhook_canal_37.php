@@ -128,31 +128,7 @@ try {
     logWebhook("   Número: $numero_whatsapp");
     logWebhook("   Canal ID: $canal_id");
     
-    // Verificar se a mensagem já existe (evitar duplicatas)
-    if ($message_id) {
-        $sql_check = "SELECT id FROM mensagens_comunicacao WHERE message_id = ? AND canal_id = ? LIMIT 1";
-        $stmt_check = $mysqli->prepare($sql_check);
-        $stmt_check->bind_param("si", $message_id, $canal_id);
-        $stmt_check->execute();
-        $result_check = $stmt_check->get_result();
-        
-        if ($result_check->num_rows > 0) {
-            logWebhook("⚠️ Mensagem já existe no banco (duplicata)");
-            $stmt_check->close();
-            $mysqli->close();
-            
-            echo json_encode([
-                'status' => 'ok',
-                'message' => 'Mensagem já processada',
-                'canal' => 'COMERCIAL',
-                'timestamp' => date('Y-m-d H:i:s')
-            ]);
-            exit();
-        }
-        $stmt_check->close();
-    }
-    
-    // Inserir mensagem no banco comercial
+    // Inserir mensagem no banco comercial (sem verificar duplicatas por enquanto)
     $sql = "INSERT INTO mensagens_comunicacao (
         canal_id, 
         numero_whatsapp, 
@@ -160,25 +136,27 @@ try {
         tipo, 
         data_hora, 
         direcao, 
-        message_id,
         status
-    ) VALUES (?, ?, ?, 'texto', ?, 'recebido', ?, 'recebido')";
+    ) VALUES (?, ?, ?, 'texto', ?, 'recebido', 'recebido')";
     
     $stmt = $mysqli->prepare($sql);
-    $stmt->bind_param("issss", $canal_id, $numero_whatsapp, $body, $data_hora, $message_id);
+    $stmt->bind_param("isss", $canal_id, $numero_whatsapp, $body, $data_hora);
     
     if ($stmt->execute()) {
         $mensagem_id = $mysqli->insert_id;
         logWebhook("✅ Mensagem salva com sucesso - ID: $mensagem_id");
         
-        // Atualizar contador de mensagens do canal
-        $sql_update = "UPDATE canais_comunicacao SET total_mensagens = total_mensagens + 1 WHERE id = ?";
-        $stmt_update = $mysqli->prepare($sql_update);
-        $stmt_update->bind_param("i", $canal_id);
-        $stmt_update->execute();
-        $stmt_update->close();
-        
-        logWebhook("✅ Contador do canal atualizado");
+        // Atualizar contador de mensagens do canal (se a tabela existir)
+        try {
+            $sql_update = "UPDATE canais_comunicacao SET total_mensagens = total_mensagens + 1 WHERE id = ?";
+            $stmt_update = $mysqli->prepare($sql_update);
+            $stmt_update->bind_param("i", $canal_id);
+            $stmt_update->execute();
+            $stmt_update->close();
+            logWebhook("✅ Contador do canal atualizado");
+        } catch (Exception $e) {
+            logWebhook("⚠️ Não foi possível atualizar contador: " . $e->getMessage());
+        }
         
         $stmt->close();
         $mysqli->close();
