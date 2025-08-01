@@ -377,16 +377,34 @@ function makeWhatsAppRequest(action, additionalData = {}) {
     formData.append('porta', additionalData.porta);
   }
   
+  // CORREÇÃO: Adicionar canal_id se fornecido para melhor isolamento
+  if (additionalData.canal_id) {
+    formData.append('canal_id', additionalData.canal_id);
+  }
+  
+  // CORREÇÃO: Adicionar timestamp único para evitar cache
+  if (additionalData.timestamp) {
+    formData.append('timestamp', additionalData.timestamp);
+  }
+  
   Object.keys(additionalData).forEach(key => {
-    if (key !== 'porta') { // Não duplicar porta
+    if (!['porta', 'canal_id', 'timestamp'].includes(key)) { // Não duplicar campos especiais
       formData.append(key, additionalData[key]);
     }
   });
   
-  return fetch(AJAX_WHATSAPP_URL + '?_=' + Date.now(), {
+  // CORREÇÃO: Adicionar timestamp único na URL para evitar cache
+  const uniqueTimestamp = Date.now() + Math.random();
+  
+  return fetch(AJAX_WHATSAPP_URL + '?_=' + uniqueTimestamp, {
     method: 'POST',
     body: formData,
-    cache: 'no-cache'
+    cache: 'no-cache',
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
   }).then(r => {
     if (!r.ok) {
       throw new Error(`HTTP ${r.status}: ${r.statusText}`);
@@ -480,15 +498,32 @@ document.addEventListener('DOMContentLoaded', function() {
           
           // CORREÇÃO: Priorizar o status do raw_response_preview sobre o campo ready
           const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status, realStatus];
-          const isConnected =
-            (realStatus && ['connected', 'already_connected', 'authenticated', 'ready'].includes(realStatus)) ||
-            resp.ready === true ||
-            statusList.includes('ready') ||
-            statusList.includes('connected') ||
-            statusList.includes('already_connected') ||
-            statusList.includes('authenticated');
           
-          debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, realStatus=${realStatus}, statusList=${JSON.stringify(statusList)})`, isConnected ? 'success' : 'warning');
+          // CORREÇÃO: Melhorar lógica de detecção de conexão (mesma lógica da função anterior)
+          let isConnected = false;
+          
+          // 1. Verificar status direto da resposta
+          if (resp.status && ['connected', 'ready', 'authenticated', 'already_connected'].includes(resp.status)) {
+            isConnected = true;
+          }
+          // 2. Verificar campo ready
+          else if (resp.ready === true) {
+            isConnected = true;
+          }
+          // 3. Verificar status extraído do raw_response_preview
+          else if (realStatus && ['connected', 'ready', 'authenticated', 'already_connected'].includes(realStatus)) {
+            isConnected = true;
+          }
+          // 4. Verificar se tem número (indica conexão)
+          else if (resp.number && resp.number.trim() !== '') {
+            isConnected = true;
+          }
+          // 5. Verificar status na lista
+          else if (statusList.some(status => ['ready', 'connected', 'already_connected', 'authenticated'].includes(status))) {
+            isConnected = true;
+          }
+          
+          debug(`🔍 Verificando status durante QR: ready=${resp.ready}, status=${resp.status}, realStatus=${realStatus}, number=${resp.number}, statusList=${JSON.stringify(statusList)}`);
           
           if (isConnected) {
             statusText.textContent = 'Conectado';
@@ -688,13 +723,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // FECHAR MODAL SE JÁ ESTIVER CONECTADO (CORREÇÃO)
-        const isAlreadyConnected = 
-          (realStatus && ['connected', 'already_connected', 'authenticated', 'ready'].includes(realStatus)) ||
-          resp.status === 'connected' ||
-          resp.status === 'already_connected' ||
-          resp.status === 'authenticated' ||
-          resp.status === 'ready' ||
-          resp.ready === true;
+        let isAlreadyConnected = false;
+        
+        // 1. Verificar status direto da resposta
+        if (resp.status && ['connected', 'ready', 'authenticated', 'already_connected'].includes(resp.status)) {
+          isAlreadyConnected = true;
+        }
+        // 2. Verificar campo ready
+        else if (resp.ready === true) {
+          isAlreadyConnected = true;
+        }
+        // 3. Verificar status extraído do raw_response_preview
+        else if (realStatus && ['connected', 'ready', 'authenticated', 'already_connected'].includes(realStatus)) {
+          isAlreadyConnected = true;
+        }
+        // 4. Verificar se tem número (indica conexão)
+        else if (resp.number && resp.number.trim() !== '') {
+          isAlreadyConnected = true;
+        }
+        // 5. Verificar status na lista
+        else if (statusList.some(status => ['ready', 'connected', 'already_connected', 'authenticated'].includes(status))) {
+          isAlreadyConnected = true;
+        }
 
         if (isAlreadyConnected) {
           debug('🎉 WhatsApp já está conectado! Fechando modal QR.', 'success');
@@ -1008,12 +1058,19 @@ document.addEventListener('DOMContentLoaded', function() {
         debug(`📡 Teste de conexão: ${data.success ? 'OK' : 'FALHOU'}`, data.success ? 'success' : 'error');
         
         if (data.success) {
-          // Se conexão OK, atualizar status individual de cada canal
-          document.querySelectorAll('.canal-status-area').forEach(function(td) {
+          // CORREÇÃO: Atualizar status individual de cada canal com delay para evitar sincronização
+          const canais = document.querySelectorAll('.canal-status-area');
+          debug(`🔍 Encontrados ${canais.length} canais para atualizar`, 'info');
+          
+          canais.forEach(function(td, index) {
             const canalId = td.getAttribute('data-canal-id');
             const porta = td.getAttribute('data-porta');
-            debug(`🔍 Atualizando canal ${canalId} na porta ${porta}...`, 'info');
-            atualizarStatusIndividual(td, canalId, porta);
+            
+            // CORREÇÃO: Adicionar delay progressivo para evitar sincronização
+            setTimeout(() => {
+              debug(`🔍 Atualizando canal ${canalId} na porta ${porta} (${index + 1}/${canais.length})...`, 'info');
+              atualizarStatusIndividual(td, canalId, porta);
+            }, index * 1000); // 1 segundo de delay entre cada canal
           });
         } else {
           debug('❌ Teste de conexão falhou, exibindo todos como desconectados', 'error');
@@ -1032,14 +1089,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // CORREÇÃO: Remover aspas duplas extras no seletor
     const acoesArea = document.querySelector('.acoes-btn-area[data-canal-id="' + canalId + '"]');
     const dataConexaoTd = document.querySelector('.canal-data-conexao[data-canal-id="' + canalId + '"]');
+    
+    // CORREÇÃO: Marcar como verificando apenas este canal específico
     statusText.textContent = 'Verificando...';
     td.className = 'canal-status-area status-verificando';
     
-    // CORREÇÃO: Passar a porta específica do canal
-    makeWhatsAppRequest('status', { porta: porta })
+    debug(`🔍 Iniciando verificação individual do canal ${canalId} na porta ${porta}`, 'info');
+    
+    // CORREÇÃO: Passar a porta específica do canal e adicionar timestamp único
+    const requestData = { 
+      porta: porta,
+      canal_id: canalId,
+      timestamp: Date.now() // Adicionar timestamp único para evitar cache
+    };
+    
+    makeWhatsAppRequest('status', requestData)
       .then(resp => {
-        // DEBUG: Mostrar resposta completa
-        debug('🟦 Resposta completa do status: ' + JSON.stringify(resp), 'info');
+        // DEBUG: Mostrar resposta completa apenas para este canal
+        debug(`🟦 Canal ${canalId} (porta ${porta}) - Resposta: ${JSON.stringify(resp)}`, 'info');
         
         // CORREÇÃO: Extrair status do raw_response_preview se existir
         let realStatus = null;
@@ -1047,9 +1114,9 @@ document.addEventListener('DOMContentLoaded', function() {
           try {
             const parsedResponse = JSON.parse(resp.debug.raw_response_preview);
             realStatus = parsedResponse.status?.status || parsedResponse.status;
-            debug('🔍 Status extraído do raw_response_preview: ' + realStatus, 'info');
+            debug(`🔍 Canal ${canalId}: Status extraído do raw_response_preview: ${realStatus}`, 'info');
           } catch (e) {
-            debug('❌ Erro ao fazer parse do raw_response_preview: ' + e.message, 'error');
+            debug(`❌ Canal ${canalId}: Erro ao fazer parse do raw_response_preview: ${e.message}`, 'error');
           }
         }
         
@@ -1063,8 +1130,9 @@ document.addEventListener('DOMContentLoaded', function() {
           statusList.includes('already_connected') ||
           statusList.includes('authenticated');
         
-        debug(`📱 Canal ${canalId}: ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, realStatus=${realStatus}, statusList=${JSON.stringify(statusList)})`, isConnected ? 'success' : 'warning');
+        debug(`📱 Canal ${canalId} (porta ${porta}): ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, realStatus=${realStatus}, statusList=${JSON.stringify(statusList)})`, isConnected ? 'success' : 'warning');
         
+        // CORREÇÃO: Atualizar apenas este canal específico
         if (isConnected) {
           statusText.textContent = 'Conectado';
           td.classList.remove('status-verificando');
@@ -1077,7 +1145,7 @@ document.addEventListener('DOMContentLoaded', function() {
           } else {
             dataConexaoTd.textContent = '-';
           }
-          debug('✅ Botão alterado para "Desconectar" no canal ' + canalId, 'success');
+          debug(`✅ Canal ${canalId} (porta ${porta}): Botão alterado para "Desconectar"`, 'success');
           
           // CORREÇÃO: Fechar notificação automaticamente quando conectado
           fecharNotificacaoDesconectados();
@@ -1088,13 +1156,13 @@ document.addEventListener('DOMContentLoaded', function() {
           td.classList.add('status-pendente');
           if (acoesArea) acoesArea.innerHTML = '<button class="btn-ac btn-conectar btn-conectar-canal" data-porta="' + porta + '">Conectar</button>';
           dataConexaoTd.textContent = '-';
-          debug('❌ Botão alterado para "Conectar" no canal ' + canalId, 'warning');
+          debug(`❌ Canal ${canalId} (porta ${porta}): Botão alterado para "Conectar"`, 'warning');
         }
         
-        debug('✅ Status do canal ' + canalId + ' atualizado para ' + (isConnected ? 'CONECTADO' : 'DESCONECTADO'), 'success');
+        debug(`✅ Status do canal ${canalId} (porta ${porta}) atualizado para ${isConnected ? 'CONECTADO' : 'DESCONECTADO'}`, 'success');
       })
       .catch(err => {
-        debug('❌ Erro ao atualizar status individual: ' + err.message, 'error');
+        debug(`❌ Erro ao atualizar status individual do canal ${canalId} (porta ${porta}): ${err.message}`, 'error');
         statusText.textContent = 'Erro';
         td.classList.remove('status-verificando');
         td.classList.remove('status-conectado');

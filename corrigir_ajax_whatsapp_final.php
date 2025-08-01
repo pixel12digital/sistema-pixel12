@@ -19,10 +19,10 @@ try {
     
     $action = $_GET['action'] ?? $_POST['action'] ?? '';
     $canal_id = $_GET['canal_id'] ?? $_POST['canal_id'] ?? null;
-    $porta = $_GET['porta'] ?? $_POST['porta'] ?? null;
     
-    // CORREÇÃO: Determinar a porta baseada no canal_id OU no parâmetro porta
-    if (!$porta && $canal_id) {
+    // Determinar a porta baseada no canal_id
+    $porta = '3000'; // Padrão porta 3000 (financeiro)
+    if ($canal_id) {
         // Buscar a porta do canal no banco de dados
         require_once 'db.php';
         $sql = "SELECT porta FROM canais_comunicacao WHERE id = ? AND tipo = 'whatsapp'";
@@ -38,11 +38,6 @@ try {
             }
         }
         $stmt->close();
-    }
-    
-    // CORREÇÃO: Se ainda não tem porta, usar padrão
-    if (!$porta) {
-        $porta = '3000'; // Padrão porta 3000 (financeiro)
     }
     
     // CORREÇÃO: Usar URL baseada na porta
@@ -75,68 +70,35 @@ try {
     
     switch ($action) {
         case 'status':
-            // CORREÇÃO: Consultar diretamente a sessão específica baseada na porta
+            // CORREÇÃO: Consultar diretamente a sessão específica
             $sessionName = 'default'; // Padrão para porta 3000
             if ($porta == '3001' || $porta == 3001) {
                 $sessionName = 'comercial'; // Para porta 3001
             }
-            
-            // Log adicional para debug
-            error_log("[WhatsApp Status Debug] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
             
             // Consultar status da sessão específica
             $endpoint = "/session/{$sessionName}/status";
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $vps_url . $endpoint);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10); // Aumentar timeout para 10 segundos
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // Timeout de conexão de 5 segundos
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curl_error = curl_error($ch);
             curl_close($ch);
             
-            // Log da resposta para debug
-            error_log("[WhatsApp Status Response] HTTP Code: $http_code, Response: $response, Curl Error: $curl_error");
-            
-            if ($http_code == 200 && !empty($response)) {
+            if ($http_code == 200) {
                 $data = json_decode($response, true);
                 
                 if ($data && isset($data['status']['status'])) {
                     $vps_status = $data['status']['status'];
-                    
-                    // CORREÇÃO: Melhorar lógica de detecção de conexão
-                    $is_ready = false;
-                    $status_message = 'Desconectado';
-                    
-                    // Verificar múltiplos status possíveis
-                    if (in_array($vps_status, ['connected', 'ready', 'authenticated', 'already_connected'])) {
-                        $is_ready = true;
-                        $status_message = 'Conectado';
-                    } elseif ($vps_status === 'connecting') {
-                        $is_ready = false;
-                        $status_message = 'Conectando...';
-                    } elseif ($vps_status === 'disconnected' || $vps_status === 'not_found') {
-                        $is_ready = false;
-                        $status_message = 'Desconectado';
-                    } else {
-                        // Status desconhecido, verificar se tem número (indica conexão)
-                        if (isset($data['status']['number']) && !empty($data['status']['number'])) {
-                            $is_ready = true;
-                            $status_message = 'Conectado (por número)';
-                        } else {
-                            $is_ready = false;
-                            $status_message = 'Status desconhecido: ' . $vps_status;
-                        }
-                    }
+                    $is_ready = ($vps_status === 'connected');
                     
                     echo json_encode([
                         'ready' => $is_ready,
-                        'status' => $vps_status, // Adicionar status original
                         'number' => $data['status']['number'] ?? null,
                         'lastSession' => date('c'),
                         'sessions' => 1,
-                        'message' => $status_message,
+                        'message' => $data['status']['message'] ?? 'Status da sessão',
                         'clients_status' => [
                             $sessionName => $data['status']
                         ],
@@ -152,74 +114,54 @@ try {
                             'porta_used' => $porta,
                             'canal_id_received' => $canal_id,
                             'endpoint_used' => $endpoint,
-                            'raw_response_preview' => substr($response, 0, 500),
                             'status_mapping' => [
                                 'vps_connected' => $vps_status === 'connected',
                                 'vps_ready' => $vps_status === 'ready',
                                 'vps_authenticated' => $vps_status === 'authenticated',
-                                'vps_already_connected' => $vps_status === 'already_connected',
-                                'vps_connecting' => $vps_status === 'connecting',
-                                'vps_disconnected' => $vps_status === 'disconnected',
-                                'vps_not_found' => $vps_status === 'not_found',
-                                'frontend_ready' => $is_ready,
-                                'has_number' => isset($data['status']['number']) && !empty($data['status']['number'])
+                                'frontend_ready' => $is_ready
                             ]
                         ]
                     ]);
                 } else {
-                    // Sessão não existe ou erro no parse
+                    // Sessão não existe ou erro
                     echo json_encode([
                         'ready' => false,
-                        'status' => 'not_found',
                         'number' => null,
                         'lastSession' => null,
                         'sessions' => 0,
-                        'message' => 'Sessão não encontrada ou erro no parse',
+                        'message' => 'Sessão não encontrada',
                         'clients_status' => [],
                         'performance' => [
                             'latency_ms' => 0,
                             'optimized' => true
                         ],
                         'debug' => [
-                            'vps_status' => 'not_found',
+                            'vps_status' => 'disconnected',
                             'vps_status_parsed' => 'disconnected',
                             'http_code' => $http_code,
                             'session_checked' => $sessionName,
                             'porta_used' => $porta,
                             'canal_id_received' => $canal_id,
                             'endpoint_used' => $endpoint,
-                            'raw_response_preview' => substr($response, 0, 500),
-                            'parse_error' => json_last_error_msg(),
-                            'response_structure' => $data ? array_keys($data) : 'null'
+                            'raw_response' => $response
                         ]
                     ]);
                 }
             } else {
-                // Erro de conexão ou resposta vazia
-                $error_message = 'VPS não respondeu';
-                if (!empty($curl_error)) {
-                    $error_message = 'Erro de conexão: ' . $curl_error;
-                } elseif (empty($response)) {
-                    $error_message = 'Resposta vazia do VPS';
-                }
-                
                 echo json_encode([
                     'ready' => false,
-                    'status' => 'error',
-                    'error' => $error_message,
+                    'error' => 'VPS não respondeu',
                     'http_code' => $http_code,
                     'performance' => [
                         'latency_ms' => 0,
-                        'timeout_used' => '10s'
+                        'timeout_used' => '5s'
                     ],
                     'debug' => [
                         'endpoint' => $endpoint,
                         'full_url' => $vps_url . $endpoint,
                         'session_checked' => $sessionName,
                         'porta_used' => $porta,
-                        'canal_id_received' => $canal_id,
-                        'curl_error' => $curl_error,
-                        'response_length' => strlen($response)
+                        'canal_id_received' => $canal_id
                     ]
                 ]);
             }
@@ -232,9 +174,6 @@ try {
                 $sessionName = 'comercial'; // Para porta 3001
             }
             
-            // Log adicional para debug
-            error_log("[WhatsApp QR Debug] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
-            
             $qr_endpoint = "/qr?session={$sessionName}";
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $vps_url . $qr_endpoint);
@@ -243,9 +182,6 @@ try {
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-            
-            // Log da resposta para debug
-            error_log("[WhatsApp QR Response] HTTP Code: $http_code, Response: $response");
             
             if ($http_code == 200) {
                 $data = json_decode($response, true);
@@ -260,8 +196,7 @@ try {
                     'debug' => [
                         'session_used' => $sessionName,
                         'porta_used' => $porta,
-                        'canal_id_received' => $canal_id,
-                        'endpoint_used' => $qr_endpoint
+                        'canal_id_received' => $canal_id
                     ]
                 ]);
             } else {
@@ -286,9 +221,6 @@ try {
                 $sessionName = 'comercial'; // Para porta 3001
             }
             
-            // Log adicional para debug
-            error_log("[WhatsApp Logout Debug] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
-            
             $endpoint = "/session/{$sessionName}/disconnect";
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $vps_url . $endpoint);
@@ -299,9 +231,6 @@ try {
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             
-            // Log da resposta para debug
-            error_log("[WhatsApp Logout Response] HTTP Code: $http_code, Response: $response");
-            
             if ($http_code == 200) {
                 echo json_encode([
                     'success' => true,
@@ -310,8 +239,7 @@ try {
                     'debug' => [
                         'session_used' => $sessionName,
                         'porta_used' => $porta,
-                        'canal_id_received' => $canal_id,
-                        'endpoint_used' => $endpoint
+                        'canal_id_received' => $canal_id
                     ]
                 ]);
             } else {
@@ -325,48 +253,6 @@ try {
                         'session_used' => $sessionName,
                         'porta_used' => $porta,
                         'canal_id_received' => $canal_id
-                    ]
-                ]);
-            }
-            break;
-        
-        case 'test_connection':
-            // Testar conectividade com o VPS
-            $test_endpoint = "/status";
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $vps_url . $test_endpoint);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
-            $response = curl_exec($ch);
-            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curl_error = curl_error($ch);
-            curl_close($ch);
-            
-            // Log para debug
-            error_log("[WhatsApp Test Connection] VPS URL: $vps_url, HTTP Code: $http_code, Response: $response, Curl Error: $curl_error");
-            
-            if ($http_code == 200 && !empty($response)) {
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'VPS conectado e funcionando',
-                    'http_code' => $http_code,
-                    'debug' => [
-                        'vps_url' => $vps_url,
-                        'endpoint_tested' => $test_endpoint,
-                        'response_preview' => substr($response, 0, 200)
-                    ]
-                ]);
-            } else {
-                echo json_encode([
-                    'success' => false,
-                    'error' => 'VPS não respondeu',
-                    'http_code' => $http_code,
-                    'curl_error' => $curl_error,
-                    'debug' => [
-                        'vps_url' => $vps_url,
-                        'endpoint_tested' => $test_endpoint,
-                        'response_length' => strlen($response)
                     ]
                 ]);
             }
