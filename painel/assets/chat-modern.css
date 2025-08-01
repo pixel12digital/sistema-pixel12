@@ -1342,3 +1342,32 @@ body {
     padding: 0.1rem 0.3rem;
   }
 } 
+
+/* Estilos para o nome do canal nas mensagens */
+.message-canal {
+  display: inline-block !important;
+  font-size: 0.75rem !important;
+  color: #6b7280 !important;
+  margin-left: 5px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  background: rgba(107, 114, 128, 0.1) !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+}
+
+.message.received .message-canal {
+  display: inline-block !important;
+}
+
+.message.sent .message-canal {
+  display: none !important;
+}
+
+/* Garantir que o elemento seja visível */
+.message-time .message-canal {
+  display: inline-block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+} 

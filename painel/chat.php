@@ -222,6 +222,11 @@ function render_content() {
                       <?php endif; ?>
                     </span>
                   <?php endif; ?>
+                  <?php if ($msg['direcao'] === 'recebido' && !empty($msg['canal_nome'])): ?>
+                    <span class="message-canal" style="display: inline-block !important; font-size: 0.75rem !important; color: #6b7280 !important; margin-left: 5px !important; background: rgba(107, 114, 128, 0.1) !important; padding: 2px 6px !important; border-radius: 4px !important; font-weight: 500 !important; opacity: 1 !important; visibility: visible !important;">
+                      📱 <?= htmlspecialchars($msg['canal_nome']) ?>
+                    </span>
+                  <?php endif; ?>
                 </div>
               </div>
             </div>
