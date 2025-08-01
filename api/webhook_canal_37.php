@@ -91,11 +91,11 @@ if (!$from || !$body) {
     exit();
 }
 
-// Configuração do banco comercial
-$db_host = 'localhost';
-$db_user = 'u342734079_revendaweb';
-$db_pass = 'SUA_SENHA_AQUI'; // Substitua pela senha correta
-$db_name = 'pixel12digital_comercial';
+// Configuração do banco comercial (Hostinger)
+$db_host = 'srv1607.hstgr.io';
+$db_user = 'u342734079_wts_com_pixel';
+$db_pass = 'Los@ngo#081081';
+$db_name = 'u342734079_wts_com_pixel';
 
 try {
     // Conectar ao banco comercial
