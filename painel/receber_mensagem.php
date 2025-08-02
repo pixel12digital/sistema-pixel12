@@ -59,7 +59,7 @@ try {
         // 1.1. SALVAR MENSAGEM RECEBIDA (compatível com sistema anterior)
         $data_hora = date('Y-m-d H:i:s', $timestamp);
         $sql_mensagem = "INSERT INTO mensagens_comunicacao 
-                         (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status) 
+                         (canal_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, status) 
                          VALUES (?, ?, ?, 'texto', ?, 'recebido', 'nao_lido')";
         
         $stmt = $mysqli->prepare($sql_mensagem);
@@ -81,7 +81,7 @@ try {
             
             // 1.3. SALVAR RESPOSTA DA ANA
             $sql_resposta = "INSERT INTO mensagens_comunicacao 
-                             (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status) 
+                             (canal_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, status) 
                              VALUES (?, ?, ?, 'texto', NOW(), 'enviado', 'entregue')";
             
             $stmt = $mysqli->prepare($sql_resposta);
@@ -149,7 +149,7 @@ try {
             $resposta_fallback = "Olá! Sou a Ana da Pixel12Digital. No momento estou com uma instabilidade, mas em breve retorno. Para urgências, contate 47 97309525. 😊";
             
             $sql_fallback = "INSERT INTO mensagens_comunicacao 
-                             (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status) 
+                             (canal_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, status) 
                              VALUES (?, ?, ?, 'texto', NOW(), 'enviado', 'entregue')";
             
             $stmt = $mysqli->prepare($sql_fallback);
@@ -184,7 +184,7 @@ try {
             // Lógica básica de fallback
             $data_hora = date('Y-m-d H:i:s', $timestamp);
             $sql_mensagem = "INSERT INTO mensagens_comunicacao 
-                             (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status) 
+                             (canal_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, status) 
                              VALUES (?, ?, ?, 'texto', ?, 'recebido', 'recebido')";
             
             $stmt = $mysqli->prepare($sql_mensagem);
