@@ -14,7 +14,7 @@ header('Content-Type: application/json');
 class IntegradorAnaLocal {
     
     private $mysqli_loja;
-    private $ana_api_url = 'https://agentes.pixel12digital.com.br/ai-agents/api/chat/agent_chat.php';
+    private $ana_api_url = 'https://agentes.pixel12digital.com.br/api/chat/agent_chat.php'; // URL CORRIGIDA
     private $ana_agent_id = '3';
     
     public function __construct($mysqli_loja) {
@@ -112,7 +112,12 @@ class IntegradorAnaLocal {
             if ($http_code === 200 && $response) {
                 $data = json_decode($response, true);
                 
-                if (isset($data['success']) && $data['success'] && !empty($data['response'])) {
+                // FORMATO CORRETO DA ANA: {"status": "ok", "response": "..."}
+                if (isset($data['status']) && $data['status'] === 'ok' && !empty($data['response'])) {
+                    return ['success' => true, 'response' => $data['response']];
+                }
+                // Fallback para formato antigo
+                elseif (isset($data['success']) && $data['success'] && !empty($data['response'])) {
                     return ['success' => true, 'response' => $data['response']];
                 }
             }
@@ -434,9 +439,11 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_NAME'] ?? '')) {
             'status' => 'ativo',
             'tipo' => 'integração_http',
             'ana_agent_id' => '3',
-            'versao' => '2.0 - Integração HTTP Ana + Sistema',
+            'ana_api_url' => 'https://agentes.pixel12digital.com.br/api/chat/agent_chat.php', // URL CORRIGIDA
+            'versao' => '2.1 - URL Corrigida Ana + Sistema',
             'vantagens' => [
-                'Usa sistema Ana que funciona',
+                'Usa URL correta da Ana que funciona',
+                'Formato de resposta corrigido',
                 'Transferências automáticas',
                 'Fallbacks inteligentes',
                 'Controle total do sistema'
