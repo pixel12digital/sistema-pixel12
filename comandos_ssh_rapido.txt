@@ -1,0 +1,38 @@
+# 🚀 COMANDOS SSH DIRETOS - CONFIGURAÇÃO RÁPIDA (CONFORME README)
+
+# 1. CONECTAR NA VPS
+ssh root@212.85.11.238
+
+# 2. VERIFICAR STATUS ATUAL (conforme README)
+curl -s http://127.0.0.1:3000/status | jq .
+curl -s http://127.0.0.1:3000/webhook/status
+
+# 3. CONFIGURAR WEBHOOK ORIGINAL (PRIMEIRO - conforme README)
+curl -X POST http://127.0.0.1:3000/webhook/config \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://app.pixel12digital.com.br/painel/receber_mensagem_ana_local.php"}'
+
+# 4. SE A PRIMEIRA FALHAR, TENTE ESTA ALTERNATIVA
+curl -X POST http://127.0.0.1:3000/webhook/config \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://app.pixel12digital.com.br/webhook.php"}'
+
+# 5. VERIFICAR SE CONFIGUROU
+curl -s http://127.0.0.1:3000/webhook/status
+
+# 6. TESTAR WEBHOOK (conforme README)
+curl -X POST http://127.0.0.1:3000/webhook/test
+
+# 7. TESTE FINAL DE ENVIO
+curl -X POST http://127.0.0.1:3000/send/text \
+  -H "Content-Type: application/json" \
+  -d '{"sessionName":"default","number":"5547999999999","message":"🎉 Ana configurada via SSH!"}'
+
+# 8. MONITORAR (conforme README)
+pm2 logs whatsapp-3000 --lines 10
+
+# ✅ PRONTO! Teste enviando "olá" via WhatsApp
+
+# 📊 MONITORAMENTO ADICIONAL:
+# - Dashboard: https://app.pixel12digital.com.br/painel/gestao_transferencias.php
+# - Logs: tail -f /var/www/html/loja-virtual-revenda/painel/logs/webhook_debug.log 

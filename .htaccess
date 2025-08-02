@@ -1,6 +1,11 @@
 RewriteEngine On
 RewriteBase /
 
+# 🚨 EXCEÇÃO PARA WEBHOOK ANA - PRIORIDADE MÁXIMA
+RewriteRule ^webhook\.php$ webhook.php [L]
+RewriteRule ^webhook$ webhook.php [L]
+RewriteRule ^webhook_ana\.php$ webhook.php [L]
+
 # Se o recurso não existir como arquivo ou diretório, envie para index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
