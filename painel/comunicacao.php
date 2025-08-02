@@ -1213,8 +1213,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return r.json();
       })
-      .then(statusList => {
-        debug(`✅ Status original recebido: ${statusList.length} canais`, 'success');
+      .then(statusResponse => {
+        debug(`✅ Status original recebido: ${JSON.stringify(statusResponse)}`, 'success');
+        
+        // CORREÇÃO: A API retorna {canais: [...]} não um array direto
+        const statusList = statusResponse.canais || [];
         
         let desconectados = 0;
         let conectados = 0;
@@ -1224,7 +1227,11 @@ document.addEventListener('DOMContentLoaded', function() {
           if (!td) return;
           const statusText = td.querySelector('.status-text');
           const btnArea = document.querySelector('.acoes-btn-area[data-canal-id="' + st.id + '"]');
-          if (st.conectado) {
+          
+          // CORREÇÃO: Verificar tanto st.conectado quanto st.status
+          const isConnected = st.conectado === true || st.status === 'conectado';
+          
+          if (isConnected) {
             td.classList.remove('status-verificando');
             td.classList.add('status-conectado');
             td.classList.remove('status-pendente');

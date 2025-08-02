@@ -64,9 +64,15 @@ foreach ($canais as $canal) {
                     $isConnected = true;
                 }
                 
-                // 3. Verificar clients_status
+                // 3. Verificar clients_status (CORRIGIR PARA INCLUIR SESSAO COMERCIAL)
                 if (isset($json['clients_status']['default']['status']) && 
                     in_array($json['clients_status']['default']['status'], ['connected', 'already_connected', 'authenticated', 'ready'])) {
+                    $isConnected = true;
+                }
+                
+                // 4. CORREÇÃO: Verificar sessão comercial específica para canal 3001
+                if ($porta === 3001 && isset($json['clients_status']['comercial']['status']) && 
+                    in_array($json['clients_status']['comercial']['status'], ['connected', 'already_connected', 'authenticated', 'ready'])) {
                     $isConnected = true;
                 }
                 
