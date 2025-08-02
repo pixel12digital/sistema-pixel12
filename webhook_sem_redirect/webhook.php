@@ -187,6 +187,35 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
                     if ($mysqli->query($sql_resposta)) {
                         $resposta_id = $mysqli->insert_id;
                         error_log("[WEBHOOK_REDIRECT_ANA] ✅ Resposta Ana salva - ID: $resposta_id");
+                        
+                        // 🚀 ENVIAR RESPOSTA DA ANA PARA O WHATSAPP
+                        $api_url = WHATSAPP_ROBOT_URL . "/send/text";
+                        $data_envio = [
+                            "number" => $numero,
+                            "message" => $resposta_ana
+                        ];
+                        
+                        error_log("[WEBHOOK_REDIRECT_ANA] 📤 Enviando resposta Ana via WhatsApp...");
+                        
+                        $ch = curl_init($api_url);
+                        curl_setopt($ch, CURLOPT_POST, true);
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data_envio));
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                        
+                        $response_whats = curl_exec($ch);
+                        $curl_error = curl_error($ch);
+                        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        curl_close($ch);
+                        
+                        if ($curl_error) {
+                            error_log("[WEBHOOK_REDIRECT_ANA] ❌ Erro ao enviar via WhatsApp: $curl_error");
+                        } else {
+                            error_log("[WEBHOOK_REDIRECT_ANA] ✅ Resposta Ana enviada via WhatsApp - HTTP: $http_code");
+                        }
+                    } else {
+                        error_log("[WEBHOOK_REDIRECT_ANA] ❌ Erro ao salvar resposta Ana: " . $mysqli->error);
                     }
                     
                     // Ana processou localmente, resposta será enviada automaticamente
