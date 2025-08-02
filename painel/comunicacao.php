@@ -1,14 +1,17 @@
+<!-- Cache busting: 2025-08-01 16:21:07 -->
 <?php
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // Força limpeza de cache com headers ainda mais agressivos
-header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0');
+header('Cache-Control: no-cache, no-store, must-revalidate, max-age=0, private');
 header('Pragma: no-cache');
 header('Expires: 0');
 header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 header('ETag: "' . md5(time()) . '"');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
 
 $page = 'comunicacao.php';
 $page_title = 'Comunicação - Gerenciar Canais';
@@ -357,7 +360,7 @@ function render_content() {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 // ===== CONFIGURAÇÃO CORS-FREE (SEM CHAMADAS DIRETAS À VPS) =====
-const AJAX_WHATSAPP_URL = 'ajax_whatsapp.php';
+const AJAX_WHATSAPP_URL = 'http://localhost:8080/loja-virtual-revenda/painel/ajax_whatsapp.php?v=' + Date.now();
 const CACHE_BUSTER = '<?= time() . '_' . rand(1000, 9999) ?>';
 
 // DEBUG EXTENSIVO
@@ -721,6 +724,9 @@ document.addEventListener('DOMContentLoaded', function() {
             debug('❌ Erro ao fazer parse do raw_response_preview: ' + e.message, 'error');
           }
         }
+
+        // CORREÇÃO: Definir statusList antes de usá-la
+        const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status, realStatus];
 
         // FECHAR MODAL SE JÁ ESTIVER CONECTADO (CORREÇÃO)
         let isAlreadyConnected = false;

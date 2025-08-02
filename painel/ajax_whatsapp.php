@@ -46,10 +46,16 @@ try {
     }
     
     // CORREÇÃO: Usar URL baseada na porta
-    if ($porta == '3001' || $porta == 3001) {
-        $vps_url = 'http://212.85.11.238:3001'; // Canal comercial
+    // FORÇAR USO DA VPS 3001 QUE ESTÁ FUNCIONANDO
+    $vps_url = 'http://212.85.11.238:3001'; // Sempre usar comercial (funcionando)
+    
+    // CORREÇÃO: Usar sessão correta baseada na porta
+    if ($porta == '3000' || $porta == 3000) {
+        $vps_url = 'http://212.85.11.238:3000'; // VPS 3000 para porta 3000
+        $sessionName = 'default'; // Sessão default para porta 3000
     } else {
-        $vps_url = WHATSAPP_ROBOT_URL; // Canal financeiro (padrão)
+        $vps_url = 'http://212.85.11.238:3001'; // VPS 3001 para porta 3001
+        $sessionName = 'comercial'; // Sessão comercial para porta 3001
     }
     
     // Log debug para depuração
@@ -75,17 +81,12 @@ try {
     
     switch ($action) {
         case 'status':
-            // CORREÇÃO: Consultar diretamente a sessão específica baseada na porta
-            $sessionName = 'default'; // Padrão para porta 3000
-            if ($porta == '3001' || $porta == 3001) {
-                $sessionName = 'comercial'; // Para porta 3001
-            }
-            
+            // CORREÇÃO: Usar endpoint geral /status em vez de /session/:sessionName/status
             // Log adicional para debug
             error_log("[WhatsApp Status Debug] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
             
-            // Consultar status da sessão específica
-            $endpoint = "/session/{$sessionName}/status";
+            // Consultar status geral (contém todas as sessões)
+            $endpoint = "/status";
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $vps_url . $endpoint);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -101,16 +102,25 @@ try {
             
             if ($http_code == 200) {
                 $data = json_decode($response, true);
+                
+                // Extrair status da sessão específica do response geral
+                $sessionStatus = null;
+                if (isset($data['clients_status'][$sessionName])) {
+                    $sessionStatus = $data['clients_status'][$sessionName];
+                }
+                
                 echo json_encode([
                     'success' => true,
-                    'status' => $data['status'] ?? 'unknown',
-                    'message' => $data['message'] ?? 'Status obtido com sucesso',
+                    'status' => $sessionStatus ? $sessionStatus['status'] : 'not_found',
+                    'message' => $sessionStatus ? $sessionStatus['message'] : 'Sessão não encontrada',
                     'session' => $sessionName,
+                    'raw_response_preview' => json_encode($sessionStatus), // Para debug no frontend
                     'debug' => [
                         'session_used' => $sessionName,
                         'porta_used' => $porta,
                         'canal_id_received' => $canal_id,
-                        'endpoint_used' => $endpoint
+                        'endpoint_used' => $endpoint,
+                        'available_sessions' => array_keys($data['clients_status'] ?? [])
                     ]
                 ]);
             } else {
@@ -132,18 +142,18 @@ try {
         
         case 'qr':
             // Determinar a sessão baseada na porta
-            $sessionName = 'default'; // Padrão para porta 3000
-            if ($porta == '3001' || $porta == 3001) {
-                $sessionName = 'comercial'; // Para porta 3001
-            }
+            // $sessionName = 'default'; // Padrão para porta 3000
+            // if ($porta == '3001' || $porta == 3001) {
+            //     $sessionName = 'comercial'; // Para porta 3001
+            // }
             
             // Log adicional para debug
             error_log("[WhatsApp QR Debug] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
             
-            // CORREÇÃO: Usar endpoint de status geral em vez de QR específico
-            $status_endpoint = "/status";
+            // CORREÇÃO: Usar endpoint /qr com query parameter session
+            $qr_endpoint = "/qr?session=" . urlencode($sessionName);
             $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $vps_url . $status_endpoint);
+            curl_setopt($ch, CURLOPT_URL, $vps_url . $qr_endpoint);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 5);
             $response = curl_exec($ch);
@@ -156,24 +166,41 @@ try {
             if ($http_code == 200) {
                 $data = json_decode($response, true);
                 
-                // Extrair QR do status geral
+                // VALIDAÇÃO E FALLBACK: Garantir que o QR não comece com "undefined"
                 $qr = null;
-                $message = 'QR Code não disponível';
-                
-                if (isset($data['qr']) && !empty($data['qr'])) {
-                    // QR disponível no status geral
+                if (!empty($data['qr']) && !str_starts_with($data['qr'], 'undefined')) {
                     $qr = $data['qr'];
-                    $message = 'QR Code disponível';
-                } elseif (isset($data['clients_status'][$sessionName]['qr']) && !empty($data['clients_status'][$sessionName]['qr'])) {
-                    // QR disponível na sessão específica
+                } elseif (!empty($data['clients_status'][$sessionName]['qr']) && !str_starts_with($data['clients_status'][$sessionName]['qr'], 'undefined')) {
                     $qr = $data['clients_status'][$sessionName]['qr'];
-                    $message = $data['clients_status'][$sessionName]['message'] ?? 'QR Code disponível';
+                }
+                
+                // Se ainda não tem QR válido, tentar endpoint /status como fallback
+                if (empty($qr)) {
+                    error_log("[WhatsApp QR Fallback] Tentando endpoint /status como fallback");
+                    $status_endpoint = "/status";
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $vps_url . $status_endpoint);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    $status_response = curl_exec($ch);
+                    $status_http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    if ($status_http_code == 200) {
+                        $status_data = json_decode($status_response, true);
+                        if (!empty($status_data['clients_status'][$sessionName]['qr']) && !str_starts_with($status_data['clients_status'][$sessionName]['qr'], 'undefined')) {
+                            $qr = $status_data['clients_status'][$sessionName]['qr'];
+                            error_log("[WhatsApp QR Fallback] QR obtido via /status: " . substr($qr, 0, 50) . "...");
+                        }
+                    }
                 }
                 
                 echo json_encode([
                     'success' => !empty($qr),
                     'qr' => $qr,
-                    'message' => $message,
+                    'message' => !empty($qr) ? 'QR Code disponível para escaneamento' : 'QR Code não disponível ou inválido',
+                    'ready' => $data['ready'] ?? false,
+                    'status' => $data['status'] ?? 'unknown',
                     'expires_in' => 60,
                     'performance' => [
                         'latency_ms' => 0
@@ -182,18 +209,19 @@ try {
                         'session_used' => $sessionName,
                         'porta_used' => $porta,
                         'canal_id_received' => $canal_id,
-                        'endpoint_used' => $status_endpoint,
-                        'qr_found_in_status' => isset($data['qr']),
-                        'qr_found_in_session' => isset($data['clients_status'][$sessionName]['qr'])
+                        'endpoint_used' => $qr_endpoint,
+                        'qr_valid' => !empty($qr),
+                        'qr_length' => $qr ? strlen($qr) : 0,
+                        'raw_response_preview' => json_encode($data)
                     ]
                 ]);
             } else {
                 echo json_encode([
                     'success' => false,
-                    'error' => 'Erro ao obter status do WhatsApp',
+                    'error' => 'Erro ao obter QR Code do WhatsApp',
                     'http_code' => $http_code,
                     'debug' => [
-                        'endpoint' => $status_endpoint,
+                        'endpoint' => $qr_endpoint,
                         'session_used' => $sessionName,
                         'porta_used' => $porta,
                         'canal_id_received' => $canal_id
@@ -204,10 +232,10 @@ try {
         
         case 'logout':
             // Determinar a sessão baseada na porta
-            $sessionName = 'default'; // Padrão para porta 3000
-            if ($porta == '3001' || $porta == 3001) {
-                $sessionName = 'comercial'; // Para porta 3001
-            }
+            // $sessionName = 'default'; // Padrão para porta 3000
+            // if ($porta == '3001' || $porta == 3001) {
+            //     $sessionName = 'comercial'; // Para porta 3001
+            // }
             
             // Log adicional para debug
             error_log("[WhatsApp Logout Debug] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
@@ -267,10 +295,10 @@ try {
             }
             
             // Determinar a sessão baseada na porta
-            $sessionName = 'default'; // Padrão para porta 3000
-            if ($porta == '3001' || $porta == 3001) {
-                $sessionName = 'comercial'; // Para porta 3001
-            }
+            // $sessionName = 'default'; // Padrão para porta 3000
+            // if ($porta == '3001' || $porta == 3001) {
+            //     $sessionName = 'comercial'; // Para porta 3001
+            // }
             
             $endpoint = "/send/text";
             $post_data = [

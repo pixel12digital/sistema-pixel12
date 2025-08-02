@@ -1,1 +1,0 @@
-{"event":"PAYMENT_RECEIVED","payment":{"id":"pay_demo_cliente","status":"RECEIVED","value":150.00,"customer":"cus_cliente123","paymentDate":"2025-07-22","description":"Demonstração de pagamento"}}
