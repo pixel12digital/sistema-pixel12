@@ -151,6 +151,59 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     
     // Resposta automática simples
     if ($texto) {
+        // 🚀 INTEGRAÇÃO COM ANA - REDIRECIONAR PARA SISTEMA NOVO
+        // Se for canal 3000 (Pixel12Digital), usar Ana ao invés de resposta automática
+        
+        $canal_ana = $mysqli->query("SELECT porta FROM canais_comunicacao WHERE id = $canal_id")->fetch_assoc();
+        
+        if ($canal_ana && intval($canal_ana['porta']) === 3000) {
+            // CANAL 3000 - REDIRECIONAR PARA ANA
+            error_log("[WEBHOOK_REDIRECT_ANA] Canal 3000 detectado - Redirecionando para Ana");
+            
+            // Preparar dados para Ana (formato esperado pelo receber_mensagem.php)
+            $dados_ana = [
+                'from' => $numero,
+                'body' => $texto,
+                'timestamp' => time()
+            ];
+            
+            // Chamar sistema Ana internamente
+            try {
+                $ch = curl_init('https://app.pixel12digital.com.br/painel/receber_mensagem.php');
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($dados_ana));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                
+                $response = curl_exec($ch);
+                $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $curl_error = curl_error($ch);
+                curl_close($ch);
+                
+                if ($curl_error) {
+                    error_log("[WEBHOOK_REDIRECT_ANA] ❌ Erro cURL: " . $curl_error);
+                } elseif ($http_code === 200) {
+                    error_log("[WEBHOOK_REDIRECT_ANA] ✅ Ana processou com sucesso");
+                    
+                    // Ana já enviou resposta, não precisamos enviar mais nada
+                    echo json_encode([
+                        'success' => true, 
+                        'message' => 'Processado via Ana',
+                        'source' => 'webhook_redirect_ana'
+                    ]);
+                    exit;
+                } else {
+                    error_log("[WEBHOOK_REDIRECT_ANA] ❌ Erro na Ana (HTTP $http_code) - Resposta: " . $response);
+                }
+                
+            } catch (Exception $e) {
+                error_log("[WEBHOOK_REDIRECT_ANA] ❌ Erro ao chamar Ana: " . $e->getMessage());
+            }
+        }
+        
+        // OUTROS CANAIS OU FALLBACK - USAR RESPOSTA AUTOMÁTICA ORIGINAL
         $resposta = "Olá! Sua mensagem foi recebida. Em breve entraremos em contato.";
         
         // Usar URL do WhatsApp configurada
@@ -169,29 +222,19 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data_envio));
         curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, WHATSAPP_TIMEOUT);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
         
-        $api_response = curl_exec($ch);
+        $response = curl_exec($ch);
+        $curl_error = curl_error($ch);
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         
-        if ($http_code === 200) {
-            $api_result = json_decode($api_response, true);
-            if ($api_result && isset($api_result["success"]) && $api_result["success"]) {
-                if (DEBUG_MODE) {
-                    error_log("[WEBHOOK SEM REDIRECT {$ambiente}] ✅ Resposta automática enviada");
-                }
-                
-                // Salvar resposta enviada
-                $resposta_escaped = $mysqli->real_escape_string($resposta);
-                $sql_resposta = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) 
-                                VALUES ($canal_id, " . ($cliente_id ? $cliente_id : "NULL") . ", \"$resposta_escaped\", \"texto\", \"$data_hora\", \"enviado\", \"enviado\")";
-                $mysqli->query($sql_resposta);
-            } else {
-                error_log("[WEBHOOK SEM REDIRECT {$ambiente}] ❌ Erro ao enviar resposta: " . $api_response);
-            }
+        if ($curl_error) {
+            error_log("[WEBHOOK SEM REDIRECT {$ambiente}] ❌ Erro cURL: $curl_error");
         } else {
-            error_log("[WEBHOOK SEM REDIRECT {$ambiente}] ❌ Erro HTTP ao enviar resposta: $http_code");
+            if (DEBUG_MODE) {
+                error_log("[WEBHOOK SEM REDIRECT {$ambiente}] ✅ Resposta enviada - HTTP: $http_code - Response: $response");
+            }
         }
     }
 }
