@@ -121,26 +121,64 @@ try {
     // Canal ID fixo para comercial
     $canal_id = 37;
     
+    // CORREÇÃO: Buscar ou criar cliente no banco comercial
+    $cliente_id = null;
+    $numero_limpo = preg_replace('/\D/', '', $numero_whatsapp);
+    
+    logWebhook("🔍 Buscando cliente para número: $numero_limpo");
+    
+    // Tentar encontrar cliente existente
+    $sql_cliente = "SELECT id, nome FROM clientes WHERE celular LIKE '%$numero_limpo%' OR telefone LIKE '%$numero_limpo%' LIMIT 1";
+    $result_cliente = $mysqli->query($sql_cliente);
+    
+    if ($result_cliente && $result_cliente->num_rows > 0) {
+        $cliente = $result_cliente->fetch_assoc();
+        $cliente_id = $cliente['id'];
+        logWebhook("✅ Cliente encontrado: {$cliente['nome']} (ID: $cliente_id)");
+    } else {
+        // Criar cliente automaticamente no banco comercial
+        logWebhook("🆕 Cliente não encontrado, criando novo...");
+        
+        $nome_cliente = "Cliente WhatsApp Comercial (" . $numero_limpo . ")";
+        $data_criacao = date("Y-m-d H:i:s");
+        
+        $sql_criar = "INSERT INTO clientes (nome, celular, data_criacao, data_atualizacao) 
+                      VALUES (?, ?, ?, ?)";
+        
+        $stmt_criar = $mysqli->prepare($sql_criar);
+        $stmt_criar->bind_param('ssss', $nome_cliente, $numero_limpo, $data_criacao, $data_criacao);
+        
+        if ($stmt_criar->execute()) {
+            $cliente_id = $mysqli->insert_id;
+            logWebhook("✅ Cliente criado automaticamente - ID: $cliente_id");
+        } else {
+            logWebhook("❌ Erro ao criar cliente: " . $stmt_criar->error);
+        }
+        $stmt_criar->close();
+    }
+    
     logWebhook("📊 Dados processados:");
     logWebhook("   From: $from");
     logWebhook("   To: $to");
     logWebhook("   Body: " . substr($body, 0, 100));
     logWebhook("   Número: $numero_whatsapp");
+    logWebhook("   Cliente ID: $cliente_id");
     logWebhook("   Canal ID: $canal_id");
     
-    // Inserir mensagem no banco comercial (sem verificar duplicatas por enquanto)
+    // Inserir mensagem no banco comercial COM cliente_id
     $sql = "INSERT INTO mensagens_comunicacao (
         canal_id, 
+        cliente_id,
         numero_whatsapp, 
         mensagem, 
         tipo, 
         data_hora, 
         direcao, 
         status
-    ) VALUES (?, ?, ?, 'texto', ?, 'recebido', 'recebido')";
+    ) VALUES (?, ?, ?, ?, 'texto', ?, 'recebido', 'recebido')";
     
     $stmt = $mysqli->prepare($sql);
-    $stmt->bind_param("isss", $canal_id, $numero_whatsapp, $body, $data_hora);
+    $stmt->bind_param("iisss", $canal_id, $cliente_id, $numero_whatsapp, $body, $data_hora);
     
     if ($stmt->execute()) {
         $mensagem_id = $mysqli->insert_id;
@@ -166,6 +204,10 @@ try {
             'ambiente' => 'PRODUÇÃO',
             'canal' => 'COMERCIAL',
             'mensagem_id' => $mensagem_id,
+            'cliente_id' => $cliente_id,
+            'numero_limpo' => $numero_limpo,
+            'numero_whatsapp' => $numero_whatsapp,
+            'debug_cliente_encontrado' => $cliente_id ? 'SIM' : 'NÃO',
             'timestamp' => date('Y-m-d H:i:s'),
             'webhook_url' => 'https://app.pixel12digital.com.br/api/webhook_canal_37.php'
         ]);

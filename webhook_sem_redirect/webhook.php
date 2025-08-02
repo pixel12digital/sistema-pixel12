@@ -104,12 +104,25 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
         }
     }
 
-    // Buscar canal WhatsApp padrão
-    $canal_id = 1; // Canal padrão
-    $canal_result = $mysqli->query("SELECT id FROM canais_comunicacao WHERE tipo = 'whatsapp' LIMIT 1");
-    if ($canal_result && $canal_result->num_rows > 0) {
-        $canal = $canal_result->fetch_assoc();
-        $canal_id = $canal['id'];
+    // Identificar canal baseado na sessão
+    $canal_id = 36; // Padrão: Financeiro (3000)
+    $canal_nome = 'Financeiro';
+    
+    // Verificar se há informação da sessão para identificar o canal
+    $session_name = $message['session'] ?? 'default';
+    
+    if ($session_name === 'comercial') {
+        // Canal Comercial (3001)
+        $canal_id = 37;
+        $canal_nome = 'Comercial - Pixel';
+    } else {
+        // Canal Financeiro (3000) - padrão
+        $canal_id = 36;
+        $canal_nome = 'Financeiro';
+    }
+    
+    if (DEBUG_MODE) {
+        error_log("[WEBHOOK SEM REDIRECT {$ambiente}] Canal identificado: $canal_nome (ID: $canal_id) - Sessão: $session_name");
     }
     
     // Salvar mensagem recebida
