@@ -3,6 +3,47 @@
  * Sistema de invalidação de cache centralizado
  */
 
+class CacheInvalidator {
+    
+    /**
+     * Invalida cache quando nova mensagem é recebida
+     */
+    public function onNewMessage($canal_id, $cliente_numero = null) {
+        if ($cliente_numero) {
+            invalidate_message_cache($cliente_numero);
+        }
+        
+        // Invalidar caches do canal
+        if (function_exists('cache_forget')) {
+            cache_forget("canal_mensagens_{$canal_id}");
+            cache_forget("conversas_recentes");
+        }
+        
+        error_log("[CACHE_INVALIDATOR] Cache invalidado para nova mensagem - Canal: $canal_id");
+    }
+    
+    /**
+     * Invalida cache quando cliente é atualizado
+     */
+    public function onClientUpdate($cliente_id) {
+        invalidate_client_cache($cliente_id);
+    }
+    
+    /**
+     * Invalida cache de conversas
+     */
+    public function onConversationUpdate() {
+        invalidate_conversations_cache();
+    }
+    
+    /**
+     * Limpa todos os caches
+     */
+    public function clearAll() {
+        clear_all_cache();
+    }
+}
+
 /**
  * Invalida cache de mensagens de um cliente específico
  */
