@@ -2,34 +2,23 @@
 /**
  * 🔗 INTEGRADOR ANA LOCAL - PIXEL12DIGITAL
  * 
- * Conecta com o sistema de agentes localmente (sem HTTP)
- * Muito mais eficiente e fácil de gerenciar
+ * Conecta com Ana via HTTP de forma eficiente
+ * Corrigido para usar o sistema que funciona
  */
 
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../db.php';
 
-// Incluir sistema de agentes local
-require_once __DIR__ . '/../../agentes/config/database.php';
-require_once __DIR__ . '/../../agentes/api/ai/openai_client.php';
-
 header('Content-Type: application/json');
 
 class IntegradorAnaLocal {
     
-    private $mysqli_loja;      // Banco da loja
-    private $pdo_agentes;      // Banco dos agentes (PDO)
+    private $mysqli_loja;
+    private $ana_api_url = 'https://agentes.pixel12digital.com.br/ai-agents/api/chat/agent_chat.php';
     private $ana_agent_id = '3';
     
     public function __construct($mysqli_loja) {
         $this->mysqli_loja = $mysqli_loja;
-        
-        // Conectar com banco dos agentes
-        global $pdo;
-        if (!$pdo) {
-            throw new Exception('Erro ao conectar com banco de agentes');
-        }
-        $this->pdo_agentes = $pdo;
     }
     
     /**
@@ -53,13 +42,13 @@ class IntegradorAnaLocal {
             
             $resultado['debug'][] = "Mensagem recebida: " . substr($mensagem, 0, 50);
             
-            // 2. Chamar Ana LOCALMENTE
-            $resposta_ana = $this->chamarAnaLocal($mensagem);
+            // 2. Chamar Ana via HTTP
+            $resposta_ana = $this->chamarAnaHTTP($mensagem);
             
             if ($resposta_ana['success']) {
                 $resultado['success'] = true;
                 $resultado['resposta_ana'] = $resposta_ana['response'];
-                $resultado['debug'][] = "Ana local respondeu com sucesso";
+                $resultado['debug'][] = "Ana respondeu com sucesso";
                 
                 // 3. Analisar resposta da Ana para detectar ações especiais
                 $analise = $this->analisarRespostaAna($resposta_ana['response'], $mensagem);
@@ -96,34 +85,41 @@ class IntegradorAnaLocal {
     }
     
     /**
-     * Chamar Ana usando sistema local (sem HTTP)
+     * Chamar Ana via HTTP
      */
-    private function chamarAnaLocal($mensagem) {
+    private function chamarAnaHTTP($mensagem) {
         try {
-            // 1. Buscar dados da Ana no banco de agentes (incluindo use_custom_prompt)
-            $stmt = $this->pdo_agentes->prepare("SELECT * FROM agents WHERE id = ? AND status = 'ativo'");
-            $stmt->execute([$this->ana_agent_id]);
-            $agent = $stmt->fetch(PDO::FETCH_ASSOC);
+            $payload = json_encode([
+                'question' => $mensagem,
+                'agent_id' => $this->ana_agent_id
+            ]);
             
-            if (!$agent) {
-                return ['success' => false, 'error' => 'Ana não encontrada ou inativa'];
+            $ch = curl_init($this->ana_api_url);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($payload)
+            ]);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            
+            $response = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($http_code === 200 && $response) {
+                $data = json_decode($response, true);
+                
+                if (isset($data['success']) && $data['success'] && !empty($data['response'])) {
+                    return ['success' => true, 'response' => $data['response']];
+                }
             }
             
-            // 2. Garantir que use_custom_prompt está definido
-            if (!isset($agent['use_custom_prompt'])) {
-                $agent['use_custom_prompt'] = '1'; // Forçar uso do prompt personalizado
-            }
-            
-            // 3. Usar cliente OpenAI diretamente
-            $openai_client = new OpenAIClient();
-            
-            // 4. Gerar resposta (sem salvar no banco de agentes - só processar)
-            $response = $openai_client->generateResponse($mensagem, $agent, []);
-            
-            return ['success' => true, 'response' => $response];
+            return ['success' => false, 'error' => "HTTP $http_code - " . substr($response, 0, 100)];
             
         } catch (Exception $e) {
-            error_log("[INTEGRADOR_LOCAL] Erro ao chamar Ana: " . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
@@ -195,10 +191,14 @@ class IntegradorAnaLocal {
         switch ($analise['acao']) {
             case 'transfer_rafael':
                 $this->registrarTransferenciaRafael($numero, $mensagem);
+                // NOVO: Executar transferência automaticamente
+                $this->executarTransferenciaImediata('rafael', $numero);
                 break;
                 
             case 'transfer_humano':
                 $this->registrarTransferenciaHumano($numero, $mensagem, $analise['departamento']);
+                // NOVO: Executar transferência automaticamente
+                $this->executarTransferenciaImediata('humano', $numero);
                 break;
                 
             case 'departamento_identificado':
@@ -262,13 +262,51 @@ class IntegradorAnaLocal {
      * Fallback usando roteador local
      */
     private function fallbackRoteadorLocal($mensagem) {
-        require_once __DIR__ . '/roteador_departamentos.php';
+        // Resposta simples de fallback
+        $palavras_chave = [
+            'site' => 'Para desenvolvimento de sites, vou transferir você para nosso especialista Rafael.',
+            'financeiro' => 'Para questões financeiras, entre em contato: 47 97309525',
+            'suporte' => 'Para suporte técnico, entre em contato: 47 97309525',
+            'comercial' => 'Para questões comerciais, entre em contato: 47 97309525',
+            'problema' => 'Para problemas técnicos, entre em contato: 47 97309525'
+        ];
         
-        $roteador = new RoteadorDepartamentos($this->mysqli_loja);
-        $resultado = $roteador->processarMensagem(['body' => $mensagem, 'from' => 'fallback']);
+        $mensagem_lower = strtolower($mensagem);
         
-        return $resultado['resposta_sugerida'] ?? 
-               "Olá! Sou a Ana da Pixel12Digital. Como posso ajudá-lo hoje? 😊";
+        foreach ($palavras_chave as $palavra => $resposta) {
+            if (strpos($mensagem_lower, $palavra) !== false) {
+                return $resposta;
+            }
+        }
+        
+        return "Olá! Sou a Ana da Pixel12Digital. Como posso ajudá-lo hoje? 😊";
+    }
+
+    /**
+     * NOVO: Executar transferência imediatamente
+     */
+    private function executarTransferenciaImediata($tipo, $numero_cliente) {
+        try {
+            error_log("[INTEGRADOR_LOCAL] Executando transferência imediata - Tipo: $tipo, Cliente: $numero_cliente");
+            
+            // Chamar executor de transferências
+            require_once __DIR__ . '/executar_transferencias.php';
+            
+            $executor = new ExecutorTransferencias($this->mysqli_loja);
+            $resultado = $executor->processarTransferenciasPendentes();
+            
+            if ($resultado['success']) {
+                error_log("[INTEGRADOR_LOCAL] Transferência executada com sucesso");
+                return true;
+            } else {
+                error_log("[INTEGRADOR_LOCAL] Erro na execução da transferência: " . json_encode($resultado['erros']));
+                return false;
+            }
+            
+        } catch (Exception $e) {
+            error_log("[INTEGRADOR_LOCAL] Erro ao executar transferência: " . $e->getMessage());
+            return false;
+        }
     }
 }
 
@@ -294,13 +332,13 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_NAME'] ?? '')) {
         echo json_encode([
             'success' => true,
             'status' => 'ativo',
-            'tipo' => 'integração_local',
+            'tipo' => 'integração_http',
             'ana_agent_id' => '3',
-            'versao' => '2.0 - Integração Local Ana + Sistema',
+            'versao' => '2.0 - Integração HTTP Ana + Sistema',
             'vantagens' => [
-                'Sem chamadas HTTP externas',
-                'Muito mais rápido',
-                'Fácil de gerenciar',
+                'Usa sistema Ana que funciona',
+                'Transferências automáticas',
+                'Fallbacks inteligentes',
                 'Controle total do sistema'
             ]
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

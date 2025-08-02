@@ -2,8 +2,8 @@
 /**
  * 🔗 RECEPTOR DE MENSAGENS COM INTEGRAÇÃO ANA LOCAL
  * 
- * Recebe mensagens do WhatsApp Canal 3000 e processa via Ana LOCAL
- * Muito mais eficiente - sem chamadas HTTP externas
+ * Recebe mensagens do WhatsApp Canal 3000 e processa via Ana localmente
+ * NOVO: Verifica bloqueios antes de processar
  */
 
 require_once __DIR__ . '/../config.php';
@@ -28,12 +28,56 @@ $from = $mysqli->real_escape_string($data['from']);
 $body = $mysqli->real_escape_string($data['body']);
 $timestamp = isset($data['timestamp']) ? intval($data['timestamp']) : time();
 
+// NOVO: Verificar se Ana está bloqueada para este cliente
+$bloqueio = $mysqli->query("
+    SELECT * FROM bloqueios_ana 
+    WHERE numero_cliente = '$from' 
+    AND ativo = 1 
+    AND (data_desbloqueio IS NULL OR data_desbloqueio > NOW())
+    LIMIT 1
+")->fetch_assoc();
+
+if ($bloqueio) {
+    error_log("[RECEBIMENTO_ANA_LOCAL] ⛔ Ana bloqueada para cliente: $from (Motivo: {$bloqueio['motivo']})");
+    
+    // Cliente está bloqueado - enviar mensagem de redirecionamento
+    $mensagem_bloqueio = "🤝 Olá! Você está sendo atendido por nossa equipe humana.\n\n";
+    $mensagem_bloqueio .= "📞 Para urgências: 47 97309525\n";
+    $mensagem_bloqueio .= "⏰ Horário: Segunda a Sexta, 8h às 18h\n\n";
+    $mensagem_bloqueio .= "Obrigado pela preferência! 🚀";
+    
+    // Salvar mensagem de redirecionamento
+    $canal_id = 36; // Canal Ana
+    $sql_mensagem = "INSERT INTO mensagens_comunicacao 
+                     (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status, observacoes) 
+                     VALUES (?, ?, ?, 'texto', NOW(), 'enviado', 'entregue', 'Redirecionamento - Ana bloqueada')";
+    
+    $stmt = $mysqli->prepare($sql_mensagem);
+    $stmt->bind_param('iss', $canal_id, $from, $mensagem_bloqueio);
+    $stmt->execute();
+    $resposta_id = $mysqli->insert_id;
+    $stmt->close();
+    
+    echo json_encode([
+        'success' => true,
+        'message_id' => 0,
+        'response_id' => $resposta_id,
+        'ana_response' => $mensagem_bloqueio,
+        'action_taken' => 'ana_bloqueada',
+        'blocked_reason' => $bloqueio['motivo'],
+        'redirect_message' => true
+    ]);
+    
+    $mysqli->close();
+    exit;
+}
+
 // Determinar canal (3000 = Ana, 3001 = Humanos)
 $canal_id = 36; // Canal Pixel12Digital (Ana)
 $canal_nome = "Pixel12Digital";
 $canal_porta = 3000;
 
-error_log("[RECEBIMENTO_ANA_LOCAL] Processando via Ana LOCAL - Canal: $canal_nome (ID: $canal_id)");
+error_log("[RECEBIMENTO_ANA_LOCAL] ✅ Ana liberada para cliente: $from - Processando via Ana Local");
 
 try {
     // 1. SALVAR MENSAGEM RECEBIDA
@@ -49,14 +93,14 @@ try {
     
     error_log("[RECEBIMENTO_ANA_LOCAL] Mensagem salva - ID: $mensagem_id");
     
-    // 2. PROCESSAR VIA INTEGRADOR ANA LOCAL (MUITO MAIS RÁPIDO!)
+    // 2. PROCESSAR VIA INTEGRADOR ANA LOCAL
     require_once __DIR__ . '/api/integrador_ana_local.php';
     
     $integrador = new IntegradorAnaLocal($mysqli);
     $resultado_ana = $integrador->processarMensagem($data);
     
     if ($resultado_ana['success']) {
-        error_log("[RECEBIMENTO_ANA_LOCAL] Ana local processou com sucesso - Ação: " . $resultado_ana['acao_sistema']);
+        error_log("[RECEBIMENTO_ANA_LOCAL] Ana processou com sucesso - Ação: " . $resultado_ana['acao_sistema']);
         
         // 3. SALVAR RESPOSTA DA ANA
         $sql_resposta = "INSERT INTO mensagens_comunicacao 
@@ -72,16 +116,19 @@ try {
         
         // 4. LOG DETALHADO PARA MONITORAMENTO
         $sql_log = "INSERT INTO logs_integracao_ana 
-                    (numero_cliente, mensagem_enviada, resposta_ana, acao_sistema, departamento_detectado, status_api) 
-                    VALUES (?, ?, ?, ?, ?, 'success_local')";
+                    (numero_cliente, mensagem_enviada, resposta_ana, acao_sistema, departamento_detectado, status_api, transferencia_executada) 
+                    VALUES (?, ?, ?, ?, ?, 'success', ?)";
+        
+        $transferencia_executada = ($resultado_ana['transfer_para_rafael'] || $resultado_ana['transfer_para_humano']) ? 1 : 0;
         
         $stmt = $mysqli->prepare($sql_log);
-        $stmt->bind_param('sssss', 
+        $stmt->bind_param('sssssi', 
             $from, 
             $body, 
             $resposta_ana, 
             $resultado_ana['acao_sistema'], 
-            $resultado_ana['departamento_detectado']
+            $resultado_ana['departamento_detectado'],
+            $transferencia_executada
         );
         $stmt->execute();
         $stmt->close();
@@ -133,7 +180,7 @@ try {
         echo json_encode($resposta_sistema);
         
     } else {
-        error_log("[RECEBIMENTO_ANA_LOCAL] ERRO no processamento da Ana local");
+        error_log("[RECEBIMENTO_ANA_LOCAL] ERRO no processamento da Ana");
         
         // Fallback para resposta básica
         $resposta_fallback = "Olá! Sou a Ana da Pixel12Digital. No momento estou com uma instabilidade, mas em breve retorno. Para urgências, contate 47 97309525. 😊";
@@ -154,8 +201,7 @@ try {
             'response_id' => $fallback_id,
             'ana_response' => $resposta_fallback,
             'action_taken' => 'fallback_emergency',
-            'integration_type' => 'local',
-            'note' => 'Ana local indisponível - Resposta de emergência enviada'
+            'note' => 'Ana indisponível - Resposta de emergência enviada'
         ]);
     }
     
@@ -166,7 +212,6 @@ try {
         'success' => false,
         'error' => 'Erro interno do servidor',
         'message' => 'Mensagem recebida mas não processada',
-        'integration_type' => 'local',
         'debug' => $e->getMessage()
     ]);
 }

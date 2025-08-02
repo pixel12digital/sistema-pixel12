@@ -185,6 +185,119 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
                         $resposta_ana = $data_ana['response'];
                         error_log("[WEBHOOK_REDIRECT_ANA] ✅ Ana API respondeu com sucesso");
                         
+                        // 🔍 DETECTAR SE PRECISA CONSULTAR FATURAS
+                        $precisa_consultar_faturas = false;
+                        $resposta_lower = strtolower($resposta_ana);
+                        $mensagem_lower = strtolower($texto);
+                        
+                        // Detectar palavras-chave relacionadas a faturas
+                        $palavras_financeiras = ['fatura', 'pagamento', 'conta', 'cobrança', 'vencimento', 'débito', 'boleto', 'financeiro'];
+                        
+                        foreach ($palavras_financeiras as $palavra) {
+                            if (strpos($resposta_lower, $palavra) !== false || strpos($mensagem_lower, $palavra) !== false) {
+                                $precisa_consultar_faturas = true;
+                                break;
+                            }
+                        }
+                        
+                        // 💰 CONSULTAR FATURAS SE NECESSÁRIO
+                        if ($precisa_consultar_faturas && $cliente_id) {
+                            error_log("[WEBHOOK_REDIRECT_ANA] 📊 Consultando faturas do cliente: $cliente_id");
+                            
+                            // Buscar faturas vencidas
+                            $sql_vencidas = "SELECT 
+                                                id, valor, status,
+                                                DATE_FORMAT(vencimento, '%d/%m/%Y') as vencimento_formatado,
+                                                url_fatura,
+                                                DATEDIFF(CURDATE(), vencimento) as dias_vencido
+                                            FROM cobrancas 
+                                            WHERE cliente_id = $cliente_id 
+                                            AND status = 'OVERDUE'
+                                            ORDER BY vencimento ASC";
+                            
+                            $result_vencidas = $mysqli->query($sql_vencidas);
+                            
+                            // Buscar próxima fatura a vencer
+                            $sql_proxima = "SELECT 
+                                                id, valor, status,
+                                                DATE_FORMAT(vencimento, '%d/%m/%Y') as vencimento_formatado,
+                                                url_fatura,
+                                                DATEDIFF(vencimento, CURDATE()) as dias_para_vencer
+                                            FROM cobrancas 
+                                            WHERE cliente_id = $cliente_id 
+                                            AND status = 'PENDING'
+                                            ORDER BY vencimento ASC 
+                                            LIMIT 1";
+                            
+                            $result_proxima = $mysqli->query($sql_proxima);
+                            
+                            // Montar informações financeiras
+                            $info_financeira = "\n\n📊 **RESUMO DA SUA CONTA:**\n";
+                            $tem_faturas = false;
+                            
+                            // Faturas vencidas
+                            if ($result_vencidas && $result_vencidas->num_rows > 0) {
+                                $tem_faturas = true;
+                                $total_vencidas = $result_vencidas->num_rows;
+                                $valor_total_vencido = 0;
+                                
+                                $faturas_vencidas = [];
+                                while ($row = $result_vencidas->fetch_assoc()) {
+                                    $faturas_vencidas[] = $row;
+                                    $valor_total_vencido += floatval($row['valor']);
+                                }
+                                
+                                $info_financeira .= "⚠️ **FATURAS VENCIDAS:** $total_vencidas\n";
+                                $info_financeira .= "💰 **Total em atraso:** R$ " . number_format($valor_total_vencido, 2, ',', '.') . "\n";
+                                
+                                // Mostrar primeira fatura vencida
+                                if (count($faturas_vencidas) > 0) {
+                                    $primeira = $faturas_vencidas[0];
+                                    $info_financeira .= "📅 **Mais antiga:** {$primeira['vencimento_formatado']} ({$primeira['dias_vencido']} dias atrás)\n";
+                                    
+                                    if (!empty($primeira['url_fatura'])) {
+                                        $info_financeira .= "🔗 **Link pagamento:** {$primeira['url_fatura']}\n";
+                                    }
+                                }
+                                
+                                // Se tem muitas faturas, mostrar resumo
+                                if ($total_vencidas > 1) {
+                                    $info_financeira .= "📋 *+".($total_vencidas-1)." outras faturas vencidas*\n";
+                                }
+                                
+                                $info_financeira .= "\n";
+                            }
+                            
+                            // Próxima fatura a vencer
+                            if ($result_proxima && $result_proxima->num_rows > 0) {
+                                $tem_faturas = true;
+                                $proxima = $result_proxima->fetch_assoc();
+                                
+                                $info_financeira .= "📅 **PRÓXIMA FATURA:**\n";
+                                $info_financeira .= "💳 Vencimento: {$proxima['vencimento_formatado']}\n";
+                                $info_financeira .= "💰 Valor: R$ " . number_format($proxima['valor'], 2, ',', '.') . "\n";
+                                
+                                if ($proxima['dias_para_vencer'] <= 3) {
+                                    $info_financeira .= "⚡ *Vence em {$proxima['dias_para_vencer']} dias!*\n";
+                                }
+                                
+                                if (!empty($proxima['url_fatura'])) {
+                                    $info_financeira .= "🔗 **Link:** {$proxima['url_fatura']}\n";
+                                }
+                            }
+                            
+                            // Se não tem faturas
+                            if (!$tem_faturas) {
+                                $info_financeira .= "✅ **Parabéns!** Sua conta está em dia!\n";
+                                $info_financeira .= "📋 Nenhuma fatura pendente ou vencida.\n";
+                            }
+                            
+                            // Adicionar informações à resposta da Ana
+                            $resposta_ana .= $info_financeira;
+                            
+                            error_log("[WEBHOOK_REDIRECT_ANA] 💰 Resposta enriquecida com dados financeiros");
+                        }
+                        
                         // Salvar resposta da Ana no banco
                         $sql_resposta = "INSERT INTO mensagens_comunicacao 
                                          (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) 
