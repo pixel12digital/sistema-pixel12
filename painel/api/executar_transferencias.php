@@ -236,7 +236,7 @@ class ExecutorTransferencias {
         $contexto .= "ℹ️ Cliente solicitou atendimento humano via Ana";
         
         $sql = "INSERT INTO mensagens_comunicacao 
-                (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status, observacoes) 
+                (canal_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, status, observacoes) 
                 VALUES (37, ?, ?, 'transferencia', NOW(), 'sistema', 'entregue', 'Transferência automática da Ana')";
         
         $stmt = $this->mysqli->prepare($sql);

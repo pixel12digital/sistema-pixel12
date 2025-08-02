@@ -16,16 +16,71 @@ header('Content-Type: application/json');
 $input = file_get_contents('php://input');
 error_log("[RECEBIMENTO_ANA_LOCAL] Dados recebidos: " . $input);
 
-$data = json_decode($input, true);
+// Tentar diferentes métodos de obter os dados
+$data = null;
 
-if (!isset($data['from']) || !isset($data['body'])) {
-    error_log("[RECEBIMENTO_ANA_LOCAL] ERRO: Dados incompletos - from ou body não encontrados");
-    echo json_encode(['success' => false, 'error' => 'Dados incompletos']);
+// 1. Tentar JSON do corpo da requisição
+if (!empty($input)) {
+    $data = json_decode($input, true);
+    error_log("[RECEBIMENTO_ANA_LOCAL] JSON decodificado: " . print_r($data, true));
+}
+
+// 2. Se JSON falhou, tentar $_POST
+if (!$data && !empty($_POST)) {
+    $data = $_POST;
+    error_log("[RECEBIMENTO_ANA_LOCAL] Usando dados POST: " . print_r($data, true));
+}
+
+// 3. Se ainda não tem dados, tentar $_GET  
+if (!$data && !empty($_GET)) {
+    $data = $_GET;
+    error_log("[RECEBIMENTO_ANA_LOCAL] Usando dados GET: " . print_r($data, true));
+}
+
+// Normalizar campos - diferentes APIs usam nomes diferentes
+$from = null;
+$body = null;
+
+if ($data) {
+    // Tentar diferentes campos para 'from'
+    if (isset($data['from'])) $from = $data['from'];
+    elseif (isset($data['number'])) $from = $data['number'];
+    elseif (isset($data['phone'])) $from = $data['phone'];
+    elseif (isset($data['sender'])) $from = $data['sender'];
+    elseif (isset($data['chatId'])) $from = $data['chatId'];
+    
+    // Tentar diferentes campos para 'body'
+    if (isset($data['body'])) $body = $data['body'];
+    elseif (isset($data['message'])) $body = $data['message'];
+    elseif (isset($data['text'])) $body = $data['text'];
+    elseif (isset($data['content'])) $body = $data['content'];
+    elseif (isset($data['msg'])) $body = $data['msg'];
+}
+
+error_log("[RECEBIMENTO_ANA_LOCAL] From extraído: " . ($from ?? 'NULL'));
+error_log("[RECEBIMENTO_ANA_LOCAL] Body extraído: " . ($body ?? 'NULL'));
+
+// Validar se temos os dados mínimos necessários
+if (empty($from) || empty($body)) {
+    $error_debug = [
+        'error' => 'Dados incompletos',
+        'input_raw' => $input,
+        'data_parsed' => $data,
+        'from_found' => $from,
+        'body_found' => $body,
+        'post_data' => $_POST,
+        'get_data' => $_GET,
+        'headers' => getallheaders(),
+        'possible_fields' => array_keys($data ?? [])
+    ];
+    
+    error_log("[RECEBIMENTO_ANA_LOCAL] ERRO DETALHADO: " . json_encode($error_debug));
+    echo json_encode($error_debug);
     exit;
 }
 
-$from = $mysqli->real_escape_string($data['from']);
-$body = $mysqli->real_escape_string($data['body']);
+$from = $mysqli->real_escape_string($from);
+$body = $mysqli->real_escape_string($body);
 $timestamp = isset($data['timestamp']) ? intval($data['timestamp']) : time();
 
 // NOVO: Verificar se Ana está bloqueada para este cliente
@@ -49,7 +104,7 @@ if ($bloqueio) {
     // Salvar mensagem de redirecionamento
     $canal_id = 36; // Canal Ana
     $sql_mensagem = "INSERT INTO mensagens_comunicacao 
-                     (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status, observacoes) 
+                     (canal_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, status, observacoes) 
                      VALUES (?, ?, ?, 'texto', NOW(), 'enviado', 'entregue', 'Redirecionamento - Ana bloqueada')";
     
     $stmt = $mysqli->prepare($sql_mensagem);
@@ -82,7 +137,7 @@ error_log("[RECEBIMENTO_ANA_LOCAL] ✅ Ana liberada para cliente: $from - Proces
 try {
     // 1. SALVAR MENSAGEM RECEBIDA
     $sql_mensagem = "INSERT INTO mensagens_comunicacao 
-                     (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status) 
+                     (canal_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, status) 
                      VALUES (?, ?, ?, 'texto', NOW(), 'recebido', 'nao_lido')";
     
     $stmt = $mysqli->prepare($sql_mensagem);
@@ -104,7 +159,7 @@ try {
         
         // 3. SALVAR RESPOSTA DA ANA
         $sql_resposta = "INSERT INTO mensagens_comunicacao 
-                         (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status) 
+                         (canal_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, status) 
                          VALUES (?, ?, ?, 'texto', NOW(), 'enviado', 'entregue')";
         
         $stmt = $mysqli->prepare($sql_resposta);
@@ -186,7 +241,7 @@ try {
         $resposta_fallback = "Olá! Sou a Ana da Pixel12Digital. No momento estou com uma instabilidade, mas em breve retorno. Para urgências, contate 47 97309525. 😊";
         
         $sql_fallback = "INSERT INTO mensagens_comunicacao 
-                         (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status) 
+                         (canal_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, status) 
                          VALUES (?, ?, ?, 'texto', NOW(), 'enviado', 'entregue')";
         
         $stmt = $mysqli->prepare($sql_fallback);

@@ -77,7 +77,7 @@ try {
             $atividade_recente = $mysqli->query("
                 SELECT COUNT(*) as total 
                 FROM mensagens_comunicacao 
-                WHERE telefone_origem = '{$bloqueio['numero_cliente']}' 
+                WHERE numero_whatsapp = '{$bloqueio['numero_cliente']}' 
                 AND canal_id = 37 
                 AND data_hora > '{$bloqueio['data_bloqueio']}'
             ")->fetch_assoc()['total'];
