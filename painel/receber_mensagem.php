@@ -70,10 +70,10 @@ try {
         
         error_log("[RECEBIMENTO_ANA_LOCAL] Mensagem salva - ID: $mensagem_id");
         
-        // 1.2. PROCESSAR VIA INTEGRADOR ANA LOCAL
-        require_once __DIR__ . '/api/integrador_ana_local.php';
+        // 1.2. PROCESSAR VIA INTEGRADOR ANA (HTTP)
+        require_once __DIR__ . '/api/integrador_ana.php';
         
-        $integrador = new IntegradorAnaLocal($mysqli);
+        $integrador = new IntegradorAna($mysqli);
         $resultado_ana = $integrador->processarMensagem($data);
         
         if ($resultado_ana['success']) {

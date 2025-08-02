@@ -169,7 +169,7 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
             
             // Chamar sistema Ana internamente
             try {
-                $ch = curl_init('https://app.pixel12digital.com.br/painel/receber_mensagem.php');
+                $ch = curl_init('https://app.pixel12digital.com.br/painel/receber_mensagem_ana_simples.php');
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($dados_ana));
                 curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);

@@ -75,7 +75,7 @@ class IntegradorAnaLocal {
                 }
                 
             } else {
-                $resultado['debug'][] = "Erro ao chamar Ana local: " . ($resposta_ana['error'] ?? 'Erro desconhecido');
+                $resultado['debug'][] = "Erro ao chamar Ana: " . ($resposta_ana['error'] ?? 'Erro desconhecido');
                 
                 // Fallback - usar roteador local
                 $resultado['resposta_ana'] = $this->fallbackRoteadorLocal($mensagem);
@@ -273,39 +273,44 @@ class IntegradorAnaLocal {
 }
 
 // ===== PROCESSAMENTO DA REQUISIÇÃO =====
+// Este código só executa quando o arquivo é chamado diretamente via HTTP
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input = file_get_contents('php://input');
-    $dados = json_decode($input, true);
-    
-    if ($dados) {
-        $integrador = new IntegradorAnaLocal($mysqli);
-        $resultado = $integrador->processarMensagem($dados);
+if (basename(__FILE__) === basename($_SERVER['SCRIPT_NAME'] ?? '')) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $input = file_get_contents('php://input');
+        $dados = json_decode($input, true);
         
-        echo json_encode($resultado, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        if ($dados) {
+            $integrador = new IntegradorAnaLocal($mysqli);
+            $resultado = $integrador->processarMensagem($dados);
+            
+            echo json_encode($resultado, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Dados inválidos']);
+        }
+        
+    } elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        // Status do integrador
+        echo json_encode([
+            'success' => true,
+            'status' => 'ativo',
+            'tipo' => 'integração_local',
+            'ana_agent_id' => '3',
+            'versao' => '2.0 - Integração Local Ana + Sistema',
+            'vantagens' => [
+                'Sem chamadas HTTP externas',
+                'Muito mais rápido',
+                'Fácil de gerenciar',
+                'Controle total do sistema'
+            ]
+        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        
     } else {
-        echo json_encode(['success' => false, 'error' => 'Dados inválidos']);
+        echo json_encode(['success' => false, 'error' => 'Método não permitido']);
     }
-    
-} elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    // Status do integrador
-    echo json_encode([
-        'success' => true,
-        'status' => 'ativo',
-        'tipo' => 'integração_local',
-        'ana_agent_id' => '3',
-        'versao' => '2.0 - Integração Local Ana + Sistema',
-        'vantagens' => [
-            'Sem chamadas HTTP externas',
-            'Muito mais rápido',
-            'Fácil de gerenciar',
-            'Controle total do sistema'
-        ]
-    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    
-} else {
-    echo json_encode(['success' => false, 'error' => 'Método não permitido']);
-}
 
-$mysqli->close();
+    if (isset($mysqli)) {
+        $mysqli->close();
+    }
+}
 ?> 
