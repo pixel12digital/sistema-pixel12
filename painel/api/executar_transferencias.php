@@ -31,6 +31,7 @@ class ExecutorTransferencias {
             'success' => true,
             'transferencias_rafael' => 0,
             'transferencias_humanas' => 0,
+            'transferencias_suporte' => 0, // NOVO
             'erros' => [],
             'detalhes' => []
         ];
@@ -46,10 +47,16 @@ class ExecutorTransferencias {
             $resultado['transferencias_humanas'] = $resultado_humanos['processadas'];
             $resultado['detalhes']['humanos'] = $resultado_humanos['detalhes'];
             
-            // 3. Consolidar erros
+            // 3. NOVO: Processar transferências de suporte específicas
+            $resultado_suporte = $this->processarTransferenciasSuporte();
+            $resultado['transferencias_suporte'] = $resultado_suporte['processadas'];
+            $resultado['detalhes']['suporte'] = $resultado_suporte['detalhes'];
+            
+            // 4. Consolidar erros
             $resultado['erros'] = array_merge(
                 $resultado_rafael['erros'] ?? [],
-                $resultado_humanos['erros'] ?? []
+                $resultado_humanos['erros'] ?? [],
+                $resultado_suporte['erros'] ?? [] // NOVO
             );
             
         } catch (Exception $e) {
@@ -114,8 +121,11 @@ class ExecutorTransferencias {
             'detalhes' => []
         ];
         
-        // Buscar transferências pendentes para humanos
-        $sql = "SELECT * FROM transferencias_humano WHERE status = 'pendente' ORDER BY data_transferencia ASC LIMIT 10";
+        // Buscar transferências pendentes para humanos (EXCETO suporte técnico específico)
+        $sql = "SELECT * FROM transferencias_humano 
+                WHERE status = 'pendente' 
+                AND (departamento != 'SUP' OR departamento IS NULL)
+                ORDER BY data_transferencia ASC LIMIT 10";
         $result = $this->mysqli->query($sql);
         
         while ($transferencia = $result->fetch_assoc()) {
@@ -143,6 +153,54 @@ class ExecutorTransferencias {
                 
             } catch (Exception $e) {
                 $resultado['erros'][] = "Erro na transferência humana ID " . $transferencia['id'] . ": " . $e->getMessage();
+            }
+        }
+        
+        return $resultado;
+    }
+    
+    /**
+     * 🆕 NOVO: Processar transferências específicas de suporte técnico
+     */
+    private function processarTransferenciasSuporte() {
+        $resultado = [
+            'processadas' => 0,
+            'erros' => [],
+            'detalhes' => []
+        ];
+        
+        // Buscar transferências pendentes para suporte técnico específico
+        $sql = "SELECT * FROM transferencias_humano 
+                WHERE status = 'pendente' 
+                AND departamento = 'SUP'
+                ORDER BY data_transferencia ASC LIMIT 10";
+        $result = $this->mysqli->query($sql);
+        
+        while ($transferencia = $result->fetch_assoc()) {
+            try {
+                $sucesso = $this->transferirParaSuporte($transferencia);
+                
+                if ($sucesso) {
+                    // Marcar como processada
+                    $this->mysqli->query("UPDATE transferencias_humano SET status = 'transferido', data_processamento = NOW() WHERE id = " . $transferencia['id']);
+                    
+                    $resultado['processadas']++;
+                    $resultado['detalhes'][] = [
+                        'id' => $transferencia['id'],
+                        'cliente' => $transferencia['numero_cliente'],
+                        'departamento' => 'SUP',
+                        'status' => 'transferido',
+                        'acao' => 'Transferido para Suporte Técnico'
+                    ];
+                    
+                    error_log("[TRANSFERENCIAS] Cliente transferido para suporte técnico: " . $transferencia['numero_cliente']);
+                    
+                } else {
+                    $resultado['erros'][] = "Falha ao transferir para suporte - ID: " . $transferencia['id'];
+                }
+                
+            } catch (Exception $e) {
+                $resultado['erros'][] = "Erro na transferência suporte ID " . $transferencia['id'] . ": " . $e->getMessage();
             }
         }
         
@@ -216,6 +274,39 @@ class ExecutorTransferencias {
             
         } catch (Exception $e) {
             error_log("[TRANSFERENCIAS] Erro ao transferir para humanos: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * 🆕 NOVO: Transferir conversa para Suporte Técnico específico
+     */
+    private function transferirParaSuporte($transferencia) {
+        try {
+            $numero_cliente = $transferencia['numero_cliente'];
+            $mensagem_original = $transferencia['mensagem_original'];
+            $data_transferencia = $transferencia['data_transferencia'];
+            
+            // 1. Buscar dados do cliente
+            $cliente_info = $this->buscarInfoCliente($numero_cliente);
+            $nome_cliente = $cliente_info ? $cliente_info['nome'] : 'Cliente não identificado';
+            
+            // 2. Criar registro específico de suporte técnico
+            $this->criarRegistroSuporteTecnico($transferencia, $cliente_info);
+            
+            // 3. Notificar equipe de suporte técnico
+            $sucesso_notificacao = $this->notificarSuporteTecnico($transferencia, $cliente_info);
+            
+            // 4. Bloquear Ana para este cliente
+            $this->bloquearAnaParaCliente($numero_cliente);
+            
+            // 5. Enviar mensagem específica de suporte
+            $this->enviarBoasVindasSuporteTecnico($numero_cliente, $nome_cliente);
+            
+            return $sucesso_notificacao;
+            
+        } catch (Exception $e) {
+            error_log("[TRANSFERENCIAS] Erro ao transferir para suporte técnico: " . $e->getMessage());
             return false;
         }
     }
@@ -322,6 +413,85 @@ class ExecutorTransferencias {
     }
     
     /**
+     * 🆕 NOVO: Criar registro específico de suporte técnico
+     */
+    private function criarRegistroSuporteTecnico($transferencia, $cliente_info) {
+        $numero_cliente = $transferencia['numero_cliente'];
+        $mensagem_original = $transferencia['mensagem_original'];
+        
+        // Inserir mensagem de contexto específica para suporte técnico
+        $contexto = "🔧 *TRANSFERÊNCIA PARA SUPORTE TÉCNICO*\n\n";
+        $contexto .= "👤 Cliente: " . ($cliente_info ? $cliente_info['nome'] : 'Não identificado') . "\n";
+        $contexto .= "🛠️ Departamento: Suporte Técnico\n";
+        $contexto .= "💬 Problema relatado: \"$mensagem_original\"\n\n";
+        $contexto .= "⚠️ Cliente precisa de assistência técnica via Ana";
+        
+        $sql = "INSERT INTO mensagens_comunicacao 
+                (canal_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, status, observacoes) 
+                VALUES (37, ?, ?, 'transferencia_suporte', NOW(), 'sistema', 'entregue', 'Transferência automática - Suporte Técnico')";
+        
+        $stmt = $this->mysqli->prepare($sql);
+        $stmt->bind_param('ss', $numero_cliente, $contexto);
+        $stmt->execute();
+        $stmt->close();
+    }
+    
+    /**
+     * 🆕 NOVO: Notificar equipe de suporte técnico
+     */
+    private function notificarSuporteTecnico($transferencia, $cliente_info) {
+        try {
+            $numero_cliente = $transferencia['numero_cliente'];
+            $nome_cliente = $cliente_info ? $cliente_info['nome'] : 'Cliente não identificado';
+            
+            // Mensagem específica para suporte técnico
+            $mensagem_suporte = "🔧 *NOVO CHAMADO TÉCNICO*\n\n";
+            $mensagem_suporte .= "👤 *Cliente:* $nome_cliente\n";
+            $mensagem_suporte .= "📱 *WhatsApp:* $numero_cliente\n";
+            $mensagem_suporte .= "🕐 *Transferido:* " . date('d/m/Y H:i') . "\n";
+            $mensagem_suporte .= "🤖 *Origem:* Ana (Canal IA)\n\n";
+            $mensagem_suporte .= "🛠️ *Problema:* \"" . substr($transferencia['mensagem_original'], 0, 150) . "\"\n\n";
+            $mensagem_suporte .= "⚠️ *Cliente precisa de suporte técnico especializado*\n";
+            $mensagem_suporte .= "📋 Prioridade: NORMAL\n\n";
+            $mensagem_suporte .= "_Sistema de Transferências - Pixel12Digital_";
+            
+            // Números específicos da equipe de suporte (configure conforme necessário)
+            $numeros_suporte = [
+                '5547973095525' // Adicione outros técnicos aqui
+            ];
+            
+            $sucessos = 0;
+            foreach ($numeros_suporte as $numero_tecnico) {
+                if ($this->enviarWhatsApp($numero_tecnico, $mensagem_suporte, 'comercial', 3001)) {
+                    $sucessos++;
+                }
+            }
+            
+            return $sucessos > 0;
+            
+        } catch (Exception $e) {
+            error_log("[TRANSFERENCIAS] Erro ao notificar suporte técnico: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * 🆕 NOVO: Enviar boas-vindas específicas para suporte técnico
+     */
+    private function enviarBoasVindasSuporteTecnico($numero_cliente, $nome_cliente) {
+        $mensagem = "🔧 Olá" . ($nome_cliente !== 'Cliente não identificado' ? ", $nome_cliente" : '') . "!\n\n";
+        $mensagem .= "🛠️ Você foi transferido para nossa **Equipe de Suporte Técnico**.\n\n";
+        $mensagem .= "👨‍💻 Nossos especialistas irão analisar seu problema técnico e retornar em breve.\n\n";
+        $mensagem .= "⏰ **Horário de atendimento técnico:**\n";
+        $mensagem .= "   • Segunda a Sexta: 8h às 18h\n";
+        $mensagem .= "   • Sábado: 8h às 12h\n\n";
+        $mensagem .= "🚨 **Para emergências:** 47 97309525\n\n";
+        $mensagem .= "Obrigado por confiar em nosso suporte! 🚀";
+        
+        return $this->enviarWhatsApp($numero_cliente, $mensagem, 'comercial', 3001);
+    }
+    
+    /**
      * Buscar informações do cliente
      */
     private function buscarInfoCliente($numero) {
@@ -378,7 +548,7 @@ class ExecutorTransferencias {
     private function getNomeDepartamento($codigo) {
         $departamentos = [
             'FIN' => 'Financeiro',
-            'SUP' => 'Suporte Técnico',
+            'SUP' => 'Suporte Técnico', // ATUALIZADO
             'COM' => 'Comercial',
             'ADM' => 'Administrativo',
             'SITES' => 'Sites e Ecommerce'
@@ -401,12 +571,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'success' => true,
         'status' => 'ativo',
         'sistema' => 'Executor de Transferências',
-        'versao' => '1.0',
+        'versao' => '2.0', // ATUALIZADO
         'funcionalidades' => [
-            'Notificação automática para Rafael',
-            'Transferência real para Canal 3001',
+            'Notificação automática para Rafael (Comercial)',
+            'Transferência inteligente para Suporte Técnico', // NOVO
+            'Transferência geral para Canal 3001 (Humanos)',
             'Bloqueio da Ana pós-transferência',
+            'Detecção por frases de ativação da Ana', // NOVO
+            'Sistema de fallback com detecção inteligente', // NOVO
             'Monitoramento completo'
+        ],
+        'tipos_transferencia' => [
+            'RAFAEL' => 'Comercial - Sites/Ecommerce',
+            'SUPORTE' => 'Suporte Técnico - Problemas', // NOVO
+            'HUMANOS' => 'Atendimento Geral'
         ]
     ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 }

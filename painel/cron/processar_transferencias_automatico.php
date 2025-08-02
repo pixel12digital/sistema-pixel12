@@ -24,11 +24,12 @@ log_execucao("🚀 Iniciando processamento automático de transferências");
 try {
     // Verificar se há transferências pendentes
     $pendentes_rafael = $mysqli->query("SELECT COUNT(*) as total FROM transferencias_rafael WHERE status = 'pendente'")->fetch_assoc()['total'];
-    $pendentes_humanos = $mysqli->query("SELECT COUNT(*) as total FROM transferencias_humano WHERE status = 'pendente'")->fetch_assoc()['total'];
+    $pendentes_humanos = $mysqli->query("SELECT COUNT(*) as total FROM transferencias_humano WHERE status = 'pendente' AND (departamento != 'SUP' OR departamento IS NULL)")->fetch_assoc()['total'];
+    $pendentes_suporte = $mysqli->query("SELECT COUNT(*) as total FROM transferencias_humano WHERE status = 'pendente' AND departamento = 'SUP'")->fetch_assoc()['total']; // NOVO
     
-    log_execucao("📊 Pendentes: $pendentes_rafael para Rafael, $pendentes_humanos para humanos");
+    log_execucao("📊 Pendentes: $pendentes_rafael para Rafael, $pendentes_humanos para humanos, $pendentes_suporte para suporte"); // ATUALIZADO
     
-    if ($pendentes_rafael > 0 || $pendentes_humanos > 0) {
+    if ($pendentes_rafael > 0 || $pendentes_humanos > 0 || $pendentes_suporte > 0) { // ATUALIZADO
         log_execucao("⚡ Processando transferências pendentes...");
         
         // Executar transferências
@@ -39,6 +40,7 @@ try {
             log_execucao("✅ Transferências processadas com sucesso:");
             log_execucao("   📱 Rafael: {$resultado['transferencias_rafael']} notificações enviadas");
             log_execucao("   👥 Humanos: {$resultado['transferencias_humanas']} transferências realizadas");
+            log_execucao("   🔧 Suporte: {$resultado['transferencias_suporte']} transferências realizadas"); // NOVO
             
             // Log detalhado se houver
             if (!empty($resultado['detalhes'])) {
