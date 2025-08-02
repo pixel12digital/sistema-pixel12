@@ -151,25 +151,19 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     
     // Resposta automática simples
     if ($texto) {
-        // 🚀 INTEGRAÇÃO COM ANA - REDIRECIONAR PARA SISTEMA NOVO
-        // Se for canal 3000 (Pixel12Digital), usar Ana ao invés de resposta automática
-        
+        // 🚀 INTEGRAÇÃO COM ANA - Canal 3000
         $canal_ana = $mysqli->query("SELECT porta FROM canais_comunicacao WHERE id = $canal_id")->fetch_assoc();
         
         if ($canal_ana && intval($canal_ana['porta']) === 3000) {
-            // CANAL 3000 - REDIRECIONAR PARA ANA
-            error_log("[WEBHOOK_REDIRECT_ANA] Canal 3000 detectado - Redirecionando para Ana");
+            // CANAL 3000 - USAR ANA
+            error_log("[WEBHOOK_REDIRECT_ANA] Canal 3000 detectado - Chamando Ana");
             
-            // Chamar sistema Ana via API (funcionando)
             try {
                 $api_url = 'https://agentes.pixel12digital.com.br/api/chat/agent_chat.php';
-                
                 $payload = [
                     'question' => $texto,
                     'agent_id' => '3' // ID da Ana
                 ];
-                
-                error_log("[WEBHOOK_REDIRECT_ANA] Chamando API de agentes: $api_url");
                 
                 $ch = curl_init($api_url);
                 curl_setopt($ch, CURLOPT_POST, true);
@@ -191,22 +185,7 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
                         $resposta_ana = $data_ana['response'];
                         error_log("[WEBHOOK_REDIRECT_ANA] ✅ Ana API respondeu com sucesso");
                         
-                        // 🧠 ANÁLISE DA RESPOSTA ANA PARA DETECTAR AÇÕES
-                        $analise = analisarRespostaAna($resposta_ana, $texto);
-                        error_log("[WEBHOOK_REDIRECT_ANA] 🔍 Análise: " . json_encode($analise));
-                        
-                        // 🔍 ENRIQUECER RESPOSTA COM DADOS DO CLIENTE (se necessário)
-                        if ($cliente_id && ($analise['consultar_faturas'] || strpos(strtolower($texto), 'fatura') !== false || strpos(strtolower($texto), 'pagamento') !== false)) {
-                            error_log("[WEBHOOK_REDIRECT_ANA] 📊 Consultando faturas do cliente: $cliente_id");
-                            $dados_faturas = consultarFaturasCliente($cliente_id, $mysqli);
-                            
-                            if ($dados_faturas['tem_faturas']) {
-                                $resposta_ana = enriquecerRespostaComFaturas($resposta_ana, $dados_faturas);
-                                error_log("[WEBHOOK_REDIRECT_ANA] 💰 Resposta enriquecida com dados de faturas");
-                            }
-                        }
-                        
-                        // 💾 SALVAR RESPOSTA DA ANA NO BANCO
+                        // Salvar resposta da Ana no banco
                         $sql_resposta = "INSERT INTO mensagens_comunicacao 
                                          (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) 
                                          VALUES ($canal_id, " . ($cliente_id ? $cliente_id : 'NULL') . ", '" . $mysqli->real_escape_string($resposta_ana) . "', 'texto', '$data_hora', 'enviado', 'entregue')";
@@ -215,19 +194,12 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
                             $resposta_id = $mysqli->insert_id;
                             error_log("[WEBHOOK_REDIRECT_ANA] ✅ Resposta Ana salva - ID: $resposta_id");
                             
-                            // 🎯 EXECUTAR AÇÕES ESPECÍFICAS DO SISTEMA
-                            if ($analise['acao'] !== 'nenhuma') {
-                                executarAcaoSistema($analise, $numero, $texto, $cliente_id, $mysqli);
-                            }
-                            
-                            // 📱 ENVIAR RESPOSTA DA ANA PARA O WHATSAPP
+                            // Enviar resposta da Ana para WhatsApp
                             $api_url_whats = WHATSAPP_ROBOT_URL . "/send/text";
                             $data_envio = [
                                 "number" => $numero,
                                 "message" => $resposta_ana
                             ];
-                            
-                            error_log("[WEBHOOK_REDIRECT_ANA] 📤 Enviando resposta Ana via WhatsApp...");
                             
                             $ch_whats = curl_init($api_url_whats);
                             curl_setopt($ch_whats, CURLOPT_POST, true);
@@ -250,13 +222,12 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
                             error_log("[WEBHOOK_REDIRECT_ANA] ❌ Erro ao salvar resposta Ana: " . $mysqli->error);
                         }
                         
-                        // Ana processou via API com orquestração completa
+                        // Ana processou via API, resposta enviada
                         echo json_encode([
                             'success' => true, 
-                            'message' => 'Processado via Ana API + Orquestração',
-                            'source' => 'webhook_ana_orchestrated',
-                            'ana_response' => $resposta_ana,
-                            'analise' => $analise
+                            'message' => 'Processado via Ana API',
+                            'source' => 'webhook_ana_api',
+                            'ana_response' => $resposta_ana
                         ]);
                         exit;
                         
@@ -319,275 +290,4 @@ $response = [
 
 http_response_code(200);
 echo json_encode($response);
-
-// ===== FUNÇÕES DE ORQUESTRAÇÃO ANA =====
-
-/**
- * Analisar resposta da Ana para detectar ações do sistema
- */
-function analisarRespostaAna($resposta_ana, $mensagem_original) {
-    $analise = [
-        'acao' => 'nenhuma',
-        'departamento' => null,
-        'transfer_rafael' => false,
-        'transfer_humano' => false,
-        'transfer_canal_3001' => false,
-        'consultar_faturas' => false
-    ];
-    
-    $resposta_lower = strtolower($resposta_ana);
-    $mensagem_lower = strtolower($mensagem_original);
-    
-    // Detectar consulta de faturas
-    if (strpos($resposta_lower, 'fatura') !== false || 
-        strpos($resposta_lower, 'pagamento') !== false ||
-        strpos($mensagem_lower, 'fatura') !== false ||
-        strpos($mensagem_lower, 'pagamento') !== false) {
-        $analise['consultar_faturas'] = true;
-    }
-    
-    // Detectar transferência para Rafael (sites/ecommerce)
-    if (strpos($resposta_lower, 'rafael') !== false || 
-        strpos($resposta_lower, 'transferir você para o rafael') !== false ||
-        strpos($resposta_lower, 'desenvolvimento web') !== false ||
-        strpos($resposta_lower, 'especialista em desenvolvimento web') !== false) {
-        
-        $analise['acao'] = 'transfer_rafael';
-        $analise['transfer_rafael'] = true;
-        $analise['departamento'] = 'SITES';
-    }
-    
-    // Detectar transferência para canal 3001 (atendimento humano)
-    elseif (strpos($resposta_lower, 'canal comercial') !== false ||
-            strpos($resposta_lower, 'atendente humano') !== false ||
-            strpos($resposta_lower, 'transferir para atendimento') !== false) {
-        
-        $analise['acao'] = 'transfer_canal_3001';
-        $analise['transfer_canal_3001'] = true;
-        $analise['transfer_humano'] = true;
-        $analise['departamento'] = 'COM';
-    }
-    
-    // Detectar transferência para humanos em geral
-    elseif (strpos($resposta_lower, '47 97309525') !== false ||
-            strpos($resposta_lower, 'equipe humana') !== false ||
-            strpos($resposta_lower, 'atendimento humano') !== false) {
-        
-        $analise['acao'] = 'transfer_humano';
-        $analise['transfer_humano'] = true;
-        
-        // Detectar departamento da transferência
-        if (strpos($resposta_lower, 'financeira') !== false) $analise['departamento'] = 'FIN';
-        elseif (strpos($resposta_lower, 'suporte') !== false) $analise['departamento'] = 'SUP';
-        elseif (strpos($resposta_lower, 'comercial') !== false) $analise['departamento'] = 'COM';
-        elseif (strpos($resposta_lower, 'administrativa') !== false) $analise['departamento'] = 'ADM';
-    }
-    
-    // Detectar departamento sem transferência
-    elseif (strpos($resposta_lower, 'financeira') !== false) {
-        $analise['acao'] = 'departamento_identificado';
-        $analise['departamento'] = 'FIN';
-    }
-    elseif (strpos($resposta_lower, 'suporte técnico') !== false) {
-        $analise['acao'] = 'departamento_identificado';
-        $analise['departamento'] = 'SUP';
-    }
-    elseif (strpos($resposta_lower, 'comercial') !== false) {
-        $analise['acao'] = 'departamento_identificado';
-        $analise['departamento'] = 'COM';
-    }
-    elseif (strpos($resposta_lower, 'administrativa') !== false) {
-        $analise['acao'] = 'departamento_identificado';
-        $analise['departamento'] = 'ADM';
-    }
-    
-    return $analise;
-}
-
-/**
- * Consultar faturas do cliente
- */
-function consultarFaturasCliente($cliente_id, $mysqli) {
-    $dados = [
-        'tem_faturas' => false,
-        'faturas_vencidas' => [],
-        'proxima_fatura' => null,
-        'total_vencidas' => 0,
-        'valor_total_vencido' => 0
-    ];
-    
-    if (!$cliente_id) return $dados;
-    
-    try {
-        // Buscar faturas vencidas
-        $sql_vencidas = "SELECT 
-                            id, valor, status,
-                            DATE_FORMAT(vencimento, '%d/%m/%Y') as vencimento_formatado,
-                            url_fatura,
-                            DATEDIFF(CURDATE(), vencimento) as dias_vencido
-                        FROM cobrancas 
-                        WHERE cliente_id = $cliente_id 
-                        AND status = 'OVERDUE'
-                        ORDER BY vencimento ASC";
-        
-        $result_vencidas = $mysqli->query($sql_vencidas);
-        
-        if ($result_vencidas && $result_vencidas->num_rows > 0) {
-            $dados['tem_faturas'] = true;
-            while ($row = $result_vencidas->fetch_assoc()) {
-                $dados['faturas_vencidas'][] = $row;
-                $dados['valor_total_vencido'] += floatval($row['valor']);
-            }
-            $dados['total_vencidas'] = count($dados['faturas_vencidas']);
-        }
-        
-        // Buscar próxima fatura a vencer
-        $sql_proxima = "SELECT 
-                            id, valor, status,
-                            DATE_FORMAT(vencimento, '%d/%m/%Y') as vencimento_formatado,
-                            url_fatura,
-                            DATEDIFF(vencimento, CURDATE()) as dias_para_vencer
-                        FROM cobrancas 
-                        WHERE cliente_id = $cliente_id 
-                        AND status = 'PENDING'
-                        ORDER BY vencimento ASC 
-                        LIMIT 1";
-        
-        $result_proxima = $mysqli->query($sql_proxima);
-        
-        if ($result_proxima && $result_proxima->num_rows > 0) {
-            $dados['tem_faturas'] = true;
-            $dados['proxima_fatura'] = $result_proxima->fetch_assoc();
-        }
-        
-    } catch (Exception $e) {
-        error_log("[WEBHOOK_FATURAS] Erro ao consultar faturas: " . $e->getMessage());
-    }
-    
-    return $dados;
-}
-
-/**
- * Enriquecer resposta da Ana com dados de faturas
- */
-function enriquecerRespostaComFaturas($resposta_ana, $dados_faturas) {
-    $adicional = "\n\n📊 **Resumo da sua conta:**\n";
-    
-    if ($dados_faturas['total_vencidas'] > 0) {
-        $adicional .= "⚠️ Você possui {$dados_faturas['total_vencidas']} fatura(s) vencida(s)\n";
-        $adicional .= "💰 Total em atraso: R$ " . number_format($dados_faturas['valor_total_vencido'], 2, ',', '.') . "\n";
-        
-        if (count($dados_faturas['faturas_vencidas']) > 0) {
-            $primeira_vencida = $dados_faturas['faturas_vencidas'][0];
-            $adicional .= "📅 Vencimento mais antigo: {$primeira_vencida['vencimento_formatado']} ({$primeira_vencida['dias_vencido']} dias atrás)\n";
-            
-            if (!empty($primeira_vencida['url_fatura'])) {
-                $adicional .= "🔗 Link para pagamento: {$primeira_vencida['url_fatura']}\n";
-            }
-        }
-    }
-    
-    if ($dados_faturas['proxima_fatura']) {
-        $proxima = $dados_faturas['proxima_fatura'];
-        $adicional .= "📅 Próxima fatura: {$proxima['vencimento_formatado']} (R$ " . number_format($proxima['valor'], 2, ',', '.') . ")\n";
-        
-        if (!empty($proxima['url_fatura'])) {
-            $adicional .= "🔗 Link: {$proxima['url_fatura']}\n";
-        }
-    }
-    
-    if (!$dados_faturas['tem_faturas']) {
-        $adicional .= "✅ Sua conta está em dia! Nenhuma fatura pendente.\n";
-    }
-    
-    return $resposta_ana . $adicional;
-}
-
-/**
- * Executar ações específicas do sistema
- */
-function executarAcaoSistema($analise, $numero, $mensagem, $cliente_id, $mysqli) {
-    switch ($analise['acao']) {
-        case 'transfer_rafael':
-            registrarTransferenciaRafael($numero, $mensagem, $cliente_id, $mysqli);
-            break;
-            
-        case 'transfer_canal_3001':
-            registrarTransferenciaCanal3001($numero, $mensagem, $cliente_id, $mysqli);
-            break;
-            
-        case 'transfer_humano':
-            registrarTransferenciaHumano($numero, $mensagem, $analise['departamento'], $cliente_id, $mysqli);
-            break;
-            
-        case 'departamento_identificado':
-            registrarAtendimentoDepartamento($numero, $mensagem, $analise['departamento'], $cliente_id, $mysqli);
-            break;
-    }
-}
-
-/**
- * Registrar transferência para Rafael
- */
-function registrarTransferenciaRafael($numero, $mensagem, $cliente_id, $mysqli) {
-    $sql = "INSERT INTO transferencias_rafael (numero_cliente, cliente_id, mensagem_original, data_transferencia, status) 
-            VALUES (?, ?, ?, NOW(), 'pendente')";
-    
-    $stmt = $mysqli->prepare($sql);
-    if ($stmt) {
-        $stmt->bind_param('sis', $numero, $cliente_id, $mensagem);
-        $stmt->execute();
-        $stmt->close();
-        error_log("[WEBHOOK_ORQUESTRAÇÃO] Transferência para Rafael registrada: $numero");
-    }
-}
-
-/**
- * Registrar transferência para canal 3001 (comercial)
- */
-function registrarTransferenciaCanal3001($numero, $mensagem, $cliente_id, $mysqli) {
-    // Salvar notificação para canal 3001
-    $sql = "INSERT INTO notificacoes_canal (canal_origem, canal_destino, numero_cliente, cliente_id, mensagem, tipo, data_criacao, status) 
-            VALUES (3000, 3001, ?, ?, ?, 'transferencia', NOW(), 'pendente')";
-    
-    $stmt = $mysqli->prepare($sql);
-    if ($stmt) {
-        $stmt->bind_param('sis', $numero, $cliente_id, $mensagem);
-        $stmt->execute();
-        $stmt->close();
-        error_log("[WEBHOOK_ORQUESTRAÇÃO] Transferência para canal 3001 registrada: $numero");
-    }
-}
-
-/**
- * Registrar transferência para humano
- */
-function registrarTransferenciaHumano($numero, $mensagem, $departamento, $cliente_id, $mysqli) {
-    $sql = "INSERT INTO transferencias_humano (numero_cliente, cliente_id, mensagem_original, departamento, data_transferencia, status) 
-            VALUES (?, ?, ?, ?, NOW(), 'pendente')";
-    
-    $stmt = $mysqli->prepare($sql);
-    if ($stmt) {
-        $stmt->bind_param('siss', $numero, $cliente_id, $mensagem, $departamento);
-        $stmt->execute();
-        $stmt->close();
-        error_log("[WEBHOOK_ORQUESTRAÇÃO] Transferência para humano registrada: $numero -> $departamento");
-    }
-}
-
-/**
- * Registrar atendimento por departamento
- */
-function registrarAtendimentoDepartamento($numero, $mensagem, $departamento, $cliente_id, $mysqli) {
-    $sql = "INSERT INTO atendimentos_departamento (numero_cliente, cliente_id, mensagem, departamento, data_atendimento) 
-            VALUES (?, ?, ?, ?, NOW())";
-    
-    $stmt = $mysqli->prepare($sql);
-    if ($stmt) {
-        $stmt->bind_param('siss', $numero, $cliente_id, $mensagem, $departamento);
-        $stmt->execute();
-        $stmt->close();
-        error_log("[WEBHOOK_ORQUESTRAÇÃO] Atendimento $departamento registrado: $numero");
-    }
-}
 ?> 
