@@ -167,39 +167,42 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
                 'timestamp' => time()
             ];
             
-            // Chamar sistema Ana internamente
+            // Chamar sistema Ana LOCAL (sem HTTP)
             try {
-                $ch = curl_init('https://app.pixel12digital.com.br/painel/receber_mensagem_ana_simples.php');
-                curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($dados_ana));
-                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                // Usar sistema Ana local diretamente
+                require_once __DIR__ . '/../painel/api/integrador_ana_local.php';
                 
-                $response = curl_exec($ch);
-                $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                $curl_error = curl_error($ch);
-                curl_close($ch);
+                $integrador = new IntegradorAnaLocal($mysqli);
+                $resultado_ana = $integrador->processarMensagem($dados_ana);
                 
-                if ($curl_error) {
-                    error_log("[WEBHOOK_REDIRECT_ANA] ❌ Erro cURL: " . $curl_error);
-                } elseif ($http_code === 200) {
-                    error_log("[WEBHOOK_REDIRECT_ANA] ✅ Ana processou com sucesso");
+                if ($resultado_ana['success']) {
+                    error_log("[WEBHOOK_REDIRECT_ANA] ✅ Ana LOCAL processou com sucesso");
                     
-                    // Ana já enviou resposta, não precisamos enviar mais nada
+                    // Salvar resposta da Ana no banco
+                    $resposta_ana = $resultado_ana['resposta_ana'];
+                    $sql_resposta = "INSERT INTO mensagens_comunicacao 
+                                     (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) 
+                                     VALUES ($canal_id, " . ($cliente_id ? $cliente_id : 'NULL') . ", '" . $mysqli->real_escape_string($resposta_ana) . "', 'texto', '$data_hora', 'enviado', 'entregue')";
+                    
+                    if ($mysqli->query($sql_resposta)) {
+                        $resposta_id = $mysqli->insert_id;
+                        error_log("[WEBHOOK_REDIRECT_ANA] ✅ Resposta Ana salva - ID: $resposta_id");
+                    }
+                    
+                    // Ana processou localmente, resposta será enviada automaticamente
                     echo json_encode([
                         'success' => true, 
-                        'message' => 'Processado via Ana',
-                        'source' => 'webhook_redirect_ana'
+                        'message' => 'Processado via Ana LOCAL',
+                        'source' => 'webhook_ana_local',
+                        'ana_response' => $resposta_ana
                     ]);
                     exit;
                 } else {
-                    error_log("[WEBHOOK_REDIRECT_ANA] ❌ Erro na Ana (HTTP $http_code) - Resposta: " . $response);
+                    error_log("[WEBHOOK_REDIRECT_ANA] ❌ Erro na Ana LOCAL - usando fallback");
                 }
                 
             } catch (Exception $e) {
-                error_log("[WEBHOOK_REDIRECT_ANA] ❌ Erro ao chamar Ana: " . $e->getMessage());
+                error_log("[WEBHOOK_REDIRECT_ANA] ❌ Erro ao chamar Ana LOCAL: " . $e->getMessage());
             }
         }
         
