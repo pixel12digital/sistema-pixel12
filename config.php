@@ -65,7 +65,8 @@ if ($is_local) {
     
     // API de teste Asaas
     if (!defined('ASAAS_API_KEY')) define('ASAAS_API_KEY', getenv('ASAAS_API_KEY') ?: '$aact_test_CHAVE_DE_TESTE_AQUI');
-    if (!defined('DEBUG_MODE')) define('DEBUG_MODE', true);
+    // Debug mode
+    define('DEBUG_MODE', true);
     if (!defined('ENABLE_CACHE')) define('ENABLE_CACHE', false); // Desabilitar cache em desenvolvimento
 } else {
     // Configurações para produção (Hostinger)
