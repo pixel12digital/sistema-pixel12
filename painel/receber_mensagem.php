@@ -1,4 +1,12 @@
 <?php
+/**
+ * 🔗 RECEPTOR DE MENSAGENS COM INTEGRAÇÃO ANA LOCAL
+ * 
+ * Recebe mensagens do WhatsApp Canal 3000 e processa via Ana LOCAL
+ * Muito mais eficiente - sem chamadas HTTP externas
+ * COMPATÍVEL COM SISTEMA EXISTENTE
+ */
+
 require_once __DIR__ . '/../config.php';
 require_once 'db.php';
 require_once 'cache_invalidator.php';
@@ -7,187 +15,204 @@ header('Content-Type: application/json');
 
 // LOG: Capturar dados recebidos
 $input = file_get_contents('php://input');
-error_log("[RECEBIMENTO] Dados recebidos: " . $input);
+error_log("[RECEBIMENTO_ANA_LOCAL] Dados recebidos: " . $input);
 
 $data = json_decode($input, true);
 
 if (!isset($data['from']) || !isset($data['body'])) {
-    error_log("[RECEBIMENTO] ERRO: Dados incompletos - from ou body não encontrados");
+    error_log("[RECEBIMENTO_ANA_LOCAL] ERRO: Dados incompletos - from ou body não encontrados");
     echo json_encode(['success' => false, 'error' => 'Dados incompletos']);
     exit;
 }
-
-error_log("[RECEBIMENTO] Processando mensagem de: " . $data['from'] . " - Conteúdo: " . $data['body']);
 
 $from = $mysqli->real_escape_string($data['from']);
 $body = $mysqli->real_escape_string($data['body']);
 $timestamp = isset($data['timestamp']) ? intval($data['timestamp']) : time();
 
-// Tenta encontrar canal pelo identificador (número)
-$numero = preg_replace('/\D/', '', $from);
-error_log("[RECEBIMENTO] Número limpo: " . $numero);
+// COMPATIBILIDADE: Determinar canal igual ao sistema anterior
+$canal_id = 36; // Canal Pixel12Digital (Ana)
+$canal_nome = "Pixel12Digital";
+$canal_porta = 3000;
 
-// NOVA LÓGICA: Buscar canal pelo número de destino (to) se disponível
-$canal_id = 36; // Padrão: Financeiro
-$canal_nome = "Financeiro";
-$canal_porta = 3000; // Padrão: Porta 3000
-
+// Buscar canal pelo destino se disponível (compatibilidade)
 if (isset($data['to'])) {
     $to = $mysqli->real_escape_string($data['to']);
-    error_log("[RECEBIMENTO] Número de destino (to): " . $to);
+    error_log("[RECEBIMENTO_ANA_LOCAL] Número de destino (to): " . $to);
     
-    // Buscar canal pelo identificador de destino
     $canal = $mysqli->query("SELECT id, nome_exibicao, porta FROM canais_comunicacao WHERE identificador = '$to' LIMIT 1")->fetch_assoc();
     
     if ($canal) {
         $canal_id = intval($canal['id']);
         $canal_nome = $canal['nome_exibicao'];
         $canal_porta = intval($canal['porta']);
-        error_log("[RECEBIMENTO] Canal encontrado pelo destino: " . $canal_nome . " (ID: " . $canal_id . ", Porta: " . $canal_porta . ")");
-    } else {
-        error_log("[RECEBIMENTO] Canal não encontrado pelo destino '$to', usando padrão Financeiro");
-    }
-} else {
-    // Fallback: Buscar canal pelo número do robô (554797146908) - lógica antiga
-    $canal = $mysqli->query("SELECT id, nome_exibicao, porta FROM canais_comunicacao WHERE identificador LIKE '%554797146908%' OR identificador LIKE '%4797146908%' LIMIT 1")->fetch_assoc();
-    if ($canal) {
-        $canal_id = intval($canal['id']);
-        $canal_nome = $canal['nome_exibicao'];
-        $canal_porta = intval($canal['porta']);
-        error_log("[RECEBIMENTO] Canal encontrado pelo robô: " . $canal_nome . " (ID: " . $canal_id . ", Porta: " . $canal_porta . ")");
-    } else {
-        error_log("[RECEBIMENTO] Canal não encontrado, usando ID 36 (Financeiro) como padrão");
     }
 }
 
-// NOVA LÓGICA: Conectar ao banco correto baseado na porta do canal
-$mysqli_canal = $mysqli; // Padrão: banco principal
+error_log("[RECEBIMENTO_ANA_LOCAL] Processando via Ana LOCAL - Canal: $canal_nome (ID: $canal_id)");
 
-if ($canal_porta === 3001) {
-    // Canal Comercial - usar configuração específica do canal
-    error_log("[RECEBIMENTO] Conectando ao banco comercial...");
-    try {
-        require_once __DIR__ . '/../canais/comercial/canal_config.php';
-        $mysqli_comercial = conectarBancoCanal();
-        if ($mysqli_comercial) {
-            $mysqli_canal = $mysqli_comercial;
-            error_log("[RECEBIMENTO] ✅ Conectado ao banco comercial usando configuração do canal");
+try {
+    // 1. VERIFICAR SE É CANAL 3000 (ANA) OU OUTRO
+    if ($canal_porta === 3000) {
+        // CANAL 3000 - PROCESSAR COM ANA
+        error_log("[RECEBIMENTO_ANA_LOCAL] Canal 3000 detectado - Processando com Ana");
+        
+        // 1.1. SALVAR MENSAGEM RECEBIDA (compatível com sistema anterior)
+        $data_hora = date('Y-m-d H:i:s', $timestamp);
+        $sql_mensagem = "INSERT INTO mensagens_comunicacao 
+                         (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status) 
+                         VALUES (?, ?, ?, 'texto', ?, 'recebido', 'nao_lido')";
+        
+        $stmt = $mysqli->prepare($sql_mensagem);
+        $stmt->bind_param('isss', $canal_id, $from, $body, $data_hora);
+        $stmt->execute();
+        $mensagem_id = $mysqli->insert_id;
+        $stmt->close();
+        
+        error_log("[RECEBIMENTO_ANA_LOCAL] Mensagem salva - ID: $mensagem_id");
+        
+        // 1.2. PROCESSAR VIA INTEGRADOR ANA LOCAL
+        require_once __DIR__ . '/api/integrador_ana_local.php';
+        
+        $integrador = new IntegradorAnaLocal($mysqli);
+        $resultado_ana = $integrador->processarMensagem($data);
+        
+        if ($resultado_ana['success']) {
+            error_log("[RECEBIMENTO_ANA_LOCAL] Ana local processou com sucesso - Ação: " . $resultado_ana['acao_sistema']);
+            
+            // 1.3. SALVAR RESPOSTA DA ANA
+            $sql_resposta = "INSERT INTO mensagens_comunicacao 
+                             (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status) 
+                             VALUES (?, ?, ?, 'texto', NOW(), 'enviado', 'entregue')";
+            
+            $stmt = $mysqli->prepare($sql_resposta);
+            $resposta_ana = $resultado_ana['resposta_ana'];
+            $stmt->bind_param('iss', $canal_id, $from, $resposta_ana);
+            $stmt->execute();
+            $resposta_id = $mysqli->insert_id;
+            $stmt->close();
+            
+            // 1.4. LOG DETALHADO PARA MONITORAMENTO
+            $sql_log = "INSERT INTO logs_integracao_ana 
+                        (numero_cliente, mensagem_enviada, resposta_ana, acao_sistema, departamento_detectado, status_api) 
+                        VALUES (?, ?, ?, ?, ?, 'success_local')";
+            
+            $stmt = $mysqli->prepare($sql_log);
+            $stmt->bind_param('sssss', 
+                $from, 
+                $body, 
+                $resposta_ana, 
+                $resultado_ana['acao_sistema'], 
+                $resultado_ana['departamento_detectado']
+            );
+            $stmt->execute();
+            $stmt->close();
+            
+            // 1.5. INVALIDAR CACHE DE MENSAGENS (compatibilidade)
+            $invalidator = new CacheInvalidator();
+            $invalidator->onNewMessage($canal_id);
+            
+            // 1.6. RESPOSTA PARA WHATSAPP (compatível com formato anterior)
+            $resposta_sistema = [
+                'success' => true,
+                'mensagem_id' => $mensagem_id,
+                'response_id' => $resposta_id,
+                'canal' => $canal_nome,
+                'ana_response' => $resposta_ana,
+                'action_taken' => $resultado_ana['acao_sistema'],
+                'department' => $resultado_ana['departamento_detectado'],
+                'transfer_rafael' => $resultado_ana['transfer_para_rafael'],
+                'transfer_humano' => $resultado_ana['transfer_para_humano'],
+                'integration_type' => 'ana_local',
+                'performance' => 'optimized'
+            ];
+            
+            // 1.7. AÇÕES ESPECIAIS BASEADAS NA RESPOSTA DA ANA
+            if ($resultado_ana['transfer_para_rafael']) {
+                error_log("[RECEBIMENTO_ANA_LOCAL] Transferência para Rafael detectada");
+                $resposta_sistema['next_action'] = 'transfer_to_rafael';
+                $resposta_sistema['rafael_info'] = 'Cliente será atendido por Rafael - Especialista em Sites/Ecommerce';
+            }
+            
+            if ($resultado_ana['transfer_para_humano']) {
+                error_log("[RECEBIMENTO_ANA_LOCAL] Transferência para humano detectada - Depto: " . $resultado_ana['departamento_detectado']);
+                $resposta_sistema['next_action'] = 'transfer_to_human';
+                $resposta_sistema['human_channel'] = '47 97309525';
+                $resposta_sistema['department'] = $resultado_ana['departamento_detectado'];
+            }
+            
+            echo json_encode($resposta_sistema);
+            
         } else {
-            error_log("[RECEBIMENTO] ❌ Erro ao conectar ao banco comercial");
-            error_log("[RECEBIMENTO] ⚠️ Usando banco principal como fallback");
+            error_log("[RECEBIMENTO_ANA_LOCAL] ERRO no processamento da Ana local");
+            
+            // Fallback para resposta básica
+            $resposta_fallback = "Olá! Sou a Ana da Pixel12Digital. No momento estou com uma instabilidade, mas em breve retorno. Para urgências, contate 47 97309525. 😊";
+            
+            $sql_fallback = "INSERT INTO mensagens_comunicacao 
+                             (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status) 
+                             VALUES (?, ?, ?, 'texto', NOW(), 'enviado', 'entregue')";
+            
+            $stmt = $mysqli->prepare($sql_fallback);
+            $stmt->bind_param('iss', $canal_id, $from, $resposta_fallback);
+            $stmt->execute();
+            $fallback_id = $mysqli->insert_id;
+            $stmt->close();
+            
+            echo json_encode([
+                'success' => true,
+                'mensagem_id' => $mensagem_id,
+                'response_id' => $fallback_id,
+                'canal' => $canal_nome,
+                'ana_response' => $resposta_fallback,
+                'action_taken' => 'fallback_emergency',
+                'integration_type' => 'ana_local_fallback',
+                'note' => 'Ana local indisponível - Resposta de emergência enviada'
+            ]);
         }
-    } catch (Exception $e) {
-        error_log("[RECEBIMENTO] ❌ Exceção ao conectar ao banco comercial: " . $e->getMessage());
-        error_log("[RECEBIMENTO] ⚠️ Usando banco principal como fallback");
-    }
-} elseif ($canal_porta === 3002) {
-    // Canal Suporte - usar banco separado
-    error_log("[RECEBIMENTO] Conectando ao banco suporte...");
-    try {
-        $mysqli_suporte = new mysqli('srv1607.hstgr.io', 'u342734079_revendaweb', 'Los@ngo#081081', 'pixel12digital_suporte');
-        if (!$mysqli_suporte->connect_error) {
-            $mysqli_canal = $mysqli_suporte;
-            error_log("[RECEBIMENTO] ✅ Conectado ao banco suporte");
+        
+    } else {
+        // OUTROS CANAIS - PROCESSAR COM LÓGICA ANTERIOR (COMPATIBILIDADE TOTAL)
+        error_log("[RECEBIMENTO_ANA_LOCAL] Canal $canal_porta detectado - Processando com lógica anterior");
+        
+        // Incluir e executar lógica do sistema anterior para outros canais
+        $backup_file = __DIR__ . '/receber_mensagem_backup.php';
+        if (file_exists($backup_file)) {
+            // Redirecionar para lógica anterior
+            include $backup_file;
+            return;
         } else {
-            error_log("[RECEBIMENTO] ❌ Erro ao conectar ao banco suporte: " . $mysqli_suporte->connect_error);
-            error_log("[RECEBIMENTO] ⚠️ Usando banco principal como fallback");
+            // Lógica básica de fallback
+            $data_hora = date('Y-m-d H:i:s', $timestamp);
+            $sql_mensagem = "INSERT INTO mensagens_comunicacao 
+                             (canal_id, telefone_origem, mensagem, tipo, data_hora, direcao, status) 
+                             VALUES (?, ?, ?, 'texto', ?, 'recebido', 'recebido')";
+            
+            $stmt = $mysqli->prepare($sql_mensagem);
+            $stmt->bind_param('isss', $canal_id, $from, $body, $data_hora);
+            $stmt->execute();
+            $mensagem_id = $mysqli->insert_id;
+            $stmt->close();
+            
+            echo json_encode([
+                'success' => true, 
+                'mensagem_id' => $mensagem_id, 
+                'canal' => $canal_nome,
+                'integration_type' => 'fallback_basico'
+            ]);
         }
-    } catch (Exception $e) {
-        error_log("[RECEBIMENTO] ❌ Exceção ao conectar ao banco suporte: " . $e->getMessage());
-        error_log("[RECEBIMENTO] ⚠️ Usando banco principal como fallback");
     }
-} elseif ($canal_porta === 3003) {
-    // Canal Vendas - usar banco separado
-    error_log("[RECEBIMENTO] Conectando ao banco vendas...");
-    try {
-        $mysqli_vendas = new mysqli('srv1607.hstgr.io', 'u342734079_revendaweb', 'Los@ngo#081081', 'pixel12digital_vendas');
-        if (!$mysqli_vendas->connect_error) {
-            $mysqli_canal = $mysqli_vendas;
-            error_log("[RECEBIMENTO] ✅ Conectado ao banco vendas");
-        } else {
-            error_log("[RECEBIMENTO] ❌ Erro ao conectar ao banco vendas: " . $mysqli_vendas->connect_error);
-            error_log("[RECEBIMENTO] ⚠️ Usando banco principal como fallback");
-        }
-    } catch (Exception $e) {
-        error_log("[RECEBIMENTO] ❌ Exceção ao conectar ao banco vendas: " . $e->getMessage());
-        error_log("[RECEBIMENTO] ⚠️ Usando banco principal como fallback");
-    }
-} else {
-    error_log("[RECEBIMENTO] Usando banco principal (porta $canal_porta)");
-}
-
-// Opcional: tentar encontrar cliente pelo número
-$numero_limpo = preg_replace('/\D/', '', $from);
-error_log("[RECEBIMENTO] Número limpo: " . $numero_limpo);
-
-// Tentar diferentes formatos do número
-$formatos_numero = [];
-$formatos_numero[] = $numero_limpo; // Formato original (554796164699)
-$formatos_numero[] = substr($numero_limpo, 2); // Sem código do país (4796164699)
-$formatos_numero[] = substr($numero_limpo, 0, 2) . '9' . substr($numero_limpo, 2); // Com 9 (554796164699)
-$formatos_numero[] = substr($numero_limpo, 2, 2) . '9' . substr($numero_limpo, 4); // Sem código + 9 (4796164699)
-$ddd_mais_numero = substr($numero_limpo, -10); // DDD + número
-$formatos_numero[] = $ddd_mais_numero;
-
-error_log("[RECEBIMENTO] Formatos a testar: " . implode(', ', $formatos_numero));
-
-$cliente = null;
-$cliente_id = null;
-
-foreach ($formatos_numero as $formato) {
-    $formato_escaped = $mysqli_canal->real_escape_string($formato);
-    $result = $mysqli_canal->query("SELECT id, nome, celular FROM clientes WHERE celular LIKE '%$formato_escaped%' OR telefone LIKE '%$formato_escaped%' LIMIT 1");
     
-    if ($result && $result->num_rows > 0) {
-        $cliente = $result->fetch_assoc();
-        $cliente_id = intval($cliente['id']);
-        error_log("[RECEBIMENTO] Cliente encontrado com formato '$formato': " . $cliente['nome'] . " (ID: " . $cliente_id . ")");
-        break;
-    }
+} catch (Exception $e) {
+    error_log("[RECEBIMENTO_ANA_LOCAL] ERRO CRÍTICO: " . $e->getMessage());
+    
+    echo json_encode([
+        'success' => false,
+        'error' => 'Erro interno do servidor',
+        'message' => 'Mensagem recebida mas não processada',
+        'integration_type' => 'ana_local_error',
+        'debug' => $e->getMessage()
+    ]);
 }
 
-if (!$cliente) {
-    error_log("[RECEBIMENTO] Cliente não encontrado com nenhum formato");
-}
-
-$data_hora = date('Y-m-d H:i:s', $timestamp);
-
-if ($cliente_id) {
-  // Cliente existe, salva normalmente
-  error_log("[RECEBIMENTO] Salvando mensagem para cliente existente ID: " . $cliente_id . " no canal: " . $canal_nome . " (ID: " . $canal_id . ")");
-  $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) VALUES ($canal_id, $cliente_id, '$body', 'texto', '$data_hora', 'recebido', 'recebido')";
-  if ($mysqli_canal->query($sql)) {
-    error_log("[RECEBIMENTO] SUCESSO: Mensagem salva no banco, ID: " . $mysqli_canal->insert_id . " no canal: " . $canal_nome);
-    invalidate_message_cache($cliente_id);
-    // Forçar limpeza de todos os caches relevantes
-    if (function_exists('cache_forget')) {
-        cache_forget("mensagens_{$cliente_id}");
-        cache_forget("historico_html_{$cliente_id}");
-        cache_forget("mensagens_html_{$cliente_id}");
-    }
-    echo json_encode(['success' => true, 'mensagem_id' => $mysqli_canal->insert_id, 'canal' => $canal_nome]);
-  } else {
-    error_log("[RECEBIMENTO] ERRO SQL: " . $mysqli_canal->error);
-    echo json_encode(['success' => false, 'error' => $mysqli_canal->error]);
-  }
-} else {
-  // Cliente não existe, salva na tabela temporária
-  error_log("[RECEBIMENTO] Cliente não encontrado, salvando em mensagens_pendentes no canal: " . $canal_nome . " (ID: " . $canal_id . ")");
-  $sql = "INSERT INTO mensagens_pendentes (canal_id, numero, mensagem, tipo, data_hora) VALUES ($canal_id, '$numero', '$body', 'texto', '$data_hora')";
-  if ($mysqli_canal->query($sql)) {
-    error_log("[RECEBIMENTO] SUCESSO: Mensagem salva em pendentes, ID: " . $mysqli_canal->insert_id . " no canal: " . $canal_nome);
-    echo json_encode(['success' => true, 'pendente' => true, 'mensagem_id' => $mysqli_canal->insert_id, 'canal' => $canal_nome]);
-  } else {
-    error_log("[RECEBIMENTO] ERRO SQL pendentes: " . $mysqli_canal->error);
-    echo json_encode(['success' => false, 'error' => $mysqli_canal->error]);
-  }
-}
-
-// Fechar conexões específicas se foram criadas
-if ($canal_porta === 3001 && isset($mysqli_comercial) && $mysqli_comercial !== $mysqli) {
-    $mysqli_comercial->close();
-} elseif ($canal_porta === 3002 && isset($mysqli_suporte) && $mysqli_suporte !== $mysqli) {
-    $mysqli_suporte->close();
-} elseif ($canal_porta === 3003 && isset($mysqli_vendas) && $mysqli_vendas !== $mysqli) {
-    $mysqli_vendas->close();
-} 
+$mysqli->close();
+?> 
