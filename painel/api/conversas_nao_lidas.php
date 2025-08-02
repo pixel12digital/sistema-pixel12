@@ -118,11 +118,14 @@ function buscar_conversas_nao_lidas_diretamente($mysqli) {
 
 // Função para contar total de mensagens não lidas
 function contar_total_nao_lidas($mysqli) {
-    $sql = "SELECT COUNT(*) as total 
-            FROM mensagens_comunicacao 
-            WHERE direcao = 'recebido' 
-            AND status != 'lido'
-            AND data_hora >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+    // 🚀 CORREÇÃO: Usar a mesma lógica da busca de conversas
+    // Só contar mensagens de clientes válidos para manter coerência
+    $sql = "SELECT COUNT(DISTINCT c.id) as total 
+            FROM mensagens_comunicacao mc
+            INNER JOIN clientes c ON mc.cliente_id = c.id
+            WHERE mc.direcao = 'recebido' 
+            AND mc.status != 'lido'
+            AND mc.data_hora >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
     
     $result = $mysqli->query($sql);
     $row = $result->fetch_assoc();
