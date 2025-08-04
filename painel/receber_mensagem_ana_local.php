@@ -213,19 +213,19 @@ try {
     error_log("[WEBHOOK_ANA] Processamento concluído com sucesso");
 
 } catch (Exception $e) {
-    // Erro controlado
-    error_log("[WEBHOOK_ANA] Erro: " . $e->getMessage());
+    // Log do erro
+    error_log("[WEBHOOK_ANA] ERRO CRÍTICO: " . $e->getMessage());
     
+    // Resposta de erro
     http_response_code(500);
     echo json_encode([
         'success' => false, 
-        'error' => 'Erro interno do servidor',
+        'error' => $e->getMessage(),
         'timestamp' => date('Y-m-d H:i:s')
     ]);
 } finally {
-    // Fechar conexão
+    // Fechar conexão MySQL se existir
     if (isset($mysqli) && $mysqli instanceof mysqli) {
         $mysqli->close();
     }
-}
-?> 
+} 

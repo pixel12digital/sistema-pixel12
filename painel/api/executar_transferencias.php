@@ -70,7 +70,7 @@ class ExecutorTransferencias {
     /**
      * Processar transferências para Rafael
      */
-    private function processarTransferenciasRafael() {
+    public function processarTransferenciasRafael() {
         $resultado = [
             'processadas' => 0,
             'erros' => [],
@@ -114,7 +114,7 @@ class ExecutorTransferencias {
     /**
      * Processar transferências para humanos (Canal 3001)
      */
-    private function processarTransferenciasHumanas() {
+    public function processarTransferenciasHumanas() {
         $resultado = [
             'processadas' => 0,
             'erros' => [],
@@ -162,7 +162,7 @@ class ExecutorTransferencias {
     /**
      * 🆕 NOVO: Processar transferências específicas de suporte técnico
      */
-    private function processarTransferenciasSuporte() {
+    public function processarTransferenciasSuporte() {
         $resultado = [
             'processadas' => 0,
             'erros' => [],
@@ -247,7 +247,7 @@ class ExecutorTransferencias {
     /**
      * Transferir conversa para Canal 3001 (humanos)
      */
-    private function transferirParaHumanos($transferencia) {
+    public function transferirParaHumanos($transferencia) {
         try {
             $numero_cliente = $transferencia['numero_cliente'];
             $mensagem_original = $transferencia['mensagem_original'];
@@ -560,12 +560,12 @@ class ExecutorTransferencias {
 
 // ===== PROCESSAMENTO DA REQUISIÇÃO =====
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $executor = new ExecutorTransferencias($mysqli);
     $resultado = $executor->processarTransferenciasPendentes();
     echo json_encode($resultado, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     
-} elseif ($_SERVER['REQUEST_METHOD'] === 'GET') {
+} elseif (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'GET') {
     // Status do executor
     echo json_encode([
         'success' => true,
@@ -588,6 +588,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]
     ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 }
-
-$mysqli->close();
 ?> 
