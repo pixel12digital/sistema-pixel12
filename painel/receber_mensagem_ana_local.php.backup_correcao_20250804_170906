@@ -182,55 +182,7 @@ try {
     $integrador = new IntegradorAnaLocal($mysqli);
     $resultado_ana = $integrador->processarMensagem($dados);
 
-    
-    // Enviar resposta da Ana via WhatsApp (VERSÃO ROBUSTA)
-    if (isset($resultado_ana['resposta_ana']) && !empty($resultado_ana['resposta_ana'])) {
-        $numero_destinatario = $dados['from'];
-        $mensagem_ana = $resultado_ana['resposta_ana'];
-        
-        error_log("[WEBHOOK_ANA] 📤 Enviando resposta da Ana para: $numero_destinatario");
-        error_log("[WEBHOOK_ANA] 📄 Resposta: " . substr($mensagem_ana, 0, 100) . "...");
-        
-        try {
-            $resultado_envio = enviarMensagemRobusta($numero_destinatario, $mensagem_ana);
-            
-            if ($resultado_envio['success']) {
-                error_log("[WEBHOOK_ANA] ✅ Mensagem enviada com sucesso!");
-                $status_envio = 'enviado';
-                $erro_envio = null;
-            } else {
-                error_log("[WEBHOOK_ANA] ❌ Falha no envio: " . json_encode($resultado_envio));
-                $status_envio = 'erro_envio';
-                $erro_envio = json_encode($resultado_envio);
-            }
-            
-            // Atualizar status no banco (com reconexão se necessário)
-            try {
-                $message_id = $resultado_ana['response_id'] ?? null;
-                if ($message_id && $mysqli->ping()) {
-                    $stmt = $mysqli->prepare("
-                        UPDATE mensagens_comunicacao 
-                        SET status = ?, motivo_erro = ? 
-                        WHERE id = ?
-                    ");
-                    
-                    $stmt->bind_param("ssi", $status_envio, $erro_envio, $message_id);
-                    $stmt->execute();
-                    
-                    error_log("[WEBHOOK_ANA] 💾 Status atualizado no banco");
-                } else if (!$mysqli->ping()) {
-                    error_log("[WEBHOOK_ANA] ⚠️ Conexão MySQL perdida, não foi possível atualizar status");
-                }
-            } catch (Exception $db_error) {
-                error_log("[WEBHOOK_ANA] ❌ Erro ao atualizar banco: " . $db_error->getMessage());
-            }
-            
-        } catch (Exception $envio_error) {
-            error_log("[WEBHOOK_ANA] ❌ Erro crítico no envio: " . $envio_error->getMessage());
-        }
-    } else {
-        error_log("[WEBHOOK_ANA] ⚠️ Ana não gerou resposta para enviar");
-    }
+    // Enviar resposta da Ana via WhatsApp
     if (isset($resultado_ana['resposta_ana']) && !empty($resultado_ana['resposta_ana'])) {
         $numero_destinatario = $dados['from'];
         $mensagem_ana = $resultado_ana['resposta_ana'];
