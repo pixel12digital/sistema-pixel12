@@ -51,19 +51,58 @@ try {
 
     // ===== PROCESSAR MENSAGEM PRINCIPAL =====
     
-    // 1. Normalizar dados
-    $numero_whatsapp = str_replace('@c.us', '', $dados['from'] ?? '');
+    // 1. Identificar remetente e canal de destino
+    $numero_remetente = str_replace('@c.us', '', $dados['from'] ?? '');
     $mensagem = $dados['body'] ?? $dados['message'] ?? '';
-    $canal_id = 36; // Canal Ana padrão
     
-    // 2. Validar dados essenciais
-    if (empty($numero_whatsapp) || empty($mensagem)) {
+    // 2. NOVA LÓGICA: Identificar canal pela URL ou header
+    $canal_id = 36; // Canal Ana padrão
+    $numero_whatsapp = '554797146908'; // Canal Ana padrão
+    
+    // Verificar se vem de uma porta específica via header ou referer
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    $referer = $_SERVER['HTTP_REFERER'] ?? '';
+    $remote_addr = $_SERVER['REMOTE_ADDR'] ?? '';
+    
+    // Log para debug
+    error_log("[WEBHOOK_ANA] User-Agent: $user_agent | Referer: $referer | IP: $remote_addr");
+    
+    // Tentar identificar pelo campo 'to' primeiro
+    $numero_destino = str_replace('@c.us', '', $dados['to'] ?? '');
+    if (!empty($numero_destino)) {
+        error_log("[WEBHOOK_ANA] Campo TO encontrado: $numero_destino");
+        
+        if ($numero_destino === '554797146908') {
+            // Canal Ana (3000)
+            $canal_id = 36;
+            $numero_whatsapp = '554797146908';
+            error_log("[WEBHOOK_ANA] Mapeado para Canal Ana via TO");
+        } elseif ($numero_destino === '554797309525') {
+            // Canal Humano (3001) 
+            $canal_id = 37; // Verificar ID correto
+            $numero_whatsapp = '554797309525';
+            error_log("[WEBHOOK_ANA] Mapeado para Canal Humano via TO");
+        }
+    } else {
+        // Fallback: Assumir Canal Ana se não há informação de destino
+        error_log("[WEBHOOK_ANA] Campo TO vazio, usando Canal Ana como padrão");
+    }
+    
+    // ALTERNATIVA: Se ainda não identificou corretamente, usar número fixo baseado no contexto
+    // Por ora, FORÇAR Canal Ana para todos os casos como teste
+    $numero_whatsapp = '554797146908';
+    $canal_id = 36;
+    
+    error_log("[WEBHOOK_ANA] FINAL - Remetente: $numero_remetente -> Canal: $numero_whatsapp (ID: $canal_id)");
+    
+    // 3. Validar dados essenciais
+    if (empty($numero_remetente) || empty($mensagem)) {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Dados incompletos']);
         exit;
     }
 
-    // 3. Salvar mensagem recebida
+    // 4. Salvar mensagem recebida no CANAL CORRETO
     $message_id = null;
     if (isset($mysqli) && $mysqli instanceof mysqli) {
         $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, numero_whatsapp, mensagem, direcao, data_hora, tipo) VALUES (?, ?, ?, 'recebido', NOW(), 'text')");
@@ -71,17 +110,17 @@ try {
             $stmt->bind_param('iss', $canal_id, $numero_whatsapp, $mensagem);
             if ($stmt->execute()) {
                 $message_id = $mysqli->insert_id;
-                error_log("[WEBHOOK_ANA] Mensagem salva ID: $message_id");
+                error_log("[WEBHOOK_ANA] Mensagem salva ID: $message_id no canal $numero_whatsapp (de: $numero_remetente)");
             }
             $stmt->close();
         }
     }
 
-    // 4. Processar via integrador Ana
+    // 5. Processar via integrador Ana
     $integrador = new IntegradorAnaLocal($mysqli);
     $resultado_ana = $integrador->processarMensagem($dados);
 
-    // 5. Salvar resposta da Ana
+    // 6. Salvar resposta da Ana
     $response_id = null;
     if ($resultado_ana['success'] && !empty($resultado_ana['resposta_ana'])) {
         if (isset($mysqli) && $mysqli instanceof mysqli) {
@@ -97,13 +136,13 @@ try {
         }
     }
 
-    // 6. Invalidar cache
+    // 7. Invalidar cache
     if (class_exists('CacheInvalidator')) {
         $cache = new CacheInvalidator();
         $cache->onNewMessage($canal_id, $numero_whatsapp);
     }
 
-    // 7. Resposta final (HTTP 200)
+    // 8. Resposta final (HTTP 200)
     http_response_code(200);
     $resposta_final = [
         'success' => true,

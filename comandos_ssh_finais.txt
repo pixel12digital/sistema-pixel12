@@ -1,0 +1,48 @@
+📋 COMANDOS SSH FINAIS - CORRIGIR E TESTAR
+===============================================
+
+🔗 1. CONECTAR AO SSH:
+ssh root@212.85.11.238
+
+🔧 2. CORRIGIR CANAL 3001 (WEBHOOK ERRADO):
+curl -X POST http://localhost:3001/webhook/config \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://app.pixel12digital.com.br/painel/receber_mensagem_ana_local.php"}'
+
+🔍 3. VERIFICAR SE CORRIGIU:
+curl http://localhost:3001/webhook/config
+
+📱 4. RESTART DOS PROCESSOS:
+pm2 restart whatsapp-3000
+pm2 restart whatsapp-3001
+pm2 logs --lines 10
+
+🧪 5. TESTE FINAL REAL:
+=======================
+
+CANAL ANA (3000):
+- Do seu WhatsApp: 554796164699  
+- Para: +55 47 97146908
+- Mensagem: "Teste Ana real"
+
+CANAL HUMANO (3001):
+- Do seu WhatsApp: 554796164699
+- Para: +55 47 97309525  
+- Mensagem: "Teste Humano real"
+
+🎯 6. VERIFICAR RESULTADOS:
+php verificar_canais_corretos.php
+
+💡 ESPERADO:
+- Mensagens aparecem nos canais corretos
+- Ana responde automaticamente no Canal 3000
+- Sistema registra corretamente
+
+🚀 SE FUNCIONAR:
+- Sistema 100% operacional!
+- Problema resolvido definitivamente!
+
+🛠️ SE NÃO FUNCIONAR:
+- Investigar logs PM2 no SSH
+- Verificar se webhooks estão configurados
+- Confirmar números WhatsApp corretos 
