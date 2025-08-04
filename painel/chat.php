@@ -2331,15 +2331,25 @@ function render_content() {
     const form = document.getElementById('form-chat-enviar');
     if (!form) return;
     
-    const formData = new FormData(form);
-    const mensagem = formData.get('mensagem');
-    const clienteId = formData.get('cliente_id');
-    const canalId = formData.get('canal_id');
+    // Capturar valor diretamente do textarea
+    const textarea = form.querySelector('textarea[name="mensagem"]');
+    const mensagem = textarea ? textarea.value : '';
     
-    if (!mensagem.trim()) {
+    // Debug para verificar o valor
+    console.log('Valor da mensagem:', mensagem);
+    console.log('Tamanho da mensagem:', mensagem.length);
+    console.log('Mensagem após trim:', mensagem.trim());
+    
+    // Validação melhorada
+    if (!mensagem || !mensagem.trim()) {
       alert('Digite uma mensagem');
+      textarea.focus();
       return;
     }
+    
+    const formData = new FormData(form);
+    const clienteId = formData.get('cliente_id');
+    const canalId = formData.get('canal_id');
     
     if (!clienteId) {
       alert('Cliente não selecionado');
@@ -2384,8 +2394,44 @@ function render_content() {
     sendBtn.innerHTML = '⏳ Enviando...';
     sendBtn.disabled = true;
     
+    // Adicionar mensagem imediatamente ao chat (como WhatsApp)
+    const chatMessages = document.getElementById('chat-messages');
+    let tempMessageId = null;
+    if (chatMessages) {
+      const time = new Date().toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      // Obter nome do canal selecionado
+      const canalNome = canalSelector.options[canalSelector.selectedIndex].text.split(' (')[0];
+      
+      // Gerar ID único para a mensagem temporária
+      tempMessageId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const messageHtml = `
+        <div class="message sent" data-mensagem-id="${tempMessageId}">
+          <div class="message-contact-info">
+            <span class="contact-name">VOCÊ</span>
+            <span class="channel-info">via ${canalNome}</span>
+          </div>
+          <div class="message-bubble">
+            ${mensagem}
+            <div class="message-time">
+              ${time}
+              <span class="message-status">⏳</span>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      chatMessages.insertAdjacentHTML('beforeend', messageHtml);
+      
+      // Scroll para a nova mensagem
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
     // Limpar campo de mensagem
-    const textarea = form.querySelector('textarea[name="mensagem"]');
     textarea.value = '';
     textarea.style.height = 'auto';
     
@@ -2405,14 +2451,33 @@ function render_content() {
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        // Recarregar mensagens para mostrar a nova mensagem
-        carregarMensagensCliente(clienteId);
+        // Atualizar status da mensagem para enviado
+        const tempMessage = chatMessages.querySelector(`[data-mensagem-id="${tempMessageId}"]`);
+        if (tempMessage) {
+          const statusSpan = tempMessage.querySelector('.message-status');
+          if (statusSpan) {
+            statusSpan.textContent = '✔';
+          }
+          
+          // Atualizar ID da mensagem com o ID real do banco
+          if (data.mensagem_id) {
+            tempMessage.setAttribute('data-mensagem-id', data.mensagem_id);
+          }
+        }
         
-        // Mostrar feedback de sucesso
-        showToast('Mensagem enviada com sucesso!', 'success');
+        // Mostrar feedback de sucesso (opcional, como WhatsApp)
+        // showToast('Mensagem enviada com sucesso!', 'success');
       } else {
         // Mostrar erro
         showToast('Erro ao enviar mensagem: ' + (data.error || 'Erro desconhecido'), 'error');
+        
+        // Remover mensagem temporária do chat
+        if (tempMessageId) {
+          const tempMessage = chatMessages.querySelector(`[data-mensagem-id="${tempMessageId}"]`);
+          if (tempMessage) {
+            tempMessage.remove();
+          }
+        }
         
         // Restaurar mensagem no campo
         textarea.value = mensagem;
@@ -2421,6 +2486,14 @@ function render_content() {
     .catch(error => {
       console.error('Erro ao enviar mensagem:', error);
       showToast('Erro de conexão ao enviar mensagem', 'error');
+      
+      // Remover mensagem temporária do chat
+      if (tempMessageId) {
+        const tempMessage = chatMessages.querySelector(`[data-mensagem-id="${tempMessageId}"]`);
+        if (tempMessage) {
+          tempMessage.remove();
+        }
+      }
       
       // Restaurar mensagem no campo
       textarea.value = mensagem;
@@ -3543,5 +3616,37 @@ document.addEventListener('DOMContentLoaded', function() {
     font-size: 0.85rem;
     padding: 0.4rem;
   }
+}
+
+/* ===== ESTILOS PARA INFORMAÇÕES DE CONTATO NAS MENSAGENS ===== */
+
+.message-contact-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.contact-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.channel-info {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+/* Ajuste para mensagens enviadas */
+.message.sent .message-contact-info {
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+}
+
+/* Ajuste para mensagens recebidas */
+.message.received .message-contact-info {
+  justify-content: flex-start;
 }
 </style>

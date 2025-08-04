@@ -158,8 +158,17 @@ try {
             $mensagem .= "Atenciosamente,\nEquipe Financeira Pixel12 Digital";
 
             // Enviar mensagem via VPS
+            // Formatar número para WhatsApp
             $numero_limpo = preg_replace('/\D/', '', $row['cliente_celular']);
-            $numero_formatado = '55' . $numero_limpo . '@c.us';
+            
+            // Verificar se já tem código 55 no início
+            if (strpos($numero_limpo, '55') === 0) {
+                // Se já tem 55, usar como está
+                $numero_formatado = $numero_limpo . '@c.us';
+            } else {
+                // Se não tem 55, adicionar
+                $numero_formatado = '55' . $numero_limpo . '@c.us';
+            }
             $payload = json_encode([
                 'sessionName' => 'default',
                 'number' => $numero_formatado,

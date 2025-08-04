@@ -108,6 +108,22 @@ if (isset($_FILES['anexo']) && $_FILES['anexo']['error'] === UPLOAD_ERR_OK) {
 file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Antes de salvar mensagem no banco\n", FILE_APPEND);
 // Salvar mensagem no banco
 $numero = $cliente['celular'];
+
+// CORREÇÃO: Formatar número corretamente para WhatsApp
+$numero_limpo = preg_replace('/\D/', '', $numero);
+
+// Verificar se já tem código 55 no início
+if (strpos($numero_limpo, '55') === 0) {
+    // Se já tem 55, usar como está
+    $numero_formatado = $numero_limpo . '@c.us';
+} else {
+    // Se não tem 55, adicionar
+    $numero_formatado = '55' . $numero_limpo . '@c.us';
+}
+
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Número original: $numero\n", FILE_APPEND);
+file_put_contents('debug_chat_enviar.log', date('Y-m-d H:i:s') . " - Número formatado: $numero_formatado\n", FILE_APPEND);
+
 $data_hora = date('Y-m-d H:i:s');
 
 $sql = "INSERT INTO mensagens_comunicacao (cliente_id, canal_id, mensagem, anexo, direcao, status, data_hora, tipo) VALUES (?, ?, ?, ?, 'enviado', 'enviado', ?, 'texto')";
@@ -164,7 +180,7 @@ try {
     
     $api_data = [
         'sessionName' => ($porta_canal == 3001) ? 'comercial' : 'default',
-        'number' => $numero,
+        'number' => $numero_formatado,
         'message' => $mensagem
     ];
     

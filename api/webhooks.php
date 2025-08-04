@@ -40,8 +40,8 @@ function ajustarNumeroWhatsapp($numero) {
         return null; // Número inválido
     }
     
-    // GARANTIR SEMPRE o código +55 do Brasil + DDD + número (exatamente como está)
-    return '55' . $ddd . $telefone;
+    // GARANTIR SEMPRE o código +55 do Brasil + DDD + número
+    return '55' . $ddd . $telefone . '@c.us';
 }
 
 // Função para log de webhooks

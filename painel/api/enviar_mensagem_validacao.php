@@ -54,7 +54,7 @@ function ajustarNumeroWhatsapp($numero) {
     }
     
     // GARANTIR SEMPRE o código +55 do Brasil + DDD + número
-    return '55' . $ddd . $telefone;
+    return '55' . $ddd . $telefone . '@c.us';
 }
 
 // Receber dados
@@ -80,8 +80,11 @@ try {
     }
 
     // Formatar número do celular usando função simplificada
-    $numero_limpo = preg_replace('/\D/', '', $cliente_celular);
-    $numero_formatado = '55' . $numero_limpo . '@c.us';
+    $numero_formatado = ajustarNumeroWhatsapp($cliente_celular);
+    if (!$numero_formatado) {
+        echo json_encode(['success' => false, 'error' => 'Número de telefone inválido']);
+        exit;
+    }
 
     // Enviar mensagem via VPS
     $payload = json_encode([
