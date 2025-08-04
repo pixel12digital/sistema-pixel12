@@ -47,6 +47,23 @@ try {
         exit;
     }
 
+    // Tratamento de formato WhatsApp robot
+    if (isset($dados["event"]) && isset($dados["data"])) {
+        // Formato robot: {"event":"onmessage","data":{"from":"554796164699","text":"msg"}}
+        $from = $dados["data"]["from"] ?? null;
+        $body = $dados["data"]["text"] ?? null;
+        $timestamp = $dados["data"]["timestamp"] ?? time();
+        
+        // Converter para formato padrão
+        $dados = [
+            "from" => $from . "@c.us",
+            "body" => $body,
+            "timestamp" => $timestamp
+        ];
+        
+        error_log("[WEBHOOK_ANA] Formato robot convertido: " . json_encode($dados));
+    }
+
     error_log("[WEBHOOK_ANA] Dados recebidos: " . substr($input, 0, 200));
 
     // ===== PROCESSAR MENSAGEM PRINCIPAL =====
