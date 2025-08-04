@@ -1,8 +1,4 @@
 <?php
-// Incluir função de envio WhatsApp
-require_once '../funcao_envio_whatsapp.php';
-
-
 /**
  * 🔗 RECEPTOR DE MENSAGENS ANA - WEBHOOK PRINCIPAL
  * 
@@ -181,38 +177,6 @@ try {
     // 6. Processar via integrador Ana
     $integrador = new IntegradorAnaLocal($mysqli);
     $resultado_ana = $integrador->processarMensagem($dados);
-
-    // Enviar resposta da Ana via WhatsApp
-    if (isset($resultado_ana['resposta_ana']) && !empty($resultado_ana['resposta_ana'])) {
-        $numero_destinatario = $dados['from'];
-        $mensagem_ana = $resultado_ana['resposta_ana'];
-        
-        error_log("[WEBHOOK_ANA] Enviando resposta da Ana para: $numero_destinatario");
-        
-        $resultado_envio = enviarMensagemWhatsApp($numero_destinatario, $mensagem_ana);
-        
-        if ($resultado_envio['success']) {
-            error_log("[WEBHOOK_ANA] ✅ Mensagem enviada com sucesso");
-        } else {
-            error_log("[WEBHOOK_ANA] ❌ Erro ao enviar mensagem: " . json_encode($resultado_envio));
-        }
-        
-        // Salvar log do envio no banco
-        $stmt = $mysqli->prepare("
-            UPDATE mensagens_comunicacao 
-            SET status = ?, motivo_erro = ? 
-            WHERE id = ?
-        ");
-        
-        $status_envio = $resultado_envio['success'] ? 'enviado' : 'erro_envio';
-        $erro_envio = $resultado_envio['success'] ? null : json_encode($resultado_envio);
-        $message_id = $resultado_ana['response_id'] ?? null;
-        
-        if ($message_id) {
-            $stmt->bind_param("ssi", $status_envio, $erro_envio, $message_id);
-            $stmt->execute();
-        }
-    }
 
     // 7. Salvar resposta da Ana
     $response_id = null;
