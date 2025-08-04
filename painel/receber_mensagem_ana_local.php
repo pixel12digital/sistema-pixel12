@@ -102,47 +102,99 @@ try {
         exit;
     }
 
-    // 4. Salvar mensagem recebida no CANAL CORRETO
-    $message_id = null;
+    // 4. Encontrar ou criar cliente baseado no número do remetente
+    $cliente_id = null;
     if (isset($mysqli) && $mysqli instanceof mysqli) {
-        $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, numero_whatsapp, mensagem, direcao, data_hora, tipo) VALUES (?, ?, ?, 'recebido', NOW(), 'text')");
+        // Limpar número (remover @c.us e outros formatadores)
+        $numero_limpo = preg_replace('/[^0-9]/', '', $numero_remetente);
+        
+        // Buscar cliente existente pelo número
+        $stmt = $mysqli->prepare("SELECT id FROM clientes WHERE celular = ? OR celular = ? OR telefone = ? LIMIT 1");
         if ($stmt) {
-            $stmt->bind_param('iss', $canal_id, $numero_whatsapp, $mensagem);
-            if ($stmt->execute()) {
-                $message_id = $mysqli->insert_id;
-                error_log("[WEBHOOK_ANA] Mensagem salva ID: $message_id no canal $numero_whatsapp (de: $numero_remetente)");
+            $numero_formatado = "+$numero_limpo";
+            $stmt->bind_param('sss', $numero_limpo, $numero_formatado, $numero_limpo);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($row = $result->fetch_assoc()) {
+                $cliente_id = $row['id'];
+                error_log("[WEBHOOK_ANA] Cliente existente encontrado: ID $cliente_id para número $numero_limpo");
+            } else {
+                // Criar novo cliente
+                $stmt_create = $mysqli->prepare("INSERT INTO clientes (nome, celular, data_criacao) VALUES (?, ?, NOW())");
+                if ($stmt_create) {
+                    $nome_temporario = "WhatsApp " . substr($numero_limpo, -4);
+                    $stmt_create->bind_param('ss', $nome_temporario, $numero_limpo);
+                    if ($stmt_create->execute()) {
+                        $cliente_id = $mysqli->insert_id;
+                        error_log("[WEBHOOK_ANA] Novo cliente criado: ID $cliente_id para número $numero_limpo");
+                    }
+                    $stmt_create->close();
+                }
             }
             $stmt->close();
         }
     }
 
-    // 5. Processar via integrador Ana
+    // 5. Salvar mensagem recebida com cliente_id associado
+    $message_id = null;
+    if (isset($mysqli) && $mysqli instanceof mysqli && $cliente_id) {
+        // Salvar numero_whatsapp como o número do REMETENTE (cliente), não do canal
+        $numero_cliente = preg_replace('/[^0-9]/', '', $numero_remetente);
+        
+        $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, cliente_id, numero_whatsapp, mensagem, direcao, data_hora, tipo) VALUES (?, ?, ?, ?, 'recebido', NOW(), 'text')");
+        if ($stmt) {
+            $stmt->bind_param('iiss', $canal_id, $cliente_id, $numero_cliente, $mensagem);
+            if ($stmt->execute()) {
+                $message_id = $mysqli->insert_id;
+                error_log("[WEBHOOK_ANA] Mensagem salva ID: $message_id | Canal: $canal_id | Cliente: $cliente_id | Número: $numero_cliente");
+            } else {
+                error_log("[WEBHOOK_ANA] Erro ao salvar mensagem: " . $mysqli->error);
+            }
+            $stmt->close();
+        }
+    } else {
+        error_log("[WEBHOOK_ANA] ERRO: Não foi possível criar/encontrar cliente para número $numero_remetente");
+    }
+
+    // 6. Processar via integrador Ana
     $integrador = new IntegradorAnaLocal($mysqli);
     $resultado_ana = $integrador->processarMensagem($dados);
 
-    // 6. Salvar resposta da Ana
+    // 7. Salvar resposta da Ana
     $response_id = null;
-    if ($resultado_ana['success'] && !empty($resultado_ana['resposta_ana'])) {
+    if ($resultado_ana['success'] && !empty($resultado_ana['resposta_ana']) && $cliente_id) {
         if (isset($mysqli) && $mysqli instanceof mysqli) {
-            $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, numero_whatsapp, mensagem, direcao, data_hora, tipo) VALUES (?, ?, ?, 'enviado', NOW(), 'text')");
+            // Salvar resposta da Ana com cliente_id e numero do cliente
+            $numero_cliente = preg_replace('/[^0-9]/', '', $numero_remetente);
+            
+            $stmt = $mysqli->prepare("INSERT INTO mensagens_comunicacao (canal_id, cliente_id, numero_whatsapp, mensagem, direcao, data_hora, tipo) VALUES (?, ?, ?, ?, 'enviado', NOW(), 'text')");
             if ($stmt) {
-                $stmt->bind_param('iss', $canal_id, $numero_whatsapp, $resultado_ana['resposta_ana']);
+                $stmt->bind_param('iiss', $canal_id, $cliente_id, $numero_cliente, $resultado_ana['resposta_ana']);
                 if ($stmt->execute()) {
                     $response_id = $mysqli->insert_id;
-                    error_log("[WEBHOOK_ANA] Resposta Ana salva ID: $response_id");
+                    error_log("[WEBHOOK_ANA] Resposta Ana salva ID: $response_id | Cliente: $cliente_id");
+                } else {
+                    error_log("[WEBHOOK_ANA] Erro ao salvar resposta Ana: " . $mysqli->error);
                 }
                 $stmt->close();
             }
         }
     }
 
-    // 7. Invalidar cache
-    if (class_exists('CacheInvalidator')) {
+    // 8. Invalidar cache
+    if (class_exists('CacheInvalidator') && $cliente_id) {
         $cache = new CacheInvalidator();
-        $cache->onNewMessage($canal_id, $numero_whatsapp);
+        $cache->onNewMessage($canal_id, $cliente_id);
+        
+        // Invalidar cache de conversas também
+        $cache_file = __DIR__ . '/cache/conversas_recentes.cache';
+        if (file_exists($cache_file)) {
+            unlink($cache_file);
+        }
     }
 
-    // 8. Resposta final (HTTP 200)
+    // 9. Resposta final (HTTP 200)
     http_response_code(200);
     $resposta_final = [
         'success' => true,
