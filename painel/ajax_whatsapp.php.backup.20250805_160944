@@ -181,7 +181,7 @@ try {
             error_log("[WhatsApp QR Debug] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
             
             // CORREÇÃO: Usar endpoint correto /session/default/qr
-            $qr_endpoint = "/qr?session=" . $sessionName;
+            $qr_endpoint = "/session/default/qr";
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $vps_url . $qr_endpoint);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -211,8 +211,7 @@ try {
                         !str_starts_with($qrData, 'simulate-qr') && 
                         !str_starts_with($qrData, 'test-') &&
                         !str_starts_with($qrData, 'mock-') &&
-                        !str_starts_with($qrData, '2@qJaXRo') && // Rejeitar QR específico problemático
-                        strlen($qrData) > 50) { // Aumentar tamanho mínimo para QR válido // QR válido deve ter pelo menos 10 caracteres
+                        strlen($qrData) > 10) { // QR válido deve ter pelo menos 10 caracteres
                         
                         $qr = $qrData;
                         $qrValid = true;
@@ -230,8 +229,7 @@ try {
                         !str_starts_with($qrData, 'simulate-qr') && 
                         !str_starts_with($qrData, 'test-') &&
                         !str_starts_with($qrData, 'mock-') &&
-                        !str_starts_with($qrData, '2@qJaXRo') && // Rejeitar QR específico problemático
-                        strlen($qrData) > 50) { // Aumentar tamanho mínimo para QR válido
+                        strlen($qrData) > 10) {
                         
                         $qr = $qrData;
                         $qrValid = true;
@@ -331,7 +329,7 @@ try {
             sleep(3);
             
             // Agora tentar obter QR Code
-            $qr_endpoint = "/qr?session=" . $sessionName;
+            $qr_endpoint = "/session/default/qr";
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $vps_url . $qr_endpoint);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -360,8 +358,7 @@ try {
                         !str_starts_with($qrData, 'simulate-qr') && 
                         !str_starts_with($qrData, 'test-') &&
                         !str_starts_with($qrData, 'mock-') &&
-                        !str_starts_with($qrData, '2@qJaXRo') && // Rejeitar QR específico problemático
-                        strlen($qrData) > 50) { // Aumentar tamanho mínimo para QR válido // QR válido deve ter pelo menos 10 caracteres
+                        strlen($qrData) > 10) { // QR válido deve ter pelo menos 10 caracteres
                         
                         $qr = $qrData;
                         $qrValid = true;

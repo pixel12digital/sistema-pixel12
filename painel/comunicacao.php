@@ -445,8 +445,8 @@ document.addEventListener('DOMContentLoaded', function() {
     exibirQrCode(porta);
     pollingInterval = setInterval(function() {
       exibirQrCode(porta);
-      checarStatus(porta);
-    }, 20000); // 20 segundos
+      // REMOVIDO: checarStatus(porta); - Causava oscilação
+    }, 30000); // 30 segundos (aumentado para reduzir oscilação)
   }
   function pararPollingQr() {
     if (pollingInterval) {
@@ -463,7 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // CORREÇÃO: Reduzir frequência de polling para evitar oscilação
     pollingStatusInterval = setInterval(function() {
       if (!pollingStatusPaused) atualizarStatusCanais();
-    }, 300000); // 5 minutos ao invés de 10 minutos
+    }, 30000); // 5 minutos ao invés de 10 minutos
   }
   function pausarPollingStatus() {
     pollingStatusPaused = true;
@@ -502,31 +502,10 @@ document.addEventListener('DOMContentLoaded', function() {
           // CORREÇÃO: Priorizar o status do raw_response_preview sobre o campo ready
           const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status, realStatus];
           
-          // CORREÇÃO: Melhorar lógica de detecção de conexão (mesma lógica da função anterior)
-          let isConnected = false;
+          // CORREÇÃO: Verificar se realmente está conectado (ready=true é obrigatório)
+          const isConnected = resp.ready === true;
           
-          // 1. Verificar status direto da resposta
-          if (resp.status && ['connected', 'ready', 'authenticated', 'already_connected'].includes(resp.status)) {
-            isConnected = true;
-          }
-          // 2. Verificar campo ready
-          else if (resp.ready === true) {
-            isConnected = true;
-          }
-          // 3. Verificar status extraído do raw_response_preview
-          else if (realStatus && ['connected', 'ready', 'authenticated', 'already_connected'].includes(realStatus)) {
-            isConnected = true;
-          }
-          // 4. Verificar se tem número (indica conexão)
-          else if (resp.number && resp.number.trim() !== '') {
-            isConnected = true;
-          }
-          // 5. Verificar status na lista
-          else if (statusList.some(status => ['ready', 'connected', 'already_connected', 'authenticated'].includes(status))) {
-            isConnected = true;
-          }
-          
-          debug(`🔍 Verificando status durante QR: ready=${resp.ready}, status=${resp.status}, realStatus=${realStatus}, number=${resp.number}, statusList=${JSON.stringify(statusList)}`);
+          debug(`🔍 Verificando status durante QR: ready=${resp.ready}, realStatus=${realStatus}, statusList=${JSON.stringify(statusList)}`);
           
           if (isConnected) {
             statusText.textContent = 'Conectado';
@@ -664,7 +643,7 @@ document.addEventListener('DOMContentLoaded', function() {
         debug('🔒 Fechando modal QR', 'info');
         modalQr.style.display = 'none';
         pararPollingQr();
-        clearInterval(qrInterval);
+        // clearInterval(qrInterval); // Removido pois não existe mais
         retomarPollingStatus();
       };
     }
@@ -731,40 +710,54 @@ document.addEventListener('DOMContentLoaded', function() {
         // FECHAR MODAL SE JÁ ESTIVER CONECTADO (CORREÇÃO)
         let isAlreadyConnected = false;
         
-        // 1. Verificar status direto da resposta
-        if (resp.status && ['connected', 'ready', 'authenticated', 'already_connected'].includes(resp.status)) {
+        // CORREÇÃO: Verificar se realmente está conectado (ready=true é obrigatório)
+        if (resp.ready === true) {
           isAlreadyConnected = true;
         }
-        // 2. Verificar campo ready
-        else if (resp.ready === true) {
+        // 1. Verificar status direto da resposta (apenas se ready=true)
+        else if (resp.ready === true && resp.status && ['connected', 'ready', 'authenticated', 'already_connected'].includes(resp.status)) {
           isAlreadyConnected = true;
         }
-        // 3. Verificar status extraído do raw_response_preview
-        else if (realStatus && ['connected', 'ready', 'authenticated', 'already_connected'].includes(realStatus)) {
+        // 2. Verificar status extraído do raw_response_preview (apenas se ready=true)
+        else if (resp.ready === true && realStatus && ['connected', 'ready', 'authenticated', 'already_connected'].includes(realStatus)) {
           isAlreadyConnected = true;
         }
-        // 4. Verificar se tem número (indica conexão)
-        else if (resp.number && resp.number.trim() !== '') {
+        // 3. Verificar se tem número (indica conexão)
+        else if (resp.ready === true && resp.number && resp.number.trim() !== '') {
           isAlreadyConnected = true;
         }
-        // 5. Verificar status na lista
-        else if (statusList.some(status => ['ready', 'connected', 'already_connected', 'authenticated'].includes(status))) {
+        // 4. Verificar status na lista (apenas se ready=true)
+        else if (resp.ready === true && statusList.some(status => ['ready', 'connected', 'already_connected', 'authenticated'].includes(status))) {
           isAlreadyConnected = true;
         }
 
         if (isAlreadyConnected) {
-          debug('🎉 WhatsApp já está conectado! Fechando modal QR.', 'success');
-          var modalQr = document.getElementById('modal-qr-canal');
-          if (modalQr) modalQr.style.display = 'none';
+          debug('🎉 WhatsApp já está conectado! Mostrando mensagem de sucesso.', 'success');
+          
+          // Mostrar mensagem de sucesso em vez de fechar
+          qrArea.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: #10b981;">
+              <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+              <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">WhatsApp Conectado!</div>
+              <div style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">Seu WhatsApp foi conectado com sucesso</div>
+              <button onclick="fecharModalQr()" style="background: #10b981; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                Fechar
+              </button>
+            </div>
+          `;
+          
+          // CORREÇÃO: Atualizar status do painel imediatamente
+          atualizarStatusCanais();
+          
+          // Parar polling do QR mas não fechar modal automaticamente
           pararPollingQr();
           retomarPollingStatus();
-          atualizarStatusCanais();
           return;
         }
 
-        if (resp.qr) {
-          debug(`✅ QR Code encontrado! Tamanho: ${resp.qr.length} chars`, 'success');
-          debug(`🔗 Endpoint usado: ${resp.endpoint_used || 'N/A'}`, 'info');
+        if (resp.qr && resp.success) {
+          debug(`✅ QR Code válido encontrado! Tamanho: ${resp.qr.length} chars`, 'success');
+          debug(`🔗 Endpoint usado: ${resp.debug?.endpoint_used || 'N/A'}`, 'info');
           
           // Criar container para o QR Code
           var qrContainer = document.createElement('div');
@@ -797,25 +790,35 @@ document.addEventListener('DOMContentLoaded', function() {
           qrCodeErrorShown = false; // Resetar flag de erro
           debug('✅ QR Code exibido com sucesso!', 'success');
         } else {
-          debug('⚠️ QR Code não disponível na resposta', 'warning');
+          // CORREÇÃO: Tratar QR Code inválido/simulado
+          const isInvalidQR = resp.qr && !resp.success;
+          const errorMessage = isInvalidQR ? 'QR Code inválido (simulado)' : 'QR Code não disponível';
+          
+          debug(`⚠️ ${errorMessage}`, 'warning');
           qrArea.innerHTML = `
             <div style="text-align: center; padding: 40px 20px; color: #f59e0b;">
               <div style="font-size: 3rem; margin-bottom: 1rem;">📱</div>
-              <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">QR Code não disponível</div>
-              <div style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">Aguarde alguns segundos e tente novamente</div>
+              <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">QR Code Temporariamente Indisponível</div>
+              <div style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">O sistema detectou um QR Code simulado/inválido. Aguarde alguns segundos e tente novamente.</div>
               <div style="margin-top: 1rem; font-size: 0.8rem; color: #999; background: #f5f5f5; padding: 10px; border-radius: 6px; text-align: left;">
-                <strong>Debug:</strong><br>
-                Status: ${resp.debug?.status || resp.status || 'Desconhecido'}<br>
-                Endpoint: ${resp.endpoint_used || 'N/A'}<br>
-                Ready: ${resp.ready || 'false'}<br>
-                Message: ${resp.message || 'N/A'}
+                <strong>Status do Sistema:</strong><br>
+                • Status: ${resp.debug?.status || resp.status || 'Desconhecido'}<br>
+                • Endpoint: ${resp.debug?.endpoint_used || 'N/A'}<br>
+                • Ready: ${resp.ready || 'false'}<br>
+                • Message: ${resp.message || 'N/A'}<br>
+                • QR Type: ${resp.debug?.qr_type || 'N/A'}<br>
+                • QR Valid: ${resp.debug?.qr_valid || 'false'}
+              </div>
+              <div style="margin-top: 1rem;">
+                <button onclick="tentarQrReal(${porta})" style="background: #3b82f6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🔄 Tentar QR Real</button>
+                <button onclick="fecharModalQr()" style="background: #6b7280; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">❌ Fechar</button>
               </div>
             </div>
           `;
           
           // Mostrar erro apenas uma vez para evitar spam
           if (!qrCodeErrorShown) {
-            debug('❌ QR Code não disponível - aguardando nova tentativa', 'error');
+            debug(`❌ ${errorMessage} - aguardando nova tentativa`, 'error');
             qrCodeErrorShown = true;
           }
         }
@@ -855,28 +858,42 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // CORREÇÃO: Priorizar o status do raw_response_preview sobre o campo ready
         const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status, realStatus];
-        const isConnected =
-          (realStatus && ['connected', 'already_connected', 'authenticated', 'ready'].includes(realStatus)) ||
-          resp.ready === true ||
-          statusList.includes('ready') ||
-          statusList.includes('connected') ||
-          statusList.includes('already_connected') ||
-          statusList.includes('authenticated');
+        
+        // CORREÇÃO: Verificar se realmente está conectado (ready=true é obrigatório)
+        const isConnected = resp.ready === true;
         
         debug(`🔍 Verificando status durante QR: ready=${resp.ready}, realStatus=${realStatus}, statusList=${JSON.stringify(statusList)}`);
         
         if (isConnected) {
-          debug('🎉 WHATSAPP CONECTADO! Fechando modal e atualizando status...', 'success');
-          modalQr.style.display = 'none';
+          debug('🎉 WHATSAPP CONECTADO! Atualizando status do painel...', 'success');
+          
+          // CORREÇÃO: Não fechar modal automaticamente, apenas atualizar painel
+          // modalQr.style.display = 'none';
           pararPollingQr();
           if (qrInterval) clearInterval(qrInterval);
           retomarPollingStatus();
+          
+          // CORREÇÃO: Atualizar status do painel imediatamente
           atualizarStatusCanais();
           
           // CORREÇÃO: Fechar notificação automaticamente quando conectado
           fecharNotificacaoDesconectados();
           
-          alert('Canal conectado com sucesso!');
+          // CORREÇÃO: Mostrar mensagem de sucesso no modal em vez de alert
+          var qrArea = document.getElementById('qr-code-area');
+          if (qrArea) {
+            qrArea.innerHTML = `
+              <div style="text-align: center; padding: 40px 20px; color: #10b981;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">WhatsApp Conectado!</div>
+                <div style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">Seu WhatsApp foi conectado com sucesso</div>
+                <button onclick="fecharModalQr()" style="background: #10b981; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                  Fechar
+                </button>
+              </div>
+            `;
+          }
+          
           debug('✅ Fluxo de conexão completado com sucesso', 'success');
         } else {
           debug(`⏳ Aguardando conexão... Status atual: ${JSON.stringify(statusList)}`, 'warning');
@@ -1057,37 +1074,21 @@ document.addEventListener('DOMContentLoaded', function() {
   function atualizarStatusCanais() {
     debug('🔄 Iniciando atualização de status dos canais via proxy...', 'info');
     
-    // Primeiro testar se o proxy está funcionando
-    makeWhatsAppRequest('test_connection')
-      .then(data => {
-        // CORREÇÃO: Usar 'success' em vez de 'connection_ok'
-        debug(`📡 Teste de conexão: ${data.success ? 'OK' : 'FALHOU'}`, data.success ? 'success' : 'error');
-        
-        if (data.success) {
-          // CORREÇÃO: Atualizar status individual de cada canal com delay para evitar sincronização
-          const canais = document.querySelectorAll('.canal-status-area');
-          debug(`🔍 Encontrados ${canais.length} canais para atualizar`, 'info');
-          
-          canais.forEach(function(td, index) {
-            const canalId = td.getAttribute('data-canal-id');
-            const porta = td.getAttribute('data-porta');
-            
-            // CORREÇÃO: Adicionar delay progressivo para evitar sincronização
-            setTimeout(() => {
-              debug(`🔍 Atualizando canal ${canalId} na porta ${porta} (${index + 1}/${canais.length})...`, 'info');
-              atualizarStatusIndividual(td, canalId, porta);
-            }, index * 1000); // 1 segundo de delay entre cada canal
-          });
-        } else {
-          debug('❌ Teste de conexão falhou, exibindo todos como desconectados', 'error');
-          forcarTodosDesconectados();
-        }
-      })
-      .catch(error => {
-        debug(`❌ Erro no teste de conexão: ${error.message}`, 'error');
-        // Tentar usar método original como fallback
-        atualizarStatusCanaisOriginal();
-      });
+    // CORREÇÃO: Atualizar imediatamente sem teste de conexão para ser mais responsivo
+    const canais = document.querySelectorAll('.canal-status-area');
+    debug(`🔍 Encontrados ${canais.length} canais para atualizar`, 'info');
+    
+    // CORREÇÃO: Adicionar delay entre verificações para evitar sobrecarga
+    canais.forEach(function(td, index) {
+      const canalId = td.getAttribute('data-canal-id');
+      const porta = td.getAttribute('data-porta');
+      
+      // CORREÇÃO: Adicionar delay progressivo para evitar sincronização e oscilação
+      setTimeout(() => {
+        debug(`🔍 Atualizando canal ${canalId} na porta ${porta} (${index + 1}/${canais.length})...`, 'info');
+        atualizarStatusIndividual(td, canalId, porta);
+      }, index * 2000); // 2 segundos de delay entre cada canal
+    });
   }
 
   function atualizarStatusIndividual(td, canalId, porta) {
@@ -1128,13 +1129,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // CORREÇÃO: Priorizar o status do raw_response_preview sobre o campo ready
         const statusList = [resp.status, resp.debug?.qr_status, resp.qr_status, realStatus];
-        const isConnected =
-          (realStatus && ['connected', 'already_connected', 'authenticated', 'ready'].includes(realStatus)) ||
-          resp.ready === true ||
-          statusList.includes('ready') ||
-          statusList.includes('connected') ||
-          statusList.includes('already_connected') ||
-          statusList.includes('authenticated');
+        
+        // CORREÇÃO: Verificar se realmente está conectado (ready=true é obrigatório)
+        const isConnected = resp.ready === true;
         
         debug(`📱 Canal ${canalId} (porta ${porta}): ${isConnected ? 'CONECTADO' : 'DESCONECTADO'} (ready=${resp.ready}, realStatus=${realStatus}, statusList=${JSON.stringify(statusList)})`, isConnected ? 'success' : 'warning');
         
@@ -1454,6 +1451,110 @@ document.addEventListener('DOMContentLoaded', function() {
         debug(`⚠️ Logout falhou, tentando iniciar sessão mesmo assim: ${err.message}`, 'warning');
         iniciarSessaoWhatsApp(sessionName);
       });
+  };
+
+  function fecharModalQr() {
+    var modalQr = document.getElementById('modal-qr-canal');
+    if (modalQr) {
+      modalQr.style.display = 'none';
+      pararPollingQr();
+      retomarPollingStatus();
+      atualizarStatusCanais();
+    }
+  }
+
+  // ===== FUNÇÃO PARA TENTAR QR REAL MÚLTIPLAS VEZES =====
+  window.tentarQrReal = function(porta, maxTentativas = 5) {
+    debug(`🔄 Tentando gerar QR real para porta ${porta} (máximo ${maxTentativas} tentativas)...`, 'info');
+    
+    let tentativa = 0;
+    const tentarQR = () => {
+      tentativa++;
+      debug(`🔄 Tentativa ${tentativa}/${maxTentativas} - Gerando QR real...`, 'info');
+      
+      makeWhatsAppRequest('force_new_qr', { porta: porta })
+        .then(resp => {
+          debug(`🟦 Resposta da tentativa ${tentativa}: ${JSON.stringify(resp)}`, 'info');
+          
+          if (resp.success && resp.qr && !resp.qr.startsWith('simulate-qr')) {
+            debug(`✅ QR real encontrado na tentativa ${tentativa}!`, 'success');
+            
+            // Exibir o QR real
+            const qrArea = document.getElementById('qr-code-area');
+            if (qrArea) {
+              // Limpar área
+              while (qrArea.firstChild) qrArea.removeChild(qrArea.firstChild);
+              
+              // Criar container para o QR Code
+              var qrContainer = document.createElement('div');
+              qrContainer.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;';
+              
+              // Gerar novo QR Code
+              new QRCode(qrContainer, {
+                text: resp.qr,
+                width: 220,
+                height: 220,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+              });
+              
+              // Adicionar informações de debug
+              const infoDiv = document.createElement('div');
+              infoDiv.style.cssText = 'margin-top: 10px; font-size: 12px; color: #666; text-align: center;';
+              infoDiv.innerHTML = `✅ QR Code REAL gerado em: ${new Date().toLocaleTimeString()}<br>📱 Escaneie com seu WhatsApp`;
+              qrContainer.appendChild(infoDiv);
+              
+              // Adicionar container à área do QR
+              qrArea.appendChild(qrContainer);
+              
+              debug('✅ QR Code real exibido com sucesso!', 'success');
+            }
+          } else {
+            debug(`⚠️ Tentativa ${tentativa}: QR ainda simulado - ${resp.message}`, 'warning');
+            
+            if (tentativa < maxTentativas) {
+              // Aguardar 3 segundos antes da próxima tentativa
+              setTimeout(() => {
+                tentarQR();
+              }, 3000);
+            } else {
+              debug(`❌ Máximo de tentativas (${maxTentativas}) atingido - QR real não disponível`, 'error');
+              
+              // Mostrar mensagem final
+              const qrArea = document.getElementById('qr-code-area');
+              if (qrArea) {
+                qrArea.innerHTML = `
+                  <div style="text-align: center; padding: 40px 20px; color: #f59e0b;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📱</div>
+                    <div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem;">QR Real Não Disponível</div>
+                    <div style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">O sistema tentou ${maxTentativas} vezes mas não conseguiu gerar um QR Code real. Tente novamente em alguns minutos.</div>
+                    <div style="margin-top: 1rem;">
+                      <button onclick="tentarQrReal(${porta})" style="background: #3b82f6; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">🔄 Tentar QR Real</button>
+                      <button onclick="fecharModalQr()" style="background: #6b7280; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin: 5px;">❌ Fechar</button>
+                    </div>
+                  </div>
+                `;
+              }
+            }
+          }
+        })
+        .catch(err => {
+          debug(`❌ Erro na tentativa ${tentativa}: ${err.message}`, 'error');
+          
+          if (tentativa < maxTentativas) {
+            // Aguardar 3 segundos antes da próxima tentativa
+            setTimeout(() => {
+              tentarQR();
+            }, 3000);
+          } else {
+            debug(`❌ Máximo de tentativas (${maxTentativas}) atingido - Erro persistente`, 'error');
+          }
+        });
+    };
+    
+    // Iniciar primeira tentativa
+    tentarQR();
   };
 });
 </script>

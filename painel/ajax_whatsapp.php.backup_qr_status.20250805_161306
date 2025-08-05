@@ -96,6 +96,24 @@ try {
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $curl_error = curl_error($ch);
             curl_close($ch);
+            // FALLBACK: Se não funcionou, tentar diferentes endpoints
+            if ($http_code != 200) {
+                $fallback_endpoints = ["/qr", "/qr?session=default", "/qr?session=comercial"];
+                foreach ($fallback_endpoints as $fallback_endpoint) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $vps_url . $fallback_endpoint);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    $response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    if ($http_code == 200) {
+                        error_log("[WhatsApp QR Fallback] Sucesso com endpoint: $fallback_endpoint");
+                        break;
+                    }
+                }
+            }
             
             // Log da resposta para debug
             error_log("[WhatsApp Status Response] HTTP Code: $http_code, Response: $response, Curl Error: $curl_error");
@@ -181,7 +199,12 @@ try {
             error_log("[WhatsApp QR Debug] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
             
             // CORREÇÃO: Usar endpoint correto /session/default/qr
-            $qr_endpoint = "/qr?session=" . $sessionName;
+            // CORREÇÃO: Usar endpoint /qr direto com parâmetro session
+            if ($porta == "3000" || $porta == 3000) {
+                $qr_endpoint = "/qr?session=default";
+            } else {
+                $qr_endpoint = "/qr?session=comercial";
+            }
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $vps_url . $qr_endpoint);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -191,6 +214,24 @@ try {
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $curl_error = curl_error($ch);
             curl_close($ch);
+            // FALLBACK: Se não funcionou, tentar diferentes endpoints
+            if ($http_code != 200) {
+                $fallback_endpoints = ["/qr", "/qr?session=default", "/qr?session=comercial"];
+                foreach ($fallback_endpoints as $fallback_endpoint) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $vps_url . $fallback_endpoint);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    $response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    if ($http_code == 200) {
+                        error_log("[WhatsApp QR Fallback] Sucesso com endpoint: $fallback_endpoint");
+                        break;
+                    }
+                }
+            }
             
             // Log da resposta para debug
             error_log("[WhatsApp QR Response] HTTP Code: $http_code, Response: $response, Curl Error: $curl_error");
@@ -211,8 +252,7 @@ try {
                         !str_starts_with($qrData, 'simulate-qr') && 
                         !str_starts_with($qrData, 'test-') &&
                         !str_starts_with($qrData, 'mock-') &&
-                        !str_starts_with($qrData, '2@qJaXRo') && // Rejeitar QR específico problemático
-                        strlen($qrData) > 50) { // Aumentar tamanho mínimo para QR válido // QR válido deve ter pelo menos 10 caracteres
+                        strlen($qrData) > 10) { // QR válido deve ter pelo menos 10 caracteres
                         
                         $qr = $qrData;
                         $qrValid = true;
@@ -230,8 +270,7 @@ try {
                         !str_starts_with($qrData, 'simulate-qr') && 
                         !str_starts_with($qrData, 'test-') &&
                         !str_starts_with($qrData, 'mock-') &&
-                        !str_starts_with($qrData, '2@qJaXRo') && // Rejeitar QR específico problemático
-                        strlen($qrData) > 50) { // Aumentar tamanho mínimo para QR válido
+                        strlen($qrData) > 10) {
                         
                         $qr = $qrData;
                         $qrValid = true;
@@ -251,6 +290,24 @@ try {
                     $status_response = curl_exec($ch);
                     $status_http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     curl_close($ch);
+            // FALLBACK: Se não funcionou, tentar diferentes endpoints
+            if ($http_code != 200) {
+                $fallback_endpoints = ["/qr", "/qr?session=default", "/qr?session=comercial"];
+                foreach ($fallback_endpoints as $fallback_endpoint) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $vps_url . $fallback_endpoint);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    $response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    if ($http_code == 200) {
+                        error_log("[WhatsApp QR Fallback] Sucesso com endpoint: $fallback_endpoint");
+                        break;
+                    }
+                }
+            }
                     
                     if ($status_http_code == 200) {
                         $status_data = json_decode($status_response, true);
@@ -326,12 +383,35 @@ try {
             $disconnect_response = curl_exec($ch);
             $disconnect_http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            // FALLBACK: Se não funcionou, tentar diferentes endpoints
+            if ($http_code != 200) {
+                $fallback_endpoints = ["/qr", "/qr?session=default", "/qr?session=comercial"];
+                foreach ($fallback_endpoints as $fallback_endpoint) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $vps_url . $fallback_endpoint);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    $response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    if ($http_code == 200) {
+                        error_log("[WhatsApp QR Fallback] Sucesso com endpoint: $fallback_endpoint");
+                        break;
+                    }
+                }
+            }
             
             // Aguardar um pouco
             sleep(3);
             
             // Agora tentar obter QR Code
-            $qr_endpoint = "/qr?session=" . $sessionName;
+            // CORREÇÃO: Usar endpoint /qr direto com parâmetro session
+            if ($porta == "3000" || $porta == 3000) {
+                $qr_endpoint = "/qr?session=default";
+            } else {
+                $qr_endpoint = "/qr?session=comercial";
+            }
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $vps_url . $qr_endpoint);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -341,6 +421,24 @@ try {
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $curl_error = curl_error($ch);
             curl_close($ch);
+            // FALLBACK: Se não funcionou, tentar diferentes endpoints
+            if ($http_code != 200) {
+                $fallback_endpoints = ["/qr", "/qr?session=default", "/qr?session=comercial"];
+                foreach ($fallback_endpoints as $fallback_endpoint) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $vps_url . $fallback_endpoint);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    $response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    if ($http_code == 200) {
+                        error_log("[WhatsApp QR Fallback] Sucesso com endpoint: $fallback_endpoint");
+                        break;
+                    }
+                }
+            }
             
             error_log("[WhatsApp Force New QR Response] HTTP Code: $http_code, Response: $response");
             
@@ -360,8 +458,7 @@ try {
                         !str_starts_with($qrData, 'simulate-qr') && 
                         !str_starts_with($qrData, 'test-') &&
                         !str_starts_with($qrData, 'mock-') &&
-                        !str_starts_with($qrData, '2@qJaXRo') && // Rejeitar QR específico problemático
-                        strlen($qrData) > 50) { // Aumentar tamanho mínimo para QR válido // QR válido deve ter pelo menos 10 caracteres
+                        strlen($qrData) > 10) { // QR válido deve ter pelo menos 10 caracteres
                         
                         $qr = $qrData;
                         $qrValid = true;
@@ -417,6 +514,24 @@ try {
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            // FALLBACK: Se não funcionou, tentar diferentes endpoints
+            if ($http_code != 200) {
+                $fallback_endpoints = ["/qr", "/qr?session=default", "/qr?session=comercial"];
+                foreach ($fallback_endpoints as $fallback_endpoint) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $vps_url . $fallback_endpoint);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    $response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    if ($http_code == 200) {
+                        error_log("[WhatsApp QR Fallback] Sucesso com endpoint: $fallback_endpoint");
+                        break;
+                    }
+                }
+            }
             
             // Log da resposta para debug
             error_log("[WhatsApp Logout Response] HTTP Code: $http_code, Response: $response");
@@ -485,6 +600,24 @@ try {
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            // FALLBACK: Se não funcionou, tentar diferentes endpoints
+            if ($http_code != 200) {
+                $fallback_endpoints = ["/qr", "/qr?session=default", "/qr?session=comercial"];
+                foreach ($fallback_endpoints as $fallback_endpoint) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $vps_url . $fallback_endpoint);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    $response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    if ($http_code == 200) {
+                        error_log("[WhatsApp QR Fallback] Sucesso com endpoint: $fallback_endpoint");
+                        break;
+                    }
+                }
+            }
             
             if ($http_code == 200) {
                 $data = json_decode($response, true);
@@ -523,6 +656,24 @@ try {
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            // FALLBACK: Se não funcionou, tentar diferentes endpoints
+            if ($http_code != 200) {
+                $fallback_endpoints = ["/qr", "/qr?session=default", "/qr?session=comercial"];
+                foreach ($fallback_endpoints as $fallback_endpoint) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $vps_url . $fallback_endpoint);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    $response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    if ($http_code == 200) {
+                        error_log("[WhatsApp QR Fallback] Sucesso com endpoint: $fallback_endpoint");
+                        break;
+                    }
+                }
+            }
             
             if ($http_code == 200) {
                 echo json_encode([

@@ -7,14 +7,12 @@ const multer = require('multer');
 const path = require('path');
 
 const app = express();
-// CORREÇÃO: Unificar declaração de PORT
 const PORT = parseInt(process.env.PORT, 10) || 3000;
-
-// CORREÇÃO: Determinar sessionName baseado na porta
 const sessionName = PORT === 3001 ? 'comercial' : 'default';
+
 console.log(`🚩 [STARTUP] Porta ${PORT} → sessão="${sessionName}"`);
 
-// Configurações
+// Configurações CORS e middleware
 app.use(cors({
     origin: [
         'http://localhost:8080',
@@ -29,6 +27,8 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Middleware para parsing JSON - CORREÇÃO CRÍTICA
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -42,7 +42,7 @@ let webhookUrl = 'https://app.pixel12digital.com.br/painel/receber_mensagem_ana_
 // Configurar upload de arquivos
 const upload = multer({ 
     dest: '/tmp/uploads/',
-    limits: { fileSize: 50 * 1024 * 1024 } // 50MB
+    limits: { fileSize: 50 * 1024 * 1024 }
 });
 
 // Criar diretório de sessões
@@ -55,7 +55,6 @@ console.log('🚀 Iniciando WhatsApp Multi-Sessão API...');
 async function initializeWhatsApp(sessionName = 'default') {
     try {
         console.log(`✅ [INIT] initializeWhatsApp chamado para: ${sessionName}`);
-        console.log(`📱 Inicializando sessão: ${sessionName}`);
         
         const client = new Client({
             authStrategy: new LocalAuth({
@@ -78,7 +77,6 @@ async function initializeWhatsApp(sessionName = 'default') {
                     '--disable-renderer-backgrounding',
                     '--disable-features=TranslateUI',
                     '--disable-ipc-flooding-protection',
-                    // NOVOS PARÂMETROS PARA MELHORAR COMPATIBILIDADE
                     '--disable-extensions',
                     '--disable-plugins',
                     '--disable-images',
@@ -96,11 +94,7 @@ async function initializeWhatsApp(sessionName = 'default') {
                     '--disable-domain-reliability',
                     '--disable-features=AudioServiceOutOfProcess',
                     '--disable-hang-monitor',
-                    '--disable-prompt-on-repost',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-features=TranslateUI,BlinkGenPropertyTrees',
-                    '--disable-ipc-flooding-protection'
+                    '--disable-prompt-on-repost'
                 ],
                 timeout: 60000,
             }
@@ -116,8 +110,6 @@ async function initializeWhatsApp(sessionName = 'default') {
         // QR Code gerado
         client.on('qr', (qr) => {
             console.log(`🔍 [DEBUG][${sessionName}:${PORT}] QR raw → [QR_CODE_VALIDO]`);
-            console.log(`🔍 [DEBUG][${sessionName}:${PORT}] sessionName value: ${sessionName}`);
-            console.log(`🔍 [DEBUG][${sessionName}:${PORT}] PORT value: ${PORT}`);
             
             clientStatus[sessionName] = {
                 status: 'qr_ready',
@@ -126,7 +118,6 @@ async function initializeWhatsApp(sessionName = 'default') {
                 timestamp: new Date().toISOString()
             };
             
-            // Exibir QR no terminal (opcional)
             console.log(`📱 [${sessionName}] QR Code gerado:`);
             qrcode.generate(qr, { small: true });
         });
@@ -135,10 +126,8 @@ async function initializeWhatsApp(sessionName = 'default') {
         client.on('ready', () => {
             console.log(`✅ [${sessionName}] Cliente WhatsApp pronto!`);
             
-            // CORREÇÃO: Registrar client no whatsappClients apenas quando estiver pronto
             whatsappClients[sessionName] = client;
             console.log(`✅ [READY] whatsappClients["${sessionName}"] registrado com sucesso`);
-            console.log(`✅ [READY] Total de sessões ativas:`, Object.keys(whatsappClients));
             
             clientStatus[sessionName] = {
                 status: 'connected',
@@ -162,11 +151,10 @@ async function initializeWhatsApp(sessionName = 'default') {
             console.log(`⏳ [${sessionName}] Loading: ${percent}% - ${message}`);
         });
 
-        // Mensagem recebida (webhook futuro)
+        // Mensagem recebida
         client.on('message', async (message) => {
             console.log(`📥 [${sessionName}] Mensagem recebida de ${message.from}: ${message.body}`);
             
-            // ENVIAR WEBHOOK PARA O SISTEMA PHP
             try {
                 const webhookData = {
                     event: 'onmessage',
@@ -179,9 +167,7 @@ async function initializeWhatsApp(sessionName = 'default') {
                     }
                 };
                 
-                // URL do webhook do sistema PHP
                 console.log(`📤 Enviando webhook para: ${webhookUrl}`);
-                console.log(`📤 Dados:`, JSON.stringify(webhookData, null, 2));
                 
                 const response = await fetch(webhookUrl, {
                     method: 'POST',
@@ -195,8 +181,6 @@ async function initializeWhatsApp(sessionName = 'default') {
                     console.log(`✅ Webhook enviado com sucesso - Status: ${response.status}`);
                 } else {
                     console.log(`❌ Erro ao enviar webhook - Status: ${response.status}`);
-                    const errorText = await response.text();
-                    console.log(`❌ Erro: ${errorText}`);
                 }
             } catch (webhookError) {
                 console.error(`❌ Erro ao enviar webhook:`, webhookError);
@@ -206,10 +190,7 @@ async function initializeWhatsApp(sessionName = 'default') {
         console.log(`🔍 [DEBUG] Inicializando WhatsApp para sessão="${sessionName}" na porta ${PORT}`);
         await client.initialize();
         
-        // REMOVIDO: whatsappClients[sessionName] = client; (movido para evento 'ready')
         console.log(`✅ [INIT] Client inicializado, aguardando evento 'ready' para registrar em whatsappClients`);
-        console.log(`✅ [INIT] whatsappClients atual:`, Object.keys(whatsappClients));
-        console.log(`✅ [${sessionName}] Sessão inicializada com sucesso`);
         return client;
     } catch (error) {
         console.error(`❌ Erro ao inicializar sessão ${sessionName}:`, error);
@@ -225,28 +206,28 @@ async function initializeWhatsApp(sessionName = 'default') {
 
 // Status geral
 app.get('/status', (req, res) => {
-    // Preparar resposta com informações detalhadas
     const response = {
-        success: true,
-        message: 'WhatsApp Multi-Sessão API funcionando',
+        status: 'running',
+        ready: false,
+        port: PORT.toString(),
         timestamp: new Date().toISOString(),
-        sessions: Object.keys(whatsappClients).length,
-        clients_status: clientStatus,
-        ready: false
+        lastSession: clientStatus[sessionName]?.timestamp || null,
+        clients_status: {}
     };
     
     // Verificar se alguma sessão está conectada
     const connectedSessions = Object.values(clientStatus).filter(status => status.status === 'connected');
     if (connectedSessions.length > 0) {
         response.ready = true;
-        response.message = 'WhatsApp conectado e funcionando';
     }
     
-    // Adicionar QR code se disponível
-    if (clientStatus.default && clientStatus.default.qr) {
-        response.qr_available = true;
-        response.qr = clientStatus.default.qr;
-    }
+    // Adicionar status das sessões
+    Object.keys(clientStatus).forEach(session => {
+        response.clients_status[session] = {
+            ready: clientStatus[session].status === 'connected',
+            hasQR: clientStatus[session].status === 'qr_ready'
+        };
+    });
     
     res.json(response);
 });
@@ -272,10 +253,8 @@ app.post('/session/start/:sessionName', async (req, res) => {
         const { sessionName } = req.params;
         
         console.log(`🔥 [AUTO-POST] Recebido POST /session/start/${sessionName}`);
-        console.log(`🔥 [AUTO-POST] whatsappClients antes:`, Object.keys(whatsappClients));
         
         if (whatsappClients[sessionName]) {
-            console.log(`🔥 [AUTO-POST] Sessão ${sessionName} já existe`);
             return res.json({
                 success: true,
                 message: `Sessão ${sessionName} já existe`,
@@ -287,7 +266,6 @@ app.post('/session/start/:sessionName', async (req, res) => {
         const client = await initializeWhatsApp(sessionName);
         
         console.log(`🔥 [AUTO-POST] Sessão ${sessionName} criada com sucesso`);
-        console.log(`🔥 [AUTO-POST] whatsappClients depois:`, Object.keys(whatsappClients));
         
         res.json({
             success: true,
@@ -325,12 +303,7 @@ app.get('/session/:sessionName/status', (req, res) => {
 app.get('/qr', (req, res) => {
     const sessionName = req.query.session || 'default';
     
-    console.log(`[DEBUG][${process.env.PORT}] GET /qr?session=${req.query.session}`);
-    console.log(`[DEBUG] sessionName resolved: ${sessionName}`);
-    console.log(`[DEBUG] whatsappClients keys:`, Object.keys(whatsappClients));
-    
     if (!whatsappClients[sessionName]) {
-        console.log(`[DEBUG] sessão ${sessionName} NÃO encontrada em whatsappClients:`, Object.keys(whatsappClients));
         return res.status(404).json({
             success: false,
             message: `Sessão ${sessionName} não encontrada`,
@@ -377,27 +350,12 @@ app.get('/qr', (req, res) => {
     });
 });
 
-// Endpoint para QR Code da sessão default (compatibilidade)
-app.get('/qr/default', (req, res) => {
-    // Redirecionar para o endpoint principal
-    res.redirect('/qr?session=default');
-});
-
-// Endpoint para QR Code da sessão específica
-app.get('/qr/:sessionName', (req, res) => {
-    const { sessionName } = req.params;
-    res.redirect(`/qr?session=${sessionName}`);
-});
-
-// Enviar mensagem de texto
+// Enviar mensagem de texto - CORREÇÃO CRÍTICA
 app.post('/send/text', async (req, res) => {
     try {
-        const { sessionName = 'default', number, message } = req.body;
+        console.log(`[DEBUG] Recebido POST /send/text com body:`, req.body);
         
-        console.log(`[DEBUG][${sessionName}] Envio de texto req.body=`, req.body);
-        console.log(`[DEBUG][${sessionName}] sessionName:`, sessionName);
-        console.log(`[DEBUG][${sessionName}] number:`, number);
-        console.log(`[DEBUG][${sessionName}] message:`, message);
+        const { sessionName = 'default', number, message } = req.body;
         
         if (!number || !message) {
             return res.status(400).json({
@@ -408,7 +366,6 @@ app.post('/send/text', async (req, res) => {
         }
         
         if (!whatsappClients[sessionName]) {
-            console.log(`[DEBUG] sessão ${sessionName} NÃO encontrada em whatsappClients:`, Object.keys(whatsappClients));
             return res.status(400).json({
                 success: false,
                 message: `Sessão ${sessionName} não encontrada`,
@@ -437,7 +394,7 @@ app.post('/send/text', async (req, res) => {
             timestamp: new Date().toISOString()
         });
     } catch (error) {
-        console.error(`[ERROR][${req.body.sessionName || 'unknown'}] Erro ao enviar mensagem:`, error);
+        console.error(`[ERROR] Erro ao enviar mensagem:`, error);
         res.status(500).json({
             success: false,
             message: `Erro ao enviar mensagem: ${error.message}`,
@@ -446,91 +403,10 @@ app.post('/send/text', async (req, res) => {
     }
 });
 
-// Enviar mídia
-app.post('/send/media', upload.single('file'), async (req, res) => {
-    try {
-        const { sessionName = 'default', number, caption = '' } = req.body;
-        const file = req.file;
-        
-        if (!file) {
-            return res.status(400).json({
-                success: false,
-                message: 'Arquivo não fornecido'
-            });
-        }
-
-        if (!whatsappClients[sessionName]) {
-            return res.status(400).json({
-                success: false,
-                message: `Sessão ${sessionName} não encontrada`
-            });
-        }
-
-        if (clientStatus[sessionName]?.status !== 'connected') {
-            return res.status(400).json({
-                success: false,
-                message: `Sessão ${sessionName} não está conectada`
-            });
-        }
-
-        const client = whatsappClients[sessionName];
-        const formattedNumber = number.includes('@c.us') ? number : `${number}@c.us`;
-        
-        const media = MessageMedia.fromFilePath(file.path);
-        await client.sendMessage(formattedNumber, media, { caption });
-        
-        // Limpar arquivo temporário
-        fs.unlinkSync(file.path);
-        
-        res.json({
-            success: true,
-            message: 'Mídia enviada com sucesso',
-            session: sessionName,
-            to: number,
-            filename: file.originalname,
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: `Erro ao enviar mídia: ${error.message}`
-        });
-    }
-});
-
-// Verificar se número existe no WhatsApp
-app.post('/check/number', async (req, res) => {
-    try {
-        const { sessionName = 'default', number } = req.body;
-        
-        if (!whatsappClients[sessionName]) {
-            return res.status(400).json({
-                success: false,
-                message: `Sessão ${sessionName} não encontrada`
-            });
-        }
-
-        const client = whatsappClients[sessionName];
-        const formattedNumber = number.includes('@c.us') ? number : `${number}@c.us`;
-        
-        const isRegistered = await client.isRegisteredUser(formattedNumber);
-        
-        res.json({
-            success: true,
-            number: number,
-            isRegistered: isRegistered,
-            session: sessionName
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: `Erro ao verificar número: ${error.message}`
-        });
-    }
-});
-
-// Configurar webhook
+// Configurar webhook - CORREÇÃO CRÍTICA
 app.post('/webhook/config', (req, res) => {
+    console.log(`[DEBUG] Recebido POST /webhook/config com body:`, req.body);
+    
     const { url } = req.body;
     
     if (!url) {
@@ -596,42 +472,10 @@ app.post('/webhook/test', async (req, res) => {
     }
 });
 
-// Desconectar sessão
-app.post('/session/:sessionName/disconnect', async (req, res) => {
-    try {
-        const { sessionName } = req.params;
-        
-        if (!whatsappClients[sessionName]) {
-            return res.status(400).json({
-                success: false,
-                message: `Sessão ${sessionName} não encontrada`
-            });
-        }
-
-        const client = whatsappClients[sessionName];
-        await client.logout();
-        await client.destroy();
-        
-        delete whatsappClients[sessionName];
-        delete clientStatus[sessionName];
-        
-        res.json({
-            success: true,
-            message: `Sessão ${sessionName} desconectada com sucesso`
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: `Erro ao desconectar sessão: ${error.message}`
-        });
-    }
-});
-
 // Iniciar servidor
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🌐 API escutando em 0.0.0.0:${PORT} (sessão=${sessionName})`);
     console.log(`🌐 Acessível externamente em http://212.85.11.238:${PORT}`);
-    console.log(`🔍 [DEBUG] Binding confirmado: 0.0.0.0:${PORT}`);
     console.log(`📋 Endpoints disponíveis:`);
     console.log(`   GET  /status                          - Status geral`);
     console.log(`   GET  /sessions                        - Listar sessões`);
@@ -647,14 +491,12 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`   POST /webhook/test                    - Testar webhook`);
     console.log(`\n✨ Sistema pronto para uso!`);
     
-    // CORREÇÃO: Inicializar sessão automaticamente após app.listen
+    // Inicializar sessão automaticamente
     console.log(`🚩 [AUTO-START] Iniciando sessão "${sessionName}" automaticamente...`);
     
-    // CORREÇÃO: Usar 127.0.0.1 em vez de localhost
     const autoStartUrl = `http://127.0.0.1:${PORT}/session/start/${sessionName}`;
     console.log(`🚩 [AUTO-START] URL do POST interno: ${autoStartUrl}`);
     
-    // Fazer POST interno para iniciar a sessão
     fetch(autoStartUrl, { 
         method: 'POST',
         headers: {
@@ -667,17 +509,14 @@ app.listen(PORT, '0.0.0.0', () => {
     })
     .then(data => {
         console.log(`🚩 [AUTO-START] Sessão "${sessionName}" iniciada:`, data.success ? 'SUCESSO' : 'FALHA');
-        console.log(`🚩 [AUTO-START] Resposta completa:`, data);
         if (data.success) {
             console.log(`✅ [AUTO-START] whatsappClients["${sessionName}"] criado com sucesso`);
-            console.log(`🔍 [DEBUG] Total de sessões ativas:`, Object.keys(whatsappClients).length);
         } else {
             console.log(`❌ [AUTO-START] Erro ao iniciar sessão "${sessionName}":`, data.message);
         }
     })
     .catch(error => {
         console.error(`❌ [AUTO-START] Erro ao fazer POST para iniciar sessão "${sessionName}":`, error.message);
-        console.error(`❌ [AUTO-START] Stack trace:`, error.stack);
     });
 });
 
