@@ -50,15 +50,10 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     $message = $data['data'];
     
     // Extrair informações
-    $numero = $message['from'] ?? '';
+    $numero = $message['from'];
     $texto = $message['text'] ?? '';
     $tipo = $message['type'] ?? 'text';
     $data_hora = date('Y-m-d H:i:s');
-    
-    // Debug - log das variáveis
-    if (DEBUG_MODE) {
-        error_log("[WEBHOOK SEM REDIRECT {$ambiente}] Debug - Numero: $numero, Texto: $texto, Tipo: $tipo");
-    }
     
     if (DEBUG_MODE) {
         error_log("[WEBHOOK SEM REDIRECT {$ambiente}] Processando mensagem de: $numero");
@@ -134,13 +129,8 @@ if (isset($data['event']) && $data['event'] === 'onmessage') {
     $texto_escaped = $mysqli->real_escape_string($texto);
     $tipo_escaped = $mysqli->real_escape_string($tipo);
     
-    $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, numero_whatsapp, mensagem, tipo, data_hora, direcao, status) 
-            VALUES ($canal_id, " . ($cliente_id ? $cliente_id : 'NULL') . ", '" . $mysqli->real_escape_string($numero) . "', '$texto_escaped', '$tipo_escaped', '$data_hora', 'recebido', 'recebido')";
-    
-    // Debug - log da SQL
-    if (DEBUG_MODE) {
-        error_log("[WEBHOOK SEM REDIRECT {$ambiente}] SQL: $sql");
-    }
+    $sql = "INSERT INTO mensagens_comunicacao (canal_id, cliente_id, mensagem, tipo, data_hora, direcao, status) 
+            VALUES ($canal_id, " . ($cliente_id ? $cliente_id : 'NULL') . ", '$texto_escaped', '$tipo_escaped', '$data_hora', 'recebido', 'recebido')";
     
     if ($mysqli->query($sql)) {
         $mensagem_id = $mysqli->insert_id;
