@@ -1,118 +1,196 @@
 <?php
-echo "🔍 VERIFICANDO WEBHOOK NO VPS\n";
-echo "=============================\n\n";
+/**
+ * 🔍 VERIFICAR CONFIGURAÇÃO DO WEBHOOK NO VPS
+ * 
+ * Este script verifica se o webhook está configurado corretamente no VPS
+ */
 
-$vps_url = "http://212.85.11.238:3000";
+echo "🔍 VERIFICANDO CONFIGURAÇÃO DO WEBHOOK NO VPS\n";
+echo "=============================================\n\n";
 
-// 1. Verificar status do VPS
-echo "1️⃣ Status do VPS:\n";
-$ch = curl_init($vps_url . "/status");
+$vps_ip = '212.85.11.238';
+$webhook_correto = 'https://app.pixel12digital.com.br/webhook_sem_redirect/webhook.php';
+
+// ===== 1. VERIFICAR CANAL 3000 =====
+echo "1️⃣ VERIFICANDO CANAL 3000:\n";
+echo "============================\n";
+
+$ch = curl_init("http://$vps_ip:3000/webhook/config");
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-$response = curl_exec($ch);
-$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+
+$response_3000 = curl_exec($ch);
+$http_code_3000 = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curl_error_3000 = curl_error($ch);
 curl_close($ch);
 
-if ($http_code == 200) {
-    $status = json_decode($response, true);
-    echo "✅ VPS Online - Status: " . $status['status'] . "\n";
-    echo "✅ WhatsApp Conectado: " . ($status['clients_status']['default']['ready'] ? 'SIM' : 'NÃO') . "\n";
-} else {
-    echo "❌ VPS Offline - HTTP: $http_code\n";
-}
-echo "\n";
-
-// 2. Verificar configuração do webhook
-echo "2️⃣ Configuração do webhook:\n";
-$ch = curl_init($vps_url . "/webhook/config");
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-$webhook_response = curl_exec($ch);
-$webhook_http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-echo "📡 HTTP Code: $webhook_http\n";
-echo "📡 Response: $webhook_response\n";
-
-if ($webhook_http == 200) {
-    $webhook_config = json_decode($webhook_response, true);
-    echo "✅ Webhook configurado:\n";
-    if (isset($webhook_config['url'])) {
-        echo "   URL: " . $webhook_config['url'] . "\n";
+if ($curl_error_3000) {
+    echo "❌ Erro cURL canal 3000: $curl_error_3000\n";
+} elseif ($http_code_3000 === 200) {
+    $config_3000 = json_decode($response_3000, true);
+    if ($config_3000) {
+        $webhook_3000 = $config_3000['webhook'] ?? $config_3000['webhook_url'] ?? 'N/A';
+        echo "📡 Canal 3000 - Webhook atual: $webhook_3000\n";
+        
+        if ($webhook_3000 === $webhook_correto) {
+            echo "✅ Canal 3000 - Webhook CORRETO!\n";
+        } else {
+            echo "❌ Canal 3000 - Webhook INCORRETO!\n";
+            echo "🔧 Precisa ser corrigido para: $webhook_correto\n";
+        }
+    } else {
+        echo "⚠️ Canal 3000 - Resposta inválida: $response_3000\n";
     }
-    if (isset($webhook_config['status'])) {
-        echo "   Status: " . $webhook_config['status'] . "\n";
-    }
 } else {
-    echo "❌ Erro ao verificar webhook\n";
+    echo "❌ Canal 3000 - HTTP $http_code_3000: $response_3000\n";
 }
+
 echo "\n";
 
-// 3. Configurar webhook se necessário
-echo "3️⃣ Configurando webhook...\n";
-$webhook_url = 'https://app.pixel12digital.com.br/webhook_sem_redirect/webhook.php';
+// ===== 2. VERIFICAR CANAL 3001 =====
+echo "2️⃣ VERIFICANDO CANAL 3001:\n";
+echo "============================\n";
 
-$config_data = [
-    'url' => $webhook_url,
-    'events' => ['onmessage', 'onqr', 'onready', 'onclose']
-];
-
-$ch = curl_init($vps_url . "/webhook/config");
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($config_data));
-curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
+$ch = curl_init("http://$vps_ip:3001/webhook/config");
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
 
-$config_response = curl_exec($ch);
-$config_http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$response_3001 = curl_exec($ch);
+$http_code_3001 = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curl_error_3001 = curl_error($ch);
 curl_close($ch);
 
-echo "📡 Config HTTP Code: $config_http\n";
-echo "📡 Config Response: $config_response\n";
-
-if ($config_http == 200) {
-    echo "✅ Webhook configurado com sucesso!\n";
+if ($curl_error_3001) {
+    echo "❌ Erro cURL canal 3001: $curl_error_3001\n";
+} elseif ($http_code_3001 === 200) {
+    $config_3001 = json_decode($response_3001, true);
+    if ($config_3001) {
+        $webhook_3001 = $config_3001['webhook'] ?? $config_3001['webhook_url'] ?? 'N/A';
+        echo "📡 Canal 3001 - Webhook atual: $webhook_3001\n";
+        
+        if ($webhook_3001 === $webhook_correto) {
+            echo "✅ Canal 3001 - Webhook CORRETO!\n";
+        } else {
+            echo "❌ Canal 3001 - Webhook INCORRETO!\n";
+            echo "🔧 Precisa ser corrigido para: $webhook_correto\n";
+        }
+    } else {
+        echo "⚠️ Canal 3001 - Resposta inválida: $response_3001\n";
+    }
 } else {
-    echo "❌ Erro ao configurar webhook\n";
+    echo "❌ Canal 3001 - HTTP $http_code_3001: $response_3001\n";
 }
+
 echo "\n";
 
-// 4. Testar webhook
-echo "4️⃣ Testando webhook...\n";
-$test_data = [
-    'event' => 'onmessage',
-    'data' => [
-        'from' => '554796164699',
-        'text' => '🧪 Teste webhook - ' . date('H:i:s'),
-        'type' => 'text',
-        'timestamp' => time(),
-        'session' => 'default'
-    ]
-];
+// ===== 3. CORRIGIR SE NECESSÁRIO =====
+echo "3️⃣ CORRIGINDO WEBHOOKS SE NECESSÁRIO:\n";
+echo "=====================================\n";
 
-$ch = curl_init($vps_url . "/webhook/test");
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($test_data));
-curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+$corrigidos = 0;
 
-$test_response = curl_exec($ch);
-$test_http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-echo "📡 Test HTTP Code: $test_http\n";
-echo "📡 Test Response: $test_response\n";
-
-if ($test_http == 200) {
-    echo "✅ Teste do webhook bem-sucedido!\n";
-} else {
-    echo "❌ Erro no teste do webhook\n";
+// Corrigir canal 3000 se necessário
+if (isset($webhook_3000) && $webhook_3000 !== $webhook_correto) {
+    echo "🔧 Corrigindo webhook do canal 3000...\n";
+    
+    $ch = curl_init("http://$vps_ip:3000/webhook/config");
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['url' => $webhook_correto]));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    
+    $correcao_response = curl_exec($ch);
+    $correcao_http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($correcao_http === 200) {
+        echo "✅ Canal 3000 corrigido com sucesso!\n";
+        $corrigidos++;
+    } else {
+        echo "❌ Erro ao corrigir canal 3000 (HTTP $correcao_http)\n";
+    }
 }
 
-echo "\n🎯 PRÓXIMOS PASSOS:\n";
-echo "1. Verifique se o webhook foi configurado corretamente\n";
-echo "2. Envie uma mensagem real do WhatsApp\n";
-echo "3. Monitore se a Ana responde\n";
+// Corrigir canal 3001 se necessário
+if (isset($webhook_3001) && $webhook_3001 !== $webhook_correto) {
+    echo "🔧 Corrigindo webhook do canal 3001...\n";
+    
+    $ch = curl_init("http://$vps_ip:3001/webhook/config");
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['url' => $webhook_correto]));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    
+    $correcao_response = curl_exec($ch);
+    $correcao_http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($correcao_http === 200) {
+        echo "✅ Canal 3001 corrigido com sucesso!\n";
+        $corrigidos++;
+    } else {
+        echo "❌ Erro ao corrigir canal 3001 (HTTP $correcao_http)\n";
+    }
+}
+
+if ($corrigidos === 0) {
+    echo "✅ Todos os webhooks já estão corretos!\n";
+}
+
+echo "\n";
+
+// ===== 4. VERIFICAÇÃO FINAL =====
+echo "4️⃣ VERIFICAÇÃO FINAL:\n";
+echo "=====================\n";
+
+echo "🔍 Verificando configuração final...\n";
+
+// Verificar canal 3000
+$ch = curl_init("http://$vps_ip:3000/webhook/config");
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+$final_3000 = curl_exec($ch);
+$final_http_3000 = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($final_http_3000 === 200) {
+    $final_config_3000 = json_decode($final_3000, true);
+    $final_webhook_3000 = $final_config_3000['webhook'] ?? $final_config_3000['webhook_url'] ?? 'N/A';
+    echo "📡 Canal 3000 final: $final_webhook_3000\n";
+}
+
+// Verificar canal 3001
+$ch = curl_init("http://$vps_ip:3001/webhook/config");
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+$final_3001 = curl_exec($ch);
+$final_http_3001 = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($final_http_3001 === 200) {
+    $final_config_3001 = json_decode($final_3001, true);
+    $final_webhook_3001 = $final_config_3001['webhook'] ?? $final_config_3001['webhook_url'] ?? 'N/A';
+    echo "📡 Canal 3001 final: $final_webhook_3001\n";
+}
+
+echo "\n🎯 CONCLUSÃO:\n";
+echo "=============\n";
+
+if ((isset($final_webhook_3000) && $final_webhook_3000 === $webhook_correto) && 
+    (isset($final_webhook_3001) && $final_webhook_3001 === $webhook_correto)) {
+    echo "✅ TODOS OS WEBHOOKS ESTÃO CORRETOS!\n";
+    echo "🎉 As mensagens do WhatsApp devem chegar ao chat agora.\n";
+    echo "\n📋 PRÓXIMOS PASSOS:\n";
+    echo "1. Envie uma mensagem real para o WhatsApp\n";
+    echo "2. Verifique se aparece no chat\n";
+    echo "3. Verifique se a Ana responde\n";
+} else {
+    echo "⚠️ AINDA HÁ PROBLEMAS COM OS WEBHOOKS!\n";
+    echo "🔧 Verificar se os serviços estão rodando no VPS\n";
+    echo "🔧 Verificar se as portas 3000 e 3001 estão acessíveis\n";
+}
 ?> 
