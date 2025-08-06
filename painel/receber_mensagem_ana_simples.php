@@ -55,7 +55,7 @@ try {
         'agent_id' => '3'
     ];
     
-    $ch = curl_init('https://agentes.pixel12digital.com.br/ai-agents/api/chat/agent_chat.php');
+    $ch = curl_init('https://agentes.pixel12digital.com.br/api/chat/agent_chat.php');
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($ana_payload));
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);

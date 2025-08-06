@@ -14,7 +14,7 @@ header('Content-Type: application/json');
 class IntegradorAna {
     
     private $mysqli;
-    private $ana_api_url = 'https://agentes.pixel12digital.com.br/ai-agents/api/chat/agent_chat.php';
+    private $ana_api_url = 'https://agentes.pixel12digital.com.br/api/chat/agent_chat.php';
     private $ana_agent_id = '3';
     
     public function __construct($mysqli) {
@@ -288,7 +288,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     echo json_encode([
         'success' => true,
         'status' => 'ativo',
-        'ana_api' => 'https://agentes.pixel12digital.com.br/ai-agents/api/chat/agent_chat.php',
+        'ana_api' => 'https://agentes.pixel12digital.com.br/api/chat/agent_chat.php',
         'agent_id' => '3',
         'versao' => '1.0 - Integração Ana + Sistema'
     ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
