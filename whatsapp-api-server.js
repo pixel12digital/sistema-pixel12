@@ -36,8 +36,11 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const whatsappClients = {};
 const clientStatus = {};
 
-// Configuração do webhook
-let webhookUrl = 'https://app.pixel12digital.com.br/painel/receber_mensagem_ana_local.php';
+// Variável global para webhook
+let webhookConfig = {
+    url: 'https://app.pixel12digital.com.br/webhook_sem_redirect/webhook.php',
+    events: ['onmessage', 'onqr', 'onready', 'onclose']
+};
 
 // Configurar upload de arquivos
 const upload = multer({ 
@@ -180,10 +183,10 @@ async function initializeWhatsApp(sessionName = 'default') {
                 };
                 
                 // URL do webhook do sistema PHP
-                console.log(`📤 Enviando webhook para: ${webhookUrl}`);
+                console.log(`📤 Enviando webhook para: ${webhookConfig.url}`);
                 console.log(`📤 Dados:`, JSON.stringify(webhookData, null, 2));
                 
-                const response = await fetch(webhookUrl, {
+                const response = await fetch(webhookConfig.url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -529,31 +532,33 @@ app.post('/check/number', async (req, res) => {
     }
 });
 
-// Configurar webhook
+// Endpoint para configurar webhook
 app.post('/webhook/config', (req, res) => {
-    const { url } = req.body;
+    const { url, events } = req.body;
     
-    if (!url) {
-        return res.status(400).json({
-            success: false,
-            message: 'URL do webhook é obrigatória'
+    if (url) {
+        webhookConfig.url = url;
+        if (events) webhookConfig.events = events;
+        
+        console.log(`🔗 [WEBHOOK] Configurado: ${webhookConfig.url}`);
+        res.json({
+            success: true,
+            webhook: webhookConfig.url,
+            events: webhookConfig.events,
+            message: 'Webhook configurado com sucesso'
         });
+    } else {
+        res.status(400).json({ error: 'URL do webhook é obrigatória' });
     }
-    
-    webhookUrl = url;
-    
-    res.json({
-        success: true,
-        message: 'Webhook configurado com sucesso',
-        webhook_url: webhookUrl
-    });
 });
 
-// Verificar configuração do webhook
+// Endpoint para verificar webhook
 app.get('/webhook/config', (req, res) => {
     res.json({
         success: true,
-        webhook_url: webhookUrl
+        webhook: webhookConfig.url,
+        events: webhookConfig.events,
+        message: 'Webhook configurado'
     });
 });
 
@@ -570,7 +575,7 @@ app.post('/webhook/test', async (req, res) => {
             }
         };
         
-        const response = await fetch(webhookUrl, {
+        const response = await fetch(webhookConfig.url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -583,7 +588,7 @@ app.post('/webhook/test', async (req, res) => {
         res.json({
             success: response.ok,
             message: response.ok ? 'Webhook testado com sucesso' : 'Erro ao testar webhook',
-            webhook_url: webhookUrl,
+            webhook_url: webhookConfig.url,
             response_status: response.status,
             response_text: responseText
         });
@@ -591,7 +596,7 @@ app.post('/webhook/test', async (req, res) => {
         res.status(500).json({
             success: false,
             message: `Erro ao testar webhook: ${error.message}`,
-            webhook_url: webhookUrl
+            webhook_url: webhookConfig.url
         });
     }
 });
