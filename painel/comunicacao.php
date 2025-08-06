@@ -360,7 +360,7 @@ function render_content() {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 // ===== CONFIGURAÇÃO CORS-FREE (SEM CHAMADAS DIRETAS À VPS) =====
-const AJAX_WHATSAPP_URL = 'http://localhost:8080/loja-virtual-revenda/painel/ajax_whatsapp.php?v=' + Date.now();
+const AJAX_WHATSAPP_URL = window.location.origin + '/painel/ajax_whatsapp.php?v=' + Date.now();
 const CACHE_BUSTER = '<?= time() . '_' . rand(1000, 9999) ?>';
 
 // DEBUG EXTENSIVO
