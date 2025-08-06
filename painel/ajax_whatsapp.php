@@ -209,10 +209,10 @@ try {
                     // CORREÇÃO: Rejeitar QR Codes simulados, undefined, ou inválidos
                     if (!str_starts_with($qrData, 'undefined') && 
                         !str_starts_with($qrData, 'simulate-qr') && 
-                        !str_starts_with($qrData, 'test-') &&
-                        !str_starts_with($qrData, 'mock-') &&
-                        !str_starts_with($qrData, '2@qJaXRo') && // Rejeitar QR específico problemático
-                        strlen($qrData) > 50) { // Aumentar tamanho mínimo para QR válido // QR válido deve ter pelo menos 10 caracteres
+                        
+                        
+                        
+                        strlen($qrData) > 10) { // Tamanho mínimo reduzido para QR válido // QR válido deve ter pelo menos 10 caracteres
                         
                         $qr = $qrData;
                         $qrValid = true;
@@ -228,10 +228,10 @@ try {
                     
                     if (!str_starts_with($qrData, 'undefined') && 
                         !str_starts_with($qrData, 'simulate-qr') && 
-                        !str_starts_with($qrData, 'test-') &&
-                        !str_starts_with($qrData, 'mock-') &&
-                        !str_starts_with($qrData, '2@qJaXRo') && // Rejeitar QR específico problemático
-                        strlen($qrData) > 50) { // Aumentar tamanho mínimo para QR válido
+                        
+                        
+                        
+                        strlen($qrData) > 10) { // Tamanho mínimo reduzido para QR válido
                         
                         $qr = $qrData;
                         $qrValid = true;
@@ -259,8 +259,8 @@ try {
                             
                             if (!str_starts_with($qrData, 'undefined') && 
                                 !str_starts_with($qrData, 'simulate-qr') && 
-                                !str_starts_with($qrData, 'test-') &&
-                                !str_starts_with($qrData, 'mock-') &&
+                                
+                                
                                 strlen($qrData) > 10) {
                                 
                                 $qr = $qrData;
@@ -358,10 +358,10 @@ try {
                     // CORREÇÃO: Rejeitar QR Codes simulados, undefined, ou inválidos
                     if (!str_starts_with($qrData, 'undefined') && 
                         !str_starts_with($qrData, 'simulate-qr') && 
-                        !str_starts_with($qrData, 'test-') &&
-                        !str_starts_with($qrData, 'mock-') &&
-                        !str_starts_with($qrData, '2@qJaXRo') && // Rejeitar QR específico problemático
-                        strlen($qrData) > 50) { // Aumentar tamanho mínimo para QR válido // QR válido deve ter pelo menos 10 caracteres
+                        
+                        
+                        
+                        strlen($qrData) > 10) { // Tamanho mínimo reduzido para QR válido // QR válido deve ter pelo menos 10 caracteres
                         
                         $qr = $qrData;
                         $qrValid = true;
