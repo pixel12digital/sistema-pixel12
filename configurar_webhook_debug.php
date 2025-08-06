@@ -9,7 +9,7 @@ echo "🔧 CONFIGURANDO WEBHOOK PARA DEBUG\n";
 echo "==================================\n\n";
 
 $vps_ip = '212.85.11.238';
-$webhook_debug = 'https://app.pixel12digital.com.br/debug_webhook_real.php';
+$webhook_debug = 'https://app.pixel12digital.com.br/webhook_sem_redirect/debug_webhook_real.php';
 
 // ===== 1. CONFIGURAR CANAL 3000 PARA DEBUG =====
 echo "1️⃣ CONFIGURANDO CANAL 3000 PARA DEBUG:\n";
@@ -118,7 +118,7 @@ if ((isset($final_webhook_3000) && $final_webhook_3000 === $webhook_debug) &&
     echo "🎉 Agora envie uma mensagem real para o WhatsApp.\n";
     echo "\n📋 PRÓXIMOS PASSOS:\n";
     echo "1. Envie uma mensagem real para o WhatsApp\n";
-    echo "2. Acesse: https://app.pixel12digital.com.br/debug_webhook_real.php\n";
+    echo "2. Acesse: $webhook_debug\n";
     echo "3. Você verá exatamente os dados que chegam\n";
     echo "4. Verifique o arquivo: logs/debug_webhook_" . date('Y-m-d') . ".log\n";
     echo "\n🔧 PARA VOLTAR AO NORMAL:\n";
