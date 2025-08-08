@@ -1,452 +1,186 @@
-# 📱 WhatsApp Multi-Canal API + 🧠 Sistema Inteligente de Transferências
+# 🚀 Loja Virtual Revenda - Sistema Completo
 
-Sistema de WhatsApp multi-canal com instância única (Bailey - VPS 3001) gerenciada por PM2, integrado com Ana AI e sistema inteligente de transferências automáticas.
+## 🎯 **VISÃO GERAL**
 
-## 🎯 **MIGRAÇÃO CONCLUÍDA: Bailey (VPS 3001) - Canal Principal**
+Sistema completo de loja virtual com integração WhatsApp, gestão de clientes, faturas e automação. **Atualizado para usar apenas a nova solução whatsapp-web.js de pedroslopes no Render.com**.
 
-### **✅ MIGRAÇÃO REALIZADA COM SUCESSO:**
-- **🔄 Migração:** Rhome (3000) → Bailey (3001)
-- **🗑️ Limpeza:** Aplicações antigas removidas da VPS
-- **🎯 Status:** Bailey é agora o canal principal único
-- **📊 Benefícios:** Recursos otimizados, gerenciamento simplificado
+## ✅ **FUNCIONALIDADES PRINCIPAIS**
 
-### **📋 DETALHES DA MIGRAÇÃO:**
-- **Data:** 05/08/2025
-- **Canal Anterior:** Rhome (ID 36, Porta 3000) - **EXCLUÍDO**
-- **Canal Atual:** Bailey (ID 37, Porta 3001) - **PRINCIPAL**
-- **Status:** ✅ **CONECTADO E FUNCIONANDO**
-- **Última Sessão:** 2025-08-05T14:53:47.090Z
+### 📱 **WhatsApp Integration**
+- **Nova solução**: whatsapp-web.js de pedroslopes no Render.com
+- **Multi-canal**: Suporte para canais 3000 (Financeiro) e 3001 (Comercial)
+- **Webhooks automáticos**: Configuração automática de webhooks
+- **Chat multicanal**: Interface web para gerenciamento
+- **Monitoramento**: Status em tempo real dos canais
 
-### **🔧 LIMPEZA DA VPS CONCLUÍDA:**
-- **✅ Porta 3000:** Parada e removida via PM2
-- **✅ Processos:** Apenas Bailey rodando
-- **✅ Recursos:** Otimizados para Bailey
-- **✅ Logs:** Limpos e organizados
+### 👥 **Gestão de Clientes**
+- Cadastro completo de clientes
+- Histórico de interações
+- Monitoramento automático
+- Integração com WhatsApp
 
----
+### 💰 **Sistema Financeiro**
+- Gestão de faturas
+- Integração com Asaas
+- Cobranças automáticas
+- Relatórios financeiros
 
-## 🎯 **NOVIDADE: Sistema Inteligente de Transferências**
+### 🤖 **Automação**
+- Mensagens automáticas
+- Monitoramento de vencimentos
+- Notificações push
+- IA para atendimento
 
-### **🧠 Funcionamento Inteligente:**
-- **🌐 "Quero um site"** → **Rafael** (Comercial)
-- **🔧 "Meu site quebrou"** → **Suporte Técnico**
-- **👥 "Falar com pessoa"** → **Atendimento Humano**
+## 🏗️ **ARQUITETURA**
 
-### **✅ Ana AI Integrada:**
-- **Agent ID:** 3
-- **URL:** https://agentes.pixel12digital.com.br
-- **Frases de Ativação:** 
-  - `ATIVAR_TRANSFERENCIA_RAFAEL` → Comercial
-  - `ATIVAR_TRANSFERENCIA_SUPORTE` → Suporte Técnico
-  - `ATIVAR_TRANSFERENCIA_HUMANO` → Atendimento Geral
+### **📁 ESTRUTURA DE ARQUIVOS**
 
-### **🎯 Detecção Inteligente (Fallback):**
-Se Ana não usar frases específicas, sistema analisa automaticamente:
-- **Comercial:** "quero site", "loja virtual", "orçamento", "ecommerce"
-- **Suporte:** "meu site está", "erro", "problema", "não funciona"
-
----
-
-## 🔧 **Configuração do Webhook**
-
-### **📡 Webhook Configurado:**
 ```
-URL: https://app.pixel12digital.com.br/painel/receber_mensagem_ana_local.php
-Método: POST
-Content-Type: application/json
+📁 loja-virtual-revenda/
+├── 📄 config.php                    # Configurações globais
+├── 📄 config_whatsapp_multiplo.php  # Configuração WhatsApp
+├── 📄 package.json                  # Dependências Node.js
+├── 📄 README_WHATSAPP_NOVA_SOLUCAO.md # Documentação WhatsApp
+├── 📁 src/                          # Código fonte principal
+│   ├── 📁 Controllers/              # Controladores
+│   ├── 📁 Models/                   # Modelos
+│   ├── 📁 Services/                 # Serviços
+│   └── 📁 Views/                    # Visualizações
+├── 📁 painel/                       # Painel administrativo
+│   ├── 📄 faturas.php              # Gestão de faturas
+│   ├── 📄 clientes.php             # Gestão de clientes
+│   ├── 📄 chat.php                 # Chat WhatsApp
+│   └── 📁 api/                     # APIs do painel
+├── 📁 api/                          # APIs principais
+│   ├── 📄 webhook_whatsapp.php     # Webhook WhatsApp
+│   └── 📄 webhooks.php             # Webhooks gerais
+├── 📁 canais/                       # Canais de comunicação
+│   ├── 📁 comercial/               # Canal comercial
+│   ├── 📁 financeiro/              # Canal financeiro
+│   └── 📁 template/                # Template para novos canais
+└── 📁 admin/                        # Área administrativa
 ```
 
-### **⚙️ Configuração via VPS:**
+## 🚀 **INSTALAÇÃO E CONFIGURAÇÃO**
+
+### **1. Pré-requisitos**
+- PHP 7.4+
+- MySQL 5.7+
+- Node.js 16+
+- XAMPP/WAMP/MAMP (desenvolvimento)
+
+### **2. Configuração do Banco**
+```sql
+-- Importar o arquivo SQL
+mysql -u root -p < u342734079_revendaweb.sql
+```
+
+### **3. Configuração do Ambiente**
 ```bash
-# Configurar webhook automaticamente
-curl -X POST http://212.85.11.238:3001/webhook/config \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://app.pixel12digital.com.br/painel/receber_mensagem_ana_local.php"}'
+# Copiar arquivo de exemplo
+cp env.example .env
+
+# Editar configurações
+nano .env
 ```
 
-### **🧪 Testar configuração:**
+### **4. Instalação de Dependências**
 ```bash
-# Script de configuração automática
-php configurar_webhook_vps.php
+# Dependências Node.js
+npm install
+
+# Dependências PHP (se usar Composer)
+composer install
 ```
 
----
+## 📱 **CONFIGURAÇÃO WHATSAPP**
 
-## 🚀 **Fluxos de Transferência**
+### **Canais Configurados**
 
-### **🌐 COMERCIAL → RAFAEL:**
-1. Cliente: *"Preciso de um site"*
-2. Ana: *"Vou conectar com Rafael! ATIVAR_TRANSFERENCIA_RAFAEL"*
-3. **Rafael recebe WhatsApp** com dados do cliente
-4. Cliente informado sobre especialista
+#### **📞 Canal 3000 (Financeiro - Ana)**
+- **Nome**: Financeiro - Ana
+- **Sessão**: default
+- **Número**: 554797146908
+- **URL**: https://whatsapp-api-c4bg.onrender.com
 
-### **🔧 SUPORTE → TÉCNICO:**
-1. Cliente: *"Meu site está fora do ar"*
-2. Ana: *"Transferindo para suporte! ATIVAR_TRANSFERENCIA_SUPORTE"*
-3. **Equipe técnica notificada** via WhatsApp
-4. **Ana bloqueada** para este cliente
-5. Cliente recebe boas-vindas técnicas
+#### **📞 Canal 3001 (Comercial - Rafael)**
+- **Nome**: Comercial - Rafael
+- **Sessão**: comercial
+- **Número**: 554797309525
+- **URL**: https://whatsapp-api-c4bg.onrender.com
 
-### **👥 HUMANO → GERAL:**
-1. Cliente: *"Quero falar com uma pessoa"*
-2. Ana: *"Conectando humanos! ATIVAR_TRANSFERENCIA_HUMANO"*
-3. **Agentes notificados** via WhatsApp
-4. Cliente transferido para Bailey (Canal 3001)
-
----
-
-## 📊 **Monitoramento e Dashboard**
-
-### **📈 Dashboard Principal:**
+### **Acesso ao Sistema**
 ```
-https://app.pixel12digital.com.br/painel/gestao_transferencias.php
+URL Principal: http://localhost:8080/loja-virtual-revenda/painel
+Login: admin / admin123
 ```
 
-### **📊 Estatísticas em Tempo Real:**
-- 📱 **Rafael:** Transferências comerciais
-- 🔧 **Suporte:** Chamados técnicos
-- 👥 **Humanos:** Atendimento geral
-- 📋 **Bloqueios:** Clientes com Ana bloqueada
+## 🔧 **FUNCIONALIDADES DETALHADAS**
 
-### **📂 Logs do Sistema:**
-```
-https://app.pixel12digital.com.br/painel/logs/webhook_debug.log
-```
+### **📊 Painel Administrativo**
+- **Dashboard**: Visão geral do sistema
+- **Clientes**: Gestão completa de clientes
+- **Faturas**: Gestão de faturas e cobranças
+- **Chat**: Interface de chat WhatsApp
+- **Monitoramento**: Status dos canais
 
----
+### **🤖 Automação WhatsApp**
+- **Mensagens automáticas**: Baseadas em contexto
+- **Monitoramento**: Verificação de status
+- **Webhooks**: Recebimento de mensagens
+- **Multi-canal**: Suporte a múltiplos canais
 
-## 🧪 **Como Testar o Sistema**
+### **💰 Sistema Financeiro**
+- **Faturas**: Criação e gestão
+- **Asaas**: Integração completa
+- **Cobranças**: Automatização
+- **Relatórios**: Análises financeiras
 
-### **📱 Testes via WhatsApp Real:**
-Envie mensagens para o número do Bailey (Canal 3001):
+## 🛠️ **DESENVOLVIMENTO**
 
-1. **Teste Comercial:**
-   ```
-   "Quero um site para minha empresa"
-   ```
-   **Resultado esperado:** Rafael recebe WhatsApp automático
+### **Estrutura MVC**
+- **Models**: Lógica de negócio
+- **Views**: Interface do usuário
+- **Controllers**: Controle de fluxo
 
-2. **Teste Suporte:**
-   ```
-   "Meu site está fora do ar"
-   ```
-   **Resultado esperado:** Equipe técnica recebe chamado
+### **APIs**
+- **RESTful**: APIs padronizadas
+- **Webhooks**: Integração externa
+- **JSON**: Formato de resposta
 
-3. **Teste Humano:**
-   ```
-   "Quero falar com uma pessoa"
-   ```
-   **Resultado esperado:** Transferência para Bailey (Canal 3001)
+### **Banco de Dados**
+- **MySQL**: Banco principal
+- **Otimizado**: Índices e queries
+- **Backup**: Sistema de backup
 
-### **🔬 Teste via Script:**
-```bash
-# Teste completo do sistema
-php teste_sistema_final.php
-```
+## 📝 **LOG DE MUDANÇAS**
 
----
+### **Versão 2.0 - Limpeza Completa (Janeiro 2025)**
+- ✅ **Removido**: Todas as soluções antigas (VPS, Balay/Baileys)
+- ✅ **Atualizado**: Nova solução whatsapp-web.js no Render.com
+- ✅ **Limpo**: Arquivos de teste, debug e backup removidos
+- ✅ **Organizado**: Estrutura de pastas otimizada
+- ✅ **Documentado**: README atualizado
 
-## 🧪 Como Executar os Testes
+### **Arquivos Removidos**
+- Servidores VPS antigos (`web-server*.js`)
+- Scripts de teste e debug
+- Documentação desatualizada
+- Relatórios antigos
+- Backups desnecessários
 
-```bash
-# Conectar ao VPS
-ssh root@212.85.11.238
-cd /var/whatsapp-api
+## 🔗 **LINKS ÚTEIS**
 
-# Tornar scripts executáveis
-chmod +x *.sh
+- **Painel**: http://localhost:8080/loja-virtual-revenda/painel
+- **Documentação WhatsApp**: [README_WHATSAPP_NOVA_SOLUCAO.md](README_WHATSAPP_NOVA_SOLUCAO.md)
+- **API WhatsApp**: https://whatsapp-api-c4bg.onrender.com
 
-# Executar testes
-./teste_fluxo_completo_whatsapp.sh
-./teste_final_producao.sh
-./validacao_numero_real.sh
-```
+## 📞 **SUPORTE**
 
-**⚠️ IMPORTANTE:** Sempre copie só o texto após `#` ou `$` – nunca inclua os símbolos de debug (🚩, 🔥, ✅) no prompt.
-
-## ✅ Testes e Validações
-
-### **Validação de Sessões:**
-- **Porta 3001 (Bailey):** 1 sessão, `hasClient=true` ✅
-
-### **Envio de Mensagens:**
-- **Testado para o número real `554796164699` no canal Bailey** → ✅ Sucesso
-- **API Bailey:** `"success":true`
-
-### **Verificação de Número:**
-- **Porta 3001:** `isRegistered=true` ✅
-
-### **Webhooks:**
-- **Configurados em:** `https://app.pixel12digital.com.br/painel/receber_mensagem_ana_local.php` → ✅ Sucesso
-- **Sistema inteligente:** Webhook funcionando com Ana AI
-
-### **Acesso Externo:**
-- **API 3001 acessível externamente** → ✅ Sucesso
-- **URL pública funcionando:** `http://212.85.11.238:3001`
-
-### **Painel Administrativo:**
-- **Canal conectado e enviando mensagens via interface** → ✅ Sucesso
-- **QR Codes funcionando sem "undefined"**
-- **Status atualizado corretamente**
-- **Dashboard de transferências ativo** → ✅ Sucesso
-
-### **Monitoramento Automático (cron):**
-Entrada no `crontab`:
-```cron
-*/5 * * * * cd /var/whatsapp-api && ./monitoramento_automatico.sh >> /var/whatsapp-api/monitoramento.log 2>&1
-```
-
-### **Sistema Inteligente de Transferências:**
-- **Ana AI integrada** → ✅ Sucesso
-- **Frases de ativação configuradas** → ✅ Sucesso
-- **Detecção inteligente ativa** → ✅ Sucesso
-- **Transferências automáticas funcionando** → ✅ Sucesso
-- **Dashboard de monitoramento** → ✅ Sucesso
-
-### **Estatísticas de Validação:**
-- **Testes realizados:** 8
-- **Sucessos:** 8
-- **Taxa de sucesso:** 100%
-- **Status:** ✅ **SISTEMA 100% OPERACIONAL + INTELIGENTE**
+Para suporte técnico ou dúvidas:
+- **Email**: suporte@pixel12digital.com.br
+- **WhatsApp**: (55) 47 99999-9999
 
 ---
-
-## 🚀 Operação e Manutenção
-
-### **Comandos Essenciais:**
-
-```bash
-# Verificar status dos processos
-pm2 status
-
-# Ver logs em tempo real
-pm2 logs whatsapp-3001 --lines 20
-
-# Reiniciar processos
-pm2 restart all
-
-# Verificar sessões ativas
-curl -s http://127.0.0.1:3001/sessions | jq .
-
-# Testar envio de mensagem
-curl -X POST http://127.0.0.1:3001/send/text \
-  -H "Content-Type: application/json" \
-  -d '{"sessionName":"default","number":"554796164699","message":"Teste"}'
-```
-
-### **Comandos de Transferências:**
-
-```bash
-# Executar transferências manualmente
-curl -X POST https://app.pixel12digital.com.br/painel/api/executar_transferencias.php
-
-# Verificar status do sistema inteligente
-curl -s https://app.pixel12digital.com.br/painel/api/integrador_ana_local.php
-
-# Verificar dashboard
-curl -s https://app.pixel12digital.com.br/painel/gestao_transferencias.php
-```
-
-### **URLs de Acesso:**
-
-- **API Bailey:** http://212.85.11.238:3001
-- **Painel Administrativo:** http://212.85.11.238:8080/painel/
-- **Comunicação:** http://212.85.11.238:8080/painel/comunicacao.php
-- **🆕 Dashboard Transferências:** https://app.pixel12digital.com.br/painel/gestao_transferencias.php
-- **🆕 Ana AI:** https://agentes.pixel12digital.com.br
-
-### **Monitoramento:**
-
-```bash
-# Verificar uso de recursos
-pm2 monit
-
-# Ver logs de erro
-pm2 logs whatsapp-3001 --err --lines 50
-
-# Verificar conectividade
-curl -s http://212.85.11.238:3001/status | jq .
-
-# 🆕 Logs das transferências
-tail -f /var/www/html/loja-virtual-revenda/painel/logs/webhook_debug.log
-```
-
-### **Troubleshooting:**
-
-1. **Se as sessões não aparecerem:**
-   ```bash
-   pm2 restart all
-   sleep 30
-   curl -s http://127.0.0.1:3001/sessions | jq .
-   ```
-
-2. **Se o envio falhar:**
-   ```bash
-   pm2 logs whatsapp-3001 --lines 20
-   curl -s http://127.0.0.1:3001/qr?session=default | jq .
-   ```
-
-3. **Se o painel não funcionar:**
-   - Verifique se o Apache está rodando: `systemctl status apache2`
-   - Verifique permissões: `ls -la /var/www/html/painel/`
-
-4. **🆕 Se transferências não funcionarem:**
-   - Verifique Ana AI: https://agentes.pixel12digital.com.br
-   - Execute manualmente: `php painel/api/executar_transferencias.php`
-   - Verifique logs: `tail -f painel/logs/webhook_debug.log`
-   - Dashboard: https://app.pixel12digital.com.br/painel/gestao_transferencias.php
-
----
-
-## 📋 Checklist de Validação
-
-### **✅ Sistema Operacional:**
-- [x] PM2 processo online (Bailey)
-- [x] Sessão conectada na porta 3001
-- [x] QR Code disponível (se necessário)
-- [x] Envio de mensagens funcionando
-- [x] Painel administrativo acessível
-- [x] Webhooks configurados
-
-### **✅ Sistema Inteligente:**
-- [x] Ana AI conectada e respondendo
-- [x] Frases de ativação configuradas
-- [x] Detecção inteligente ativa
-- [x] Transferências automáticas funcionando
-- [x] Dashboard de monitoramento ativo
-- [x] Logs de transferências funcionando
-
-### **✅ Migração e Limpeza:**
-- [x] Rhome (3000) excluído do banco
-- [x] Bailey (3001) configurado como principal
-- [x] Aplicação 3000 parada via PM2
-- [x] Processos antigos removidos
-- [x] VPS limpa e otimizada
-- [x] Recursos focados no Bailey
-
-### **✅ Logs Esperados:**
-- `🚩 [STARTUP] Porta 3001 → sessão="default"`
-- `🚩 [AUTO-START] Iniciando sessão "default" automaticamente...`
-- `🎯 [AUTO-POST] Status interno: 200`
-- `✅ [READY] whatsappClients["default"] registrado com sucesso`
-- `🤖 [INTEGRADOR] Ana ativou transferência para Rafael via frase específica`
-- `🧠 [INTEGRADOR] Detecção inteligente: Transferência para Suporte`
-
----
-
-## 🔧 Configuração de Webhooks
-
-```bash
-# Configurar webhook para sistema inteligente
-curl -X POST http://127.0.0.1:3001/webhook/config \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://app.pixel12digital.com.br/painel/receber_mensagem_ana_local.php"}'
-
-# Testar webhook
-curl -X POST http://127.0.0.1:3001/webhook/test
-
-# 🆕 Configurar automaticamente
-php configurar_webhook_vps.php
-```
-
----
-
-## 🆕 **Arquivos do Sistema Inteligente**
-
-### **🔧 Principais:**
-- `painel/api/integrador_ana_local.php` - Integração com Ana AI
-- `painel/api/executar_transferencias.php` - Processamento de transferências
-- `painel/receber_mensagem_ana_local.php` - Webhook principal
-- `painel/gestao_transferencias.php` - Dashboard de monitoramento
-- `painel/cron/processar_transferencias_automatico.php` - Processamento automático
-
-### **🗄️ Tabelas do Banco:**
-- `transferencias_rafael` - Transferências comerciais
-- `transferencias_humano` - Transferências para humanos/suporte
-- `bloqueios_ana` - Controle de bloqueios da Ana
-- `logs_integracao_ana` - Logs de integração
-- `agentes_notificacao` - Configuração de agentes
-
-### **📄 Documentação:**
-- `SISTEMA_TRANSFERENCIAS_INTELIGENTE_FINAL.md` - Documentação completa
-- `CONFIGURAR_WEBHOOK_AGORA.md` - Guia de configuração
-- `README_IA_INTEGRACAO.md` - Integração com IA
-
----
-
-## 📞 Suporte
-
-Para problemas ou dúvidas:
-1. Verifique os logs: `pm2 logs whatsapp-3001 --lines 50`
-2. Execute o teste: `./teste_final_producao.sh`
-3. 🆕 Teste sistema inteligente: `php teste_sistema_final.php`
-4. 🆕 Verifique dashboard: https://app.pixel12digital.com.br/painel/gestao_transferencias.php
-5. Reinicie se necessário: `pm2 restart all`
-
----
-
-## 🎯 **Resultado Final**
-
-### **✅ Sistema Completo:**
-- ✅ **WhatsApp Single-Canal** funcionando (Bailey)
-- ✅ **Ana AI integrada** e ativa
-- ✅ **Sistema inteligente** diferencia comercial vs suporte
-- ✅ **Rafael recebe apenas** clientes comerciais
-- ✅ **Suporte recebe apenas** problemas técnicos
-- ✅ **Transferências automáticas** em tempo real
-- ✅ **Monitoramento completo** via dashboard
-- ✅ **VPS limpa e otimizada**
-
-### **🎊 Benefícios da Migração:**
-- **Recursos otimizados** para Bailey
-- **Gerenciamento simplificado** (1 canal)
-- **Logs limpos** e organizados
-- **Performance melhorada**
-- **Manutenção facilitada**
-
-### **🎊 Benefícios do Sistema Inteligente:**
-- **Rafael não recebe mais** problemas técnicos
-- **Suporte técnico** recebe apenas chamados relevantes
-- **Ana responde** inteligentemente baseada no contexto
-- **Fallback automático** se IA falhar
-- **Monitoramento completo** de todas as transferências
-
----
-
-## 📊 **Status Atual do Sistema**
-
-### **🟢 BAILEY (VPS 3001) - PRINCIPAL:**
-- **Status:** ✅ `running`
-- **Ready:** ✅ `true`
-- **Conectado:** ✅ `true`
-- **Última Sessão:** ✅ `2025-08-05T14:53:47.090Z`
-- **Porta:** ✅ `3001`
-- **Processo PM2:** ✅ `whatsapp-3001` (online)
-
-### **🔴 RHOME (VPS 3000) - REMOVIDO:**
-- **Status:** ❌ `stopped`
-- **Ready:** ❌ `false`
-- **Conectado:** ❌ `false`
-- **Última Sessão:** ❌ `null`
-- **Porta:** ❌ `3000` (não responde)
-- **Processo PM2:** ❌ `whatsapp-3000` (deleted)
-
-### **📈 ESTATÍSTICAS DA MIGRAÇÃO:**
-- **Data da Migração:** 05/08/2025
-- **Tempo de Execução:** ~30 minutos
-- **Aplicações Removidas:** 1 (Rhome)
-- **Aplicações Mantidas:** 1 (Bailey)
-- **Recursos Liberados:** ~65MB RAM
-- **Status:** ✅ **MIGRAÇÃO CONCLUÍDA COM SUCESSO**
-
----
-
-**🎉 Sistema WhatsApp Single-Canal + Inteligente 100% Operacional e Validado!**
-
-**Última Validação:** 05/08/2025  
-**Número Testado:** 554796164699  
-**Status:** ✅ **APROVADO PARA PRODUÇÃO + SISTEMA INTELIGENTE ATIVO**  
-**Ana AI:** ✅ **INTEGRADA E FUNCIONAL**  
-**Transferências:** ✅ **AUTOMÁTICAS E INTELIGENTES**  
-**Migração:** ✅ **BAILEY (3001) - CANAL PRINCIPAL**  
-**Limpeza VPS:** ✅ **CONCLUÍDA COM SUCESSO** 
+*Sistema desenvolvido por Pixel 12 Digital*
+*Versão: 2.0 - Janeiro 2025* 

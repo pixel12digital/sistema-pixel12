@@ -165,20 +165,26 @@ $custom_header = $custom_header ?? '';
         if (!r) return; // Se retornou undefined, WhatsApp está conectado
         return r.json();
       })
-        .then(statusList => {
-        if (!statusList) return; // Se retornou undefined, WhatsApp está conectado
+      .then(statusList => {
+        if (!statusList || !Array.isArray(statusList)) {
+          console.log('[Template] statusList não é um array válido:', statusList);
+          return; // Se retornou undefined ou não é array, parar
+        }
         
-          let totalWhatsapp = 0;
-          let desconectados = 0;
+        let totalWhatsapp = 0;
+        let desconectados = 0;
         let conectados = 0;
         
-          statusList.forEach(st => {
-            if (st.tipo === 'whatsapp') {
-              totalWhatsapp++;
-              if (!st.conectado) desconectados++;
-            else conectados++;
+        statusList.forEach(st => {
+          if (st && st.tipo === 'whatsapp') {
+            totalWhatsapp++;
+            if (!st.conectado) {
+              desconectados++;
+            } else {
+              conectados++;
             }
-          });
+          }
+        });
         
         // DEBUG: Log para verificar o que está acontecendo
         console.log(`[Template] Canais WhatsApp: ${totalWhatsapp} total, ${conectados} conectados, ${desconectados} desconectados`);
@@ -186,16 +192,16 @@ $custom_header = $custom_header ?? '';
         // CORREÇÃO: Só mostrar notificação se houver pelo menos 1 WhatsApp desconectado E pelo menos 1 WhatsApp total
         if (desconectados > 0 && totalWhatsapp > 0) {
           console.log('[Template] Notificação de desconectados EXIBIDA');
-            showPushNotification('Atenção: Existem canais WhatsApp desconectados!', 0);
-          } else {
+          showPushNotification('Atenção: Existem canais WhatsApp desconectados!', 0);
+        } else {
           console.log('[Template] Notificação de desconectados OCULTA');
           // Esconder notificação se todos conectados ou nenhum WhatsApp
           const notification = document.getElementById('push-notification');
           if (notification) {
             notification.style.display = 'none';
-            }
           }
-        })
+        }
+      })
       .catch(error => {
         console.error('[Template] Erro ao verificar canais:', error);
       });

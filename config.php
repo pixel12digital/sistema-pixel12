@@ -88,15 +88,9 @@ if (!defined('ASAAS_API_URL')) define('ASAAS_API_URL', 'https://www.asaas.com/ap
 if (!defined('CACHE_TTL_DEFAULT')) define('CACHE_TTL_DEFAULT', 1800); // 30 minutos
 if (!defined('CACHE_MAX_SIZE')) define('CACHE_MAX_SIZE', '100MB');
 
-/* ===== Configurações do WhatsApp ===== */
-if (!defined('WHATSAPP_ROBOT_URL')) define('WHATSAPP_ROBOT_URL', 'http://212.85.11.238:3000');
-if (!defined('WHATSAPP_TIMEOUT')) define('WHATSAPP_TIMEOUT', 10);
-
-// Forçar configuração do WhatsApp para ambiente local também
-if ($is_local) {
-    if (!defined('WHATSAPP_ROBOT_URL')) define('WHATSAPP_ROBOT_URL', 'http://212.85.11.238:3000');
-    if (!defined('WHATSAPP_TIMEOUT')) define('WHATSAPP_TIMEOUT', 10);
-}
+/* ===== CONFIGURAÇÕES WHATSAPP API - LOCAL E PRODUÇÃO ===== */
+// Incluir configuração WhatsApp API
+// require_once __DIR__ . '/config_whatsapp_multiplo.php';
 
 /* ===== CONFIGURAÇÕES OTIMIZADAS PARA REDUZIR CONEXÕES ===== */
 // Configurações de polling OTIMIZADAS - REDUZIDAS drasticamente para economizar conexões

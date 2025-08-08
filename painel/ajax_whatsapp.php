@@ -16,6 +16,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 try {
     require_once __DIR__ . '/../config.php';
+    require_once __DIR__ . '/../config_whatsapp_multiplo.php';
     
     $action = $_GET['action'] ?? $_POST['action'] ?? '';
     $canal_id = $_GET['canal_id'] ?? $_POST['canal_id'] ?? null;
@@ -45,17 +46,20 @@ try {
         $porta = '3000'; // Padrão porta 3000 (financeiro)
     }
     
-    // CORREÇÃO: Usar URL baseada na porta
-    // FORÇAR USO DA VPS 3001 QUE ESTÁ FUNCIONANDO
-    $vps_url = 'http://212.85.11.238:3001'; // Sempre usar comercial (funcionando)
+    // CORREÇÃO: Usar URL baseada na configuração inteligente
+    $vps_url = getWorkingWhatsAppApiUrl($porta);
     
-    // CORREÇÃO: Usar sessão correta baseada na porta
-    if ($porta == '3000' || $porta == 3000) {
-        $vps_url = 'http://212.85.11.238:3000'; // VPS 3000 para porta 3000
-        $sessionName = 'default'; // Sessão default para porta 3000
-    } else {
-        $vps_url = 'http://212.85.11.238:3001'; // VPS 3001 para porta 3001
-        $sessionName = 'comercial'; // Sessão comercial para porta 3001
+    // CORREÇÃO: Usar sessão correta baseada na porta ou parâmetro
+    $sessionName = $_GET['session'] ?? $_POST['session'] ?? null;
+    
+    if (!$sessionName) {
+        if ($porta == '3000' || $porta == 3000) {
+            $sessionName = 'default'; // Sessão default para porta 3000
+        } elseif ($porta == '3001' || $porta == 3001) {
+            $sessionName = 'comercial'; // Sessão comercial para porta 3001
+        } else {
+            $sessionName = 'default'; // Padrão
+        }
     }
     
     // Log debug para depuração
@@ -81,356 +85,246 @@ try {
     
     switch ($action) {
         case 'status':
-            // CORREÇÃO: Usar endpoint geral /status em vez de /session/:sessionName/status
-            // Log adicional para debug
-            error_log("[WhatsApp Status Debug] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
-            
-            // Consultar status geral (contém todas as sessões)
             $endpoint = "/status";
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $vps_url . $endpoint);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10); // Aumentar timeout para 10 segundos
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5); // Timeout de conexão de 5 segundos
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+            
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $curl_error = curl_error($ch);
             curl_close($ch);
             
-            // Log da resposta para debug
-            error_log("[WhatsApp Status Response] HTTP Code: $http_code, Response: $response, Curl Error: $curl_error");
-            
-            if ($http_code == 200) {
+            if ($http_code == 200 && !$curl_error) {
                 $data = json_decode($response, true);
                 
-                // CORREÇÃO: Interpretar corretamente o status da sessão
-                $sessionStatus = null;
-                $isConnected = false;
-                $status = 'not_found';
-                $message = 'Sessão não encontrada';
+                // Extrair status do response
+                $status = null;
+                $ready = false;
+                $qr = null;
                 
-                // Verificar se a sessão existe no clients_status
-                if (isset($data['clients_status'][$sessionName])) {
-                    $sessionStatus = $data['clients_status'][$sessionName];
-                    $isConnected = isset($sessionStatus['ready']) && $sessionStatus['ready'] === true;
-                    $status = $isConnected ? 'connected' : 'disconnected';
-                    $message = $isConnected ? 'Sessão conectada' : 'Sessão desconectada';
+                if (isset($data['status'])) {
+                    $status = $data['status'];
+                } elseif (isset($data['ready'])) {
+                    $ready = $data['ready'];
+                    $status = $ready ? 'connected' : 'disconnected';
                 }
                 
-                // CORREÇÃO: Verificar também o status geral do servidor
-                if (isset($data['ready']) && $data['ready'] === true) {
-                    // Se o servidor está pronto, verificar se há alguma sessão ativa
-                    if (isset($data['clients_status']) && !empty($data['clients_status'])) {
-                        foreach ($data['clients_status'] as $sessionKey => $sessionData) {
-                            if (isset($sessionData['ready']) && $sessionData['ready'] === true) {
-                                $isConnected = true;
-                                $status = 'connected';
-                                $message = 'Sessão conectada';
-                                $sessionStatus = $sessionData;
-                                $sessionName = $sessionKey; // Usar a sessão que está ativa
-                                break;
-                            }
-                        }
-                    }
+                if (isset($data['qr'])) {
+                    $qr = $data['qr'];
                 }
                 
                 echo json_encode([
                     'success' => true,
-                    'ready' => $isConnected,
                     'status' => $status,
-                    'message' => $message,
-                    'session' => $sessionName,
-                    'lastSession' => isset($data['lastSession']) ? $data['lastSession'] : null,
-                    'number' => isset($sessionStatus['number']) ? $sessionStatus['number'] : null,
-                    'raw_response_preview' => json_encode($sessionStatus), // Para debug no frontend
+                    'ready' => $ready,
+                    'qr' => $qr,
+                    'connected' => $ready,
                     'debug' => [
+                        'endpoint_used' => $endpoint,
                         'session_used' => $sessionName,
                         'porta_used' => $porta,
                         'canal_id_received' => $canal_id,
-                        'endpoint_used' => $endpoint,
-                        'available_sessions' => array_keys($data['clients_status'] ?? []),
-                        'server_ready' => isset($data['ready']) ? $data['ready'] : null,
-                        'is_connected' => $isConnected
+                        'raw_response_preview' => substr($response, 0, 200)
                     ]
                 ]);
             } else {
                 echo json_encode([
                     'success' => false,
-                    'error' => 'Erro ao obter status da sessão',
+                    'error' => 'Erro ao conectar com WhatsApp API',
                     'http_code' => $http_code,
                     'curl_error' => $curl_error,
-                    'session_attempted' => $sessionName,
                     'debug' => [
                         'endpoint' => $endpoint,
                         'session_used' => $sessionName,
                         'porta_used' => $porta,
-                        'canal_id_received' => $canal_id
+                        'canal_id_received' => $canal_id,
+                        'vps_url' => $vps_url
                     ]
                 ]);
             }
             break;
         
         case 'qr':
-            // Determinar a sessão baseada na porta
-            // $sessionName = 'default'; // Padrão para porta 3000
-            // if ($porta == '3001' || $porta == 3001) {
-            //     $sessionName = 'comercial'; // Para porta 3001
-            // }
+            // CORREÇÃO: Implementar busca robusta de QR Code
+            $endpoints = [
+                "/qr?session=" . urlencode($sessionName),
+                "/qr",
+                "/api/qr?session=" . urlencode($sessionName),
+                "/qrcode?session=" . urlencode($sessionName),
+                "/status" // Fallback para verificar se há QR no status
+            ];
             
-            // Log adicional para debug
-            error_log("[WhatsApp QR Debug] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
+            $qr_found = false;
+            $last_error = null;
+            $last_response = null;
             
-            // CORREÇÃO: Usar endpoint correto /session/default/qr
-            $qr_endpoint = "/qr?session=" . $sessionName;
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $vps_url . $qr_endpoint);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-            $response = curl_exec($ch);
-            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curl_error = curl_error($ch);
-            curl_close($ch);
-            
-            // Log da resposta para debug
-            error_log("[WhatsApp QR Response] HTTP Code: $http_code, Response: $response, Curl Error: $curl_error");
-            
-            if ($http_code == 200) {
-                $data = json_decode($response, true);
+            foreach ($endpoints as $endpoint) {
+                $test_url = $vps_url . $endpoint;
                 
-                // CORREÇÃO: Validação melhorada do QR Code - rejeitar QR Codes simulados/inválidos
-                $qr = null;
-                $qrValid = false;
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $test_url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
                 
-                // Verificar se o QR existe e é válido
-                if (!empty($data['qr'])) {
-                    $qrData = $data['qr'];
+                $response = curl_exec($ch);
+                $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $curl_error = curl_error($ch);
+                curl_close($ch);
+                
+                if ($http_code == 200 && !$curl_error && $response) {
+                    $data = json_decode($response, true);
                     
-                    // CORREÇÃO: Rejeitar QR Codes simulados, undefined, ou inválidos
-                    if (!str_starts_with($qrData, 'undefined') && 
-                        !str_starts_with($qrData, 'simulate-qr') && 
-                        
-                        
-                        
-                        strlen($qrData) > 10) { // Tamanho mínimo reduzido para QR válido // QR válido deve ter pelo menos 10 caracteres
-                        
-                        $qr = $qrData;
-                        $qrValid = true;
-                        error_log("[WhatsApp QR Valid] QR Code válido encontrado: " . substr($qr, 0, 20) . "...");
-                    } else {
-                        error_log("[WhatsApp QR Invalid] QR Code inválido rejeitado: " . $qrData);
+                    // Extrair QR do response - múltiplas possibilidades
+                    $qr = null;
+                    if (isset($data['qr']) && !empty($data['qr'])) {
+                        $qr = $data['qr'];
+                    } elseif (isset($data['qrcode']) && !empty($data['qrcode'])) {
+                        $qr = $data['qrcode'];
+                    } elseif (isset($data['qr_code']) && !empty($data['qr_code'])) {
+                        $qr = $data['qr_code'];
+                    } elseif (isset($data['data']['qr']) && !empty($data['data']['qr'])) {
+                        $qr = $data['data']['qr'];
+                    } elseif (isset($data['clients_status'][$sessionName]['qr']) && !empty($data['clients_status'][$sessionName]['qr'])) {
+                        $qr = $data['clients_status'][$sessionName]['qr'];
+                    } elseif (is_string($data) && strlen($data) > 100) {
+                        // Possível QR code como string
+                        $qr = $data;
+                    }
+                    
+                    if ($qr && !str_contains($qr, 'simulate') && !str_contains($qr, 'error')) {
+                        echo json_encode([
+                            'success' => true,
+                            'qr' => $qr,
+                            'ready' => isset($data['ready']) ? $data['ready'] : false,
+                            'status' => isset($data['status']) ? $data['status'] : 'qr_ready',
+                            'message' => isset($data['message']) ? $data['message'] : 'QR Code disponível',
+                            'debug' => [
+                                'endpoint_used' => $endpoint,
+                                'session_used' => $sessionName,
+                                'porta_used' => $porta,
+                                'canal_id_received' => $canal_id,
+                                'raw_response_preview' => substr($response, 0, 200),
+                                'qr_length' => strlen($qr)
+                            ]
+                        ]);
+                        $qr_found = true;
+                        break;
                     }
                 }
                 
-                // CORREÇÃO: Verificar também no clients_status se não encontrou no nível principal
-                if (!$qrValid && isset($data['clients_status']['default']['qr'])) {
-                    $qrData = $data['clients_status']['default']['qr'];
-                    
-                    if (!str_starts_with($qrData, 'undefined') && 
-                        !str_starts_with($qrData, 'simulate-qr') && 
-                        
-                        
-                        
-                        strlen($qrData) > 10) { // Tamanho mínimo reduzido para QR válido
-                        
-                        $qr = $qrData;
-                        $qrValid = true;
-                        error_log("[WhatsApp QR Valid] QR Code válido encontrado via clients_status: " . substr($qr, 0, 20) . "...");
-                    }
-                }
-                
-                // CORREÇÃO: Se ainda não tem QR válido, tentar endpoint /status como fallback
-                if (!$qrValid) {
-                    error_log("[WhatsApp QR Fallback] Tentando endpoint /status como fallback");
-                    $status_endpoint = "/status";
-                    $ch = curl_init();
-                    curl_setopt($ch, CURLOPT_URL, $vps_url . $status_endpoint);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-                    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-                    $status_response = curl_exec($ch);
-                    $status_http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    curl_close($ch);
-                    
-                    if ($status_http_code == 200) {
-                        $status_data = json_decode($status_response, true);
-                        if (!empty($status_data['clients_status']['default']['qr'])) {
-                            $qrData = $status_data['clients_status']['default']['qr'];
-                            
-                            if (!str_starts_with($qrData, 'undefined') && 
-                                !str_starts_with($qrData, 'simulate-qr') && 
-                                
-                                
-                                strlen($qrData) > 10) {
-                                
-                                $qr = $qrData;
-                                $qrValid = true;
-                                error_log("[WhatsApp QR Fallback] QR Code válido obtido via /status: " . substr($qr, 0, 20) . "...");
-                            }
-                        }
-                    }
-                }
-                
-                echo json_encode([
-                    'success' => $qrValid,
-                    'qr' => $qr,
-                    'message' => $qrValid ? 'QR Code disponível para escaneamento' : 'QR Code não disponível ou inválido (simulado)',
-                    'ready' => $data['ready'] ?? false,
-                    'status' => $data['status'] ?? 'unknown',
-                    'expires_in' => 60,
-                    'performance' => [
-                        'latency_ms' => 0
-                    ],
-                    'debug' => [
-                        'session_used' => $sessionName,
-                        'porta_used' => $porta,
-                        'canal_id_received' => $canal_id,
-                        'endpoint_used' => $qr_endpoint,
-                        'qr_valid' => $qrValid,
-                        'qr_length' => $qr ? strlen($qr) : 0,
-                        'qr_type' => $qr ? (str_starts_with($qr, 'simulate-qr') ? 'simulated' : 'real') : 'none',
-                        'raw_response_preview' => json_encode($data),
-                        'curl_error' => $curl_error
-                    ]
-                ]);
-            } else {
-                echo json_encode([
-                    'success' => false,
-                    'error' => 'Erro ao obter QR Code do WhatsApp',
-                    'http_code' => $http_code,
-                    'curl_error' => $curl_error,
-                    'debug' => [
-                        'endpoint' => $qr_endpoint,
-                        'session_used' => $sessionName,
-                        'porta_used' => $porta,
-                        'canal_id_received' => $canal_id
-                    ]
-                ]);
+                $last_error = $curl_error ?: "HTTP $http_code";
+                $last_response = $response;
             }
-            break;
-        
-        case 'force_new_qr':
-            // Forçar desconexão e gerar novo QR Code
-            error_log("[WhatsApp Force New QR] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
             
-            // Primeiro, tentar desconectar usando o endpoint correto
-            $disconnect_endpoint = "/session/default/disconnect";
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $vps_url . $disconnect_endpoint);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([]));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            $disconnect_response = curl_exec($ch);
-            $disconnect_http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            
-            // Aguardar um pouco
-            sleep(3);
-            
-            // Agora tentar obter QR Code
-            $qr_endpoint = "/qr?session=" . $sessionName;
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $vps_url . $qr_endpoint);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-            $response = curl_exec($ch);
-            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curl_error = curl_error($ch);
-            curl_close($ch);
-            
-            error_log("[WhatsApp Force New QR Response] HTTP Code: $http_code, Response: $response");
-            
-            if ($http_code == 200) {
-                $data = json_decode($response, true);
+            if (!$qr_found) {
+                // Se não encontrou QR, verificar se está conectado
+                $status_url = $vps_url . "/status";
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $status_url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
                 
-                // CORREÇÃO: Validação melhorada do QR Code - rejeitar QR Codes simulados/inválidos
-                $qr = null;
-                $qrValid = false;
+                $status_response = curl_exec($ch);
+                $status_http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
                 
-                // Verificar se o QR existe e é válido
-                if (!empty($data['qr'])) {
-                    $qrData = $data['qr'];
+                if ($status_http_code == 200) {
+                    $status_data = json_decode($status_response, true);
+                    $is_connected = false;
                     
-                    // CORREÇÃO: Rejeitar QR Codes simulados, undefined, ou inválidos
-                    if (!str_starts_with($qrData, 'undefined') && 
-                        !str_starts_with($qrData, 'simulate-qr') && 
-                        
-                        
-                        
-                        strlen($qrData) > 10) { // Tamanho mínimo reduzido para QR válido // QR válido deve ter pelo menos 10 caracteres
-                        
-                        $qr = $qrData;
-                        $qrValid = true;
-                        error_log("[WhatsApp Force New QR Valid] QR Code válido encontrado: " . substr($qr, 0, 20) . "...");
-                    } else {
-                        error_log("[WhatsApp Force New QR Invalid] QR Code inválido rejeitado: " . $qrData);
+                    // Verificar se está conectado
+                    if (isset($status_data['ready']) && $status_data['ready'] === true) {
+                        $is_connected = true;
+                    } elseif (isset($status_data['clients_status'][$sessionName]['ready']) && $status_data['clients_status'][$sessionName]['ready'] === true) {
+                        $is_connected = true;
+                    } elseif (isset($status_data['status']) && in_array($status_data['status'], ['connected', 'ready', 'authenticated'])) {
+                        $is_connected = true;
                     }
+                    
+                    if ($is_connected) {
+                        echo json_encode([
+                            'success' => true,
+                            'ready' => true,
+                            'status' => 'connected',
+                            'message' => 'WhatsApp já está conectado',
+                            'debug' => [
+                                'endpoint_used' => 'status',
+                                'session_used' => $sessionName,
+                                'porta_used' => $porta,
+                                'canal_id_received' => $canal_id
+                            ]
+                        ]);
+                    } else {
+                        echo json_encode([
+                            'success' => false,
+                            'error' => 'QR Code não disponível no momento',
+                            'message' => 'Aguarde alguns segundos e tente novamente',
+                            'debug' => [
+                                'endpoints_tested' => $endpoints,
+                                'session_used' => $sessionName,
+                                'porta_used' => $porta,
+                                'canal_id_received' => $canal_id,
+                                'last_error' => $last_error,
+                                'last_response_preview' => substr($last_response, 0, 200),
+                                'status_response_preview' => substr($status_response, 0, 200)
+                            ]
+                        ]);
+                    }
+                } else {
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'Falha ao obter QR Code - API pode não suportar este endpoint',
+                        'message' => 'Verifique se o serviço WhatsApp está funcionando',
+                        'debug' => [
+                            'endpoints_tested' => $endpoints,
+                            'session_used' => $sessionName,
+                            'porta_used' => $porta,
+                            'canal_id_received' => $canal_id,
+                            'last_error' => $last_error,
+                            'last_response_preview' => substr($last_response, 0, 200),
+                            'vps_url' => $vps_url
+                        ]
+                    ]);
                 }
-                
-                echo json_encode([
-                    'success' => $qrValid,
-                    'qr' => $qr,
-                    'message' => $qrValid ? 'Novo QR Code gerado com sucesso' : 'QR Code simulado detectado - aguarde QR real',
-                    'ready' => $data['ready'] ?? false,
-                    'status' => $data['status'] ?? 'unknown',
-                    'expires_in' => 60,
-                    'debug' => [
-                        'session_used' => $sessionName,
-                        'porta_used' => $porta,
-                        'disconnect_response' => $disconnect_response,
-                        'qr_response' => $response,
-                        'qr_valid' => $qrValid,
-                        'qr_type' => $qr ? (str_starts_with($qr, 'simulate-qr') ? 'simulated' : 'real') : 'none',
-                        'curl_error' => $curl_error
-                    ]
-                ]);
-            } else {
-                echo json_encode([
-                    'success' => false,
-                    'error' => 'Erro ao forçar novo QR Code',
-                    'http_code' => $http_code,
-                    'curl_error' => $curl_error
-                ]);
             }
             break;
         
         case 'logout':
-            // Determinar a sessão baseada na porta
-            // $sessionName = 'default'; // Padrão para porta 3000
-            // if ($porta == '3001' || $porta == 3001) {
-            //     $sessionName = 'comercial'; // Para porta 3001
-            // }
-            
-            // Log adicional para debug
-            error_log("[WhatsApp Logout Debug] Porta: $porta, Session: $sessionName, VPS URL: $vps_url");
-            
-            $endpoint = "/session/{$sessionName}/disconnect";
+            $endpoint = "/logout";
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $vps_url . $endpoint);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
             curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['sessionName' => $sessionName]));
+            
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             
-            // Log da resposta para debug
-            error_log("[WhatsApp Logout Response] HTTP Code: $http_code, Response: $response");
-            
             if ($http_code == 200) {
                 echo json_encode([
                     'success' => true,
-                    'message' => "WhatsApp desconectado com sucesso (sessão: {$sessionName})",
-                    'session_disconnected' => $sessionName,
+                    'message' => 'WhatsApp desconectado com sucesso',
                     'debug' => [
+                        'endpoint_used' => $endpoint,
                         'session_used' => $sessionName,
                         'porta_used' => $porta,
-                        'canal_id_received' => $canal_id,
-                        'endpoint_used' => $endpoint
+                        'canal_id_received' => $canal_id
                     ]
                 ]);
             } else {
@@ -461,12 +355,6 @@ try {
                 ]);
                 break;
             }
-            
-            // Determinar a sessão baseada na porta
-            // $sessionName = 'default'; // Padrão para porta 3000
-            // if ($porta == '3001' || $porta == 3001) {
-            //     $sessionName = 'comercial'; // Para porta 3001
-            // }
             
             $endpoint = "/send/text";
             $post_data = [
@@ -520,6 +408,8 @@ try {
             curl_setopt($ch, CURLOPT_URL, $vps_url . '/status');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
@@ -527,7 +417,7 @@ try {
             if ($http_code == 200) {
                 echo json_encode([
                     'success' => true,
-                    'message' => 'Conexão com VPS estabelecida',
+                    'message' => 'Conexão com WhatsApp API estabelecida',
                     'vps_url' => $vps_url,
                     'debug' => [
                         'porta_used' => $porta,
@@ -537,7 +427,7 @@ try {
             } else {
                 echo json_encode([
                     'success' => false,
-                    'error' => 'Erro ao conectar com VPS',
+                    'error' => 'Erro ao conectar com WhatsApp API',
                     'http_code' => $http_code,
                     'vps_url' => $vps_url,
                     'debug' => [

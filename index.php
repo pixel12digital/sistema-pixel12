@@ -8,19 +8,39 @@ require_once 'src/db.php';
 
 // Carregar autoloader ou classes necessárias
 require_once 'src/Services/AsaasService.php';
+require_once 'src/Services/WhatsAppService.php';
 require_once 'src/Models/Fatura.php';
 require_once 'src/Models/Assinatura.php';
 require_once 'src/Controllers/Financeiro/FaturasController.php';
 require_once 'src/Controllers/Financeiro/AssinaturasController.php';
+require_once 'src/Controllers/WhatsAppController.php';
+
+// Usar namespaces
+use App\Controllers\WhatsAppController;
+use App\Controllers\Financeiro\FaturasController;
+use App\Controllers\Financeiro\AssinaturasController;
 
 // Obter a URL da requisição
 $request_uri = $_SERVER['REQUEST_URI'];
 $base_path = '/';
 $path = parse_url($request_uri, PHP_URL_PATH); // pega só o path da URL
+
+// Debug: Log da URL processada
+error_log("[ROTEAMENTO_DEBUG] Request URI: $request_uri | Path: $path");
+
+// Remover o base_path se necessário
 if (strpos($path, $base_path) === 0) {
     $path = substr($path, strlen($base_path));
 }
 $path = ltrim($path, '/');
+
+// Remover o diretório base do projeto se presente
+if (strpos($path, 'loja-virtual-revenda/') === 0) {
+    $path = substr($path, strlen('loja-virtual-revenda/'));
+}
+
+// Debug: Log do path final
+error_log("[ROTEAMENTO_DEBUG] Path final: '$path'");
 
 // 🚨 ROTA WEBHOOK ANA - PRIORIDADE MÁXIMA (ANTES DO DEBUG)
 if ($path === 'webhook.php' || $path === 'webhook' || $path === 'webhook_ana.php') {
@@ -86,28 +106,118 @@ if ($path === 'webhook.php' || $path === 'webhook' || $path === 'webhook_ana.php
     }
 }
 
-// Debug: mostrar a URL processada (SOMENTE para não-webhook)
-echo "URL processada: '$path'<br>";
+// 🚨 ROTA WEBHOOK_SEM_REDIRECT - PRIORIDADE ALTA
+if (strpos($path, 'webhook_sem_redirect/') === 0) {
+    $file_path = __DIR__ . '/' . $path;
+    
+    // Verificar se o arquivo existe
+    if (file_exists($file_path)) {
+        // Incluir o arquivo diretamente
+        include $file_path;
+        exit;
+    } else {
+        http_response_code(404);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Arquivo não encontrado',
+            'path' => $path,
+            'file_path' => $file_path
+        ]);
+        exit;
+    }
+}
+
+// 🚀 ROTAS WHATSAPP - NOVA SOLUÇÃO
+if (strpos($path, 'whatsapp/') === 0 || $path === 'whatsapp') {
+    error_log("[ROTEAMENTO_DEBUG] WhatsApp route detectada: $path");
+    
+    try {
+        $whatsappController = new WhatsAppController();
+        
+        // Extrair a ação da URL
+        $whatsapp_path = $path === 'whatsapp' ? '' : substr($path, 9); // Remove 'whatsapp/'
+        
+        error_log("[ROTEAMENTO_DEBUG] WhatsApp path: '$whatsapp_path'");
+        
+        switch ($whatsapp_path) {
+            case '':
+            case 'index':
+                $whatsappController->index();
+                break;
+            case 'dashboard':
+                $whatsappController->dashboard();
+                break;
+            case 'config':
+                $whatsappController->config();
+                break;
+            case 'logs':
+                $whatsappController->logs();
+                break;
+            case 'status':
+                $whatsappController->getStatus();
+                break;
+            case 'qr':
+                $whatsappController->getQRCode();
+                break;
+            case 'send':
+                $whatsappController->sendMessage();
+                break;
+            case 'webhook':
+                $whatsappController->configureWebhook();
+                break;
+            case 'test':
+                $whatsappController->testConnection();
+                break;
+            case 'session':
+                $whatsappController->getSessionInfo();
+                break;
+            case 'disconnect':
+                $whatsappController->disconnectSession();
+                break;
+            default:
+                http_response_code(404);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Endpoint WhatsApp não encontrado',
+                    'path' => $whatsapp_path,
+                    'debug' => [
+                        'original_path' => $path,
+                        'whatsapp_path' => $whatsapp_path
+                    ]
+                ]);
+                break;
+        }
+        exit;
+    } catch (Exception $e) {
+        error_log("[ROTEAMENTO_DEBUG] Erro no WhatsAppController: " . $e->getMessage());
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erro interno do servidor',
+            'message' => $e->getMessage()
+        ]);
+        exit;
+    }
+}
 
 // Página inicial
 if ($path === '' || $path === '/') {
     echo '<h1>Bem-vindo ao sistema!</h1>';
+    echo '<p><a href="/loja-virtual-revenda/whatsapp">Gerenciar WhatsApp</a></p>';
+    echo '<p><a href="/loja-virtual-revenda/financeiro/faturas">Financeiro</a></p>';
     exit;
 }
 
-// Debug: mostrar a URL processada
-// echo "URL processada: '$path'<br>";
-
 // Roteamento simples baseado na URL
 if ($path === 'financeiro/faturas') {
-    $controller = new App\Controllers\Financeiro\FaturasController();
+    $controller = new FaturasController();
     $controller->index();
 } elseif (preg_match('/^financeiro\/faturas\/(\d+)$/', $path, $matches)) {
-    $controller = new App\Controllers\Financeiro\FaturasController();
+    $controller = new FaturasController();
     $controller->show($matches[1]);
 } elseif ($path === 'financeiro/faturas/sync') {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $controller = new App\Controllers\Financeiro\FaturasController();
+        $controller = new FaturasController();
         $controller->sync();
     } else {
         http_response_code(405);
@@ -115,21 +225,21 @@ if ($path === 'financeiro/faturas') {
     }
 } elseif ($path === 'webhook/asaas/faturas') {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $controller = new App\Controllers\Financeiro\FaturasController();
+        $controller = new FaturasController();
         $controller->webhook();
     } else {
         http_response_code(405);
         echo 'Método não permitido';
     }
 } elseif ($path === 'financeiro/assinaturas') {
-    $controller = new App\Controllers\Financeiro\AssinaturasController();
+    $controller = new AssinaturasController();
     $controller->index();
 } elseif (preg_match('/^financeiro\/assinaturas\/(\d+)$/', $path, $matches)) {
-    $controller = new App\Controllers\Financeiro\AssinaturasController();
+    $controller = new AssinaturasController();
     $controller->show($matches[1]);
 } elseif ($path === 'financeiro/assinaturas/sync') {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $controller = new App\Controllers\Financeiro\AssinaturasController();
+        $controller = new AssinaturasController();
         $controller->sync();
     } else {
         http_response_code(405);
