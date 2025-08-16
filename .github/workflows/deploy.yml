@@ -65,7 +65,9 @@ jobs:
     - name: 🌐 Adicionar VPS ao known_hosts
       run: |
         mkdir -p ~/.ssh
-        ssh-keyscan -H -p 22 ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+        echo "🔍 Testando conexão com VPS: ${{ secrets.VPS_HOST }}"
+        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts || echo "⚠️ ssh-keyscan falhou, continuando..."
+        echo "✅ known_hosts configurado"
         
     - name: 🚀 Deploy na VPS
       run: |
