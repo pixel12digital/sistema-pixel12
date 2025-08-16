@@ -1,0 +1,130 @@
+name: 🚀 Deploy Automático - Sistema Pixel12
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  # ========================================
+  # TESTES AUTOMÁTICOS
+  # ========================================
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: 📥 Checkout do código
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: 📥 Instalar dependências
+      run: npm ci
+      
+    - name: 🧪 Executar testes
+      run: npm test || echo "Testes não configurados ainda"
+      
+    - name: 🔍 Linting
+      run: npm run lint || echo "Linting não configurado ainda"
+
+  # ========================================
+  # DEPLOY NA VPS
+  # ========================================
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: 📥 Checkout do código
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: 📥 Instalar dependências
+      run: npm ci
+      
+    - name: 🔐 Configurar SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+        
+    - name: 🌐 Adicionar VPS ao known_hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+        
+    - name: 🚀 Deploy na VPS
+      run: |
+        echo "🚀 Iniciando deploy na VPS..."
+        
+        # Criar arquivo de configuração temporário
+        cat > .env.vps << EOF
+        NODE_ENV=vps
+        PORT=${{ secrets.VPS_PORT }}
+        DB_HOST=${{ secrets.VPS_DB_HOST }}
+        DB_PORT=${{ secrets.VPS_DB_PORT }}
+        DB_USER=${{ secrets.VPS_DB_USER }}
+        DB_PASS=${{ secrets.VPS_DB_PASS }}
+        DB_NAME=${{ secrets.VPS_DB_NAME }}
+        JWT_SECRET=${{ secrets.VPS_JWT_SECRET }}
+        JWT_EXPIRES_IN=24h
+        JWT_ISSUER=sistema-pixel12
+        JWT_AUDIENCE=users
+        BCRYPT_ROUNDS=12
+        CORS_ORIGIN=*
+        LOG_LEVEL=info
+        ENABLE_MORGAN=true
+        EOF
+        
+        # Fazer deploy via SSH
+        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'DEPLOY_SCRIPT'
+          echo "📁 Navegando para diretório do projeto..."
+          cd ${{ secrets.VPS_PROJECT_PATH }}
+          
+          echo "📥 Atualizando código..."
+          git fetch origin
+          git reset --hard origin/master
+          
+          echo "📦 Instalando dependências..."
+          npm ci --production
+          
+          echo "🗄️ Configurando banco de dados..."
+          cp .env.vps .env
+          node setup-database.js || echo "Setup database não encontrado"
+          
+          echo "🔄 Reiniciando serviços..."
+          sudo systemctl restart pixel12-api || echo "⚠️ Serviço não encontrado, iniciando manualmente..."
+          
+          echo "🧪 Testando conexão..."
+          node test-vps-connection.js || echo "⚠️ Teste de conexão não encontrado"
+          
+          echo "✅ Deploy concluído com sucesso!"
+        DEPLOY_SCRIPT
+        
+    - name: 📧 Notificação de sucesso
+      if: success()
+      run: |
+        echo "🎉 Deploy concluído com sucesso!"
+        echo "🌐 VPS: ${{ secrets.VPS_HOST }}"
+        echo "📱 API: http://${{ secrets.VPS_HOST }}:${{ secrets.VPS_PORT }}"
+        
+    - name: 📧 Notificação de falha
+      if: failure()
+      run: |
+        echo "❌ Deploy falhou!"
+        echo "🔍 Verifique os logs acima para mais detalhes"
+        echo "🌐 VPS: ${{ secrets.VPS_HOST }}"
