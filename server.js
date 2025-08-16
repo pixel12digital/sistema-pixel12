@@ -6,17 +6,21 @@ const compression = require('compression');
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
+// Importar modelos e rotas
+const User = require('./src/models/User');
+const authRoutes = require('./src/api/routes/auth');
+
 const app = express();
 app.use(express.static("public"));
 const PORT = process.env.PORT || 3000;
 
-// Configuração do banco de dados
+// Configuração do banco de dados (VPS)
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASS || '',
-  database: process.env.DB_NAME || 'whatsapp_multichannel'
+  host: process.env.VPS_DB_HOST || 'localhost',
+  port: process.env.VPS_DB_PORT || 3306,
+  user: process.env.VPS_DB_USER || 'root',
+  password: process.env.VPS_DB_PASS || '',
+  database: process.env.VPS_DB_NAME || 'whatsapp_multichannel'
 };
 
 // Pool de conexões MySQL
@@ -62,44 +66,8 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// Rota para listar usuários
-app.get('/api/users', async (req, res) => {
-  try {
-    const [rows] = await dbPool.execute('SELECT * FROM users ORDER BY created_at DESC');
-    res.json({ success: true, data: rows });
-  } catch (error) {
-    console.error('Erro ao buscar usuários:', error);
-    res.status(500).json({ success: false, error: 'Erro interno do servidor' });
-  }
-});
-
-// Rota para criar usuário
-app.post('/api/users', async (req, res) => {
-  try {
-    const { name, email } = req.body;
-    
-    if (!name || !email) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Nome e email são obrigatórios' 
-      });
-    }
-
-    const [result] = await dbPool.execute(
-      'INSERT INTO users (name, email) VALUES (?, ?)',
-      [name, email]
-    );
-
-    res.status(201).json({ 
-      success: true, 
-      message: 'Usuário criado com sucesso',
-      id: result.insertId 
-    });
-  } catch (error) {
-    console.error('Erro ao criar usuário:', error);
-    res.status(500).json({ success: false, error: 'Erro interno do servidor' });
-  }
-});
+// Usar rotas de autenticação
+app.use('/api/auth', authRoutes);
 
 // Rota para listar sessões
 app.get('/api/sessions', async (req, res) => {
@@ -144,6 +112,18 @@ app.post('/api/sessions', async (req, res) => {
 async function startServer() {
   await connectDB();
   
+  // Configurar pool de conexões no modelo User
+  User.setPool(dbPool);
+  
+  // Inicializar tabela de usuários
+  try {
+    const userModel = new User();
+    await userModel.createTable();
+    console.log('✅ Sistema de autenticação inicializado');
+  } catch (error) {
+    console.error('❌ Erro ao inicializar sistema de autenticação:', error);
+  }
+  
   app.listen(PORT, () => {
     console.log(`🚀 Servidor rodando na porta ${PORT}`);
     console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
@@ -151,7 +131,7 @@ async function startServer() {
     console.log(`🔗 Local: http://localhost:${PORT}`);
     console.log(`🔗 API: http://localhost:${PORT}/api/test`);
     console.log(`🔗 Health: http://localhost:${PORT}/health`);
-    console.log(`👥 Usuários: http://localhost:${PORT}/api/users`);
+    console.log(`🔐 Auth: http://localhost:${PORT}/api/auth/login`);
     console.log(`📱 Sessões: http://localhost:${PORT}/api/sessions`);
   });
 }
