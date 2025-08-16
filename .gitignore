@@ -1,135 +1,65 @@
-# Dependências
+# Dependencies
 node_modules/
-vendor/
-composer.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Arquivos de ambiente e credenciais sensíveis
+# Environment variables
 .env
-*.env
 .env.local
-.env.production
-.env.hostinger
-.local_env
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Arquivos de backup de deploy
-config.backup.php
-painel/config.backup.php
-*.backup.php
-*.backup
-
-# Arquivos específicos de desenvolvimento local
-config.local.php
-config.dev.php
-painel/config.local.php
-painel/config.dev.php
-
-# Credenciais e dados sensíveis específicos
-*password*
-*credential*
-*secret*
-*.key
-*.pem
-api_keys.php
-credentials.php
-
-# Sessões e cache do WhatsApp Web
-.wwebjs_auth/
-.wwebjs_cache/
-whatsapp-session/
-
-# Sistema de cache do painel
-painel/cache/
-painel/cache/*.cache
-cache/
-*.cache
-
-# Logs e arquivos de debug
+# Logs
 logs/
-logs/*.log
 *.log
-debug_*.txt
-debug_*.json
-asaas_debug.json
-cobrancas_debug.json
-error_*.log
-cache_*.log
-whatsapp_*.log
-status_check_*.log
-webhook_*.log
-deploy.log
 
-# Arquivos temporários
-*.tmp
-*.temp
-tmp/
-temp/
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
 
-# Arquivos de sistema
-.DS_Store
-Thumbs.db
-desktop.ini
+# Coverage directory used by tools like istanbul
+coverage/
 
-# IDEs e editores
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# Arquivos de backup
-*.bak
-*.backup
-*.old
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-# Arquivos de upload e media
-uploads/
-media/
-anexos/
-arquivos/
-
-# Arquivos de sessão PHP
+# Sessions and uploads
 sessions/
-
-# Arquivos de teste e debug
-test_*.php
-*_test.php
-teste_*.php
-debug_*.php
-test_config.php
-
-# Arquivos de documentação temporária
-*.md.bak
-docs/temp/
-
-# Arquivos de build
-dist/
-build/
-
-# Arquivos de PM2
-.pm2/
-ecosystem.config.js
-
-# Arquivos de banco de dados locais
-*.db
-*.sqlite
-*.sqlite3
-dump.sql
-backup.sql
-
-# Arquivos de desenvolvimento
-.htaccess.local
-.htpasswd
-robots.txt.local
-
-# Dados de desenvolvimento/teste
-test-data/
-mock-data/
-
-# Arquivos de deployment
-deploy.sh
-
-# Arquivos específicos de desenvolvimento local
-painel/db.local.php
-config.local.json
-# config.php
-# painel/config.php
+uploads/

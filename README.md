@@ -1,186 +1,220 @@
-# 🚀 Loja Virtual Revenda - Sistema Completo
+# 📱 Sistema WhatsApp Multi-Canais com CRM e Gestão de Projetos
 
-## 🎯 **VISÃO GERAL**
+## �� Objetivo do Sistema
 
-Sistema completo de loja virtual com integração WhatsApp, gestão de clientes, faturas e automação. **Atualizado para usar apenas a nova solução whatsapp-web.js de pedroslopes no Render.com**.
+Sistema completo de **WhatsApp Multi-Canais** integrado com **CRM** e **Gestão de Projetos** (similar ao Trello/ClickUp), incluindo:
 
-## ✅ **FUNCIONALIDADES PRINCIPAIS**
+- **WhatsApp Multi-Canais**: Suporte a múltiplas sessões WhatsApp simultâneas
+- **CRM Completo**: Gestão de clientes, leads, oportunidades e vendas
+- **Gestão de Projetos**: Sistema Kanban com status, prioridades e prazos
+- **Integração Asaas**: Sistema de cobrança e pagamentos
+- **IA e Automação**: Chatbots inteligentes e automação de mensagens
+- **Multi-idiomas**: Suporte a múltiplos idiomas
+- **Dashboard Analytics**: Métricas e relatórios em tempo real
 
-### 📱 **WhatsApp Integration**
-- **Nova solução**: whatsapp-web.js de pedroslopes no Render.com
-- **Multi-canal**: Suporte para canais 3000 (Financeiro) e 3001 (Comercial)
-- **Webhooks automáticos**: Configuração automática de webhooks
-- **Chat multicanal**: Interface web para gerenciamento
-- **Monitoramento**: Status em tempo real dos canais
+## 🏗️ Arquitetura do Sistema
 
-### 👥 **Gestão de Clientes**
-- Cadastro completo de clientes
-- Histórico de interações
-- Monitoramento automático
-- Integração com WhatsApp
+### Tecnologias Utilizadas
+- **Backend**: Node.js + Express.js
+- **Banco de Dados**: MySQL 8.0
+- **Cache**: Redis
+- **WhatsApp**: WhatsApp Web.js / Baileys
+- **Autenticação**: JWT
+- **Logs**: Winston
+- **Testes**: Jest
+- **Linting**: ESLint + Prettier
 
-### 💰 **Sistema Financeiro**
-- Gestão de faturas
-- Integração com Asaas
-- Cobranças automáticas
-- Relatórios financeiros
+### Estrutura de Pastas
 
-### 🤖 **Automação**
-- Mensagens automáticas
-- Monitoramento de vencimentos
-- Notificações push
-- IA para atendimento
 
-## 🏗️ **ARQUITETURA**
+## 📊 Estado Atual do Projeto
 
-### **📁 ESTRUTURA DE ARQUIVOS**
+### ✅ **VERIFICAÇÕES REALIZADAS**
 
-```
-📁 loja-virtual-revenda/
-├── 📄 config.php                    # Configurações globais
-├── 📄 config_whatsapp_multiplo.php  # Configuração WhatsApp
-├── 📄 package.json                  # Dependências Node.js
-├── 📄 README_WHATSAPP_NOVA_SOLUCAO.md # Documentação WhatsApp
-├── 📁 src/                          # Código fonte principal
-│   ├── 📁 Controllers/              # Controladores
-│   ├── 📁 Models/                   # Modelos
-│   ├── 📁 Services/                 # Serviços
-│   └── 📁 Views/                    # Visualizações
-├── 📁 painel/                       # Painel administrativo
-│   ├── 📄 faturas.php              # Gestão de faturas
-│   ├── 📄 clientes.php             # Gestão de clientes
-│   ├── 📄 chat.php                 # Chat WhatsApp
-│   └── 📁 api/                     # APIs do painel
-├── 📁 api/                          # APIs principais
-│   ├── 📄 webhook_whatsapp.php     # Webhook WhatsApp
-│   └── 📄 webhooks.php             # Webhooks gerais
-├── 📁 canais/                       # Canais de comunicação
-│   ├── 📁 comercial/               # Canal comercial
-│   ├── 📁 financeiro/              # Canal financeiro
-│   └── 📁 template/                # Template para novos canais
-└── 📁 admin/                        # Área administrativa
-```
+#### 1. **Estrutura do Projeto** ✅
+- [x] Projeto Node.js configurado e funcionando
+- [x] Estrutura de pastas organizada (src/, api/, config/, models/, utils/)
+- [x] Package.json configurado com scripts (start, dev, test, lint, format)
+- [x] Dependências instaladas e funcionando
 
-## 🚀 **INSTALAÇÃO E CONFIGURAÇÃO**
+#### 2. **Servidor e API** ✅
+- [x] Servidor Express.js rodando na porta 3000
+- [x] Middlewares de segurança configurados (helmet, cors, compression)
+- [x] Logging configurado (morgan para desenvolvimento)
+- [x] Health check funcionando (/health)
+- [x] API de teste funcionando (/api/test)
 
-### **1. Pré-requisitos**
-- PHP 7.4+
-- MySQL 5.7+
-- Node.js 16+
-- XAMPP/WAMP/MAMP (desenvolvimento)
+#### 3. **Banco de Dados** ✅
+- [x] MySQL configurado e conectando
+- [x] Banco `whatsapp_multichannel` criado
+- [x] Pool de conexões configurado
+- [x] Variáveis de ambiente configuradas (.env)
 
-### **2. Configuração do Banco**
-```sql
--- Importar o arquivo SQL
-mysql -u root -p < u342734079_revendaweb.sql
-```
+#### 4. **Tabelas do Banco** ✅
+- [x] **users**: Gestão de usuários do sistema
+- [x] **clients**: CRM de clientes e leads
+- [x] **projects**: Gestão de projetos (status, prazos, orçamentos)
+- [x] **whatsapp_sessions**: Sessões WhatsApp multi-canais
+- [x] **whatsapp_contacts**: Contatos WhatsApp
+- [x] **whatsapp_messages**: Histórico de mensagens
+- [x] **invoices**: Sistema de faturas e cobrança
+- [x] **chat_notifications**: Notificações de chat
+- [x] **messages**: Sistema de mensagens gerais
 
-### **3. Configuração do Ambiente**
+#### 5. **APIs Implementadas** ✅
+- [x] **GET /health**: Status do sistema
+- [x] **GET /api/test**: Teste da API
+- [x] **GET /api/users**: Listar usuários
+- [x] **POST /api/users**: Criar usuário
+- [x] **GET /api/sessions**: Listar sessões WhatsApp
+- [x] **POST /api/sessions**: Criar sessão WhatsApp
+
+#### 6. **Dependências Instaladas** ✅
+- [x] **Core**: Express, MySQL2, dotenv, cors, helmet
+- [x] **WhatsApp**: qrcode, ws, socket.io
+- [x] **CRM**: Sequelize, bcryptjs, jsonwebtoken
+- [x] **Utilitários**: moment, lodash, uuid, winston
+- [x] **Desenvolvimento**: nodemon, jest, eslint, prettier
+
+### �� **ESTADO ATUAL**
+- **Servidor**: ✅ Rodando (PID: 845312)
+- **Banco**: ✅ Conectado e funcionando
+- **APIs**: ✅ Funcionando perfeitamente
+- **Tabelas**: ✅ Estrutura criada (todas vazias para desenvolvimento)
+- **Sessão WhatsApp**: ✅ Configurada (disconnected)
+
+## �� **PLANEJAMENTO E PRÓXIMAS ETAPAS**
+
+### **FASE 1: CORE DO SISTEMA** (Prioridade ALTA)
+- [ ] **Implementar autenticação JWT**
+- [ ] **Criar middleware de autenticação**
+- [ ] **Implementar rotas protegidas**
+- [ ] **Sistema de login/logout**
+- [ ] **Gestão de permissões**
+
+### **FASE 2: WHATSAPP MULTI-CANAIS** (Prioridade ALTA)
+- [ ] **Integrar WhatsApp Web.js**
+- [ ] **Sistema de QR Code para conexão**
+- [ ] **Gestão de múltiplas sessões**
+- [ ] **Envio/recebimento de mensagens**
+- [ ] **Webhooks para mensagens**
+- [ ] **Sistema de templates de mensagem**
+
+### **FASE 3: CRM COMPLETO** (Prioridade ALTA)
+- [ ] **CRUD completo de clientes**
+- [ ] **Sistema de leads e oportunidades**
+- [ ] **Histórico de interações**
+- [ ] **Segmentação de clientes**
+- [ ] **Relatórios de vendas**
+- [ ] **Dashboard CRM**
+
+### **FASE 4: GESTÃO DE PROJETOS** (Prioridade ALTA)
+- [ ] **CRUD completo de projetos**
+- [ ] **Sistema Kanban (Trello-like)**
+- [ ] **Gestão de tarefas e subtarefas**
+- [ ] **Sistema de comentários**
+- [ ] **Upload de arquivos**
+- [ ] **Notificações de prazo**
+
+### **FASE 5: INTEGRAÇÃO ASAAS** (Prioridade MÉDIA)
+- [ ] **API de cobrança**
+- [ ] **Sistema de faturas**
+- [ ] **Webhooks de pagamento**
+- [ ] **Relatórios financeiros**
+- [ ] **Integração com projetos**
+
+### **FASE 6: IA E AUTOMAÇÃO** (Prioridade MÉDIA)
+- [ ] **Chatbots inteligentes**
+- [ ] **Automação de mensagens**
+- [ ] **Análise de sentimento**
+- [ ] **Respostas automáticas**
+- [ ] **Machine Learning para leads**
+
+### **FASE 7: FRONTEND E UI/UX** (Prioridade MÉDIA)
+- [ ] **Interface administrativa**
+- [ ] **Dashboard responsivo**
+- [ ] **Sistema de notificações**
+- [ ] **Temas e personalização**
+- [ ] **Mobile app (React Native)**
+
+### **FASE 8: TESTES E QUALIDADE** (Prioridade BAIXA)
+- [ ] **Testes unitários**
+- [ ] **Testes de integração**
+- [ ] **Testes E2E**
+- [ ] **CI/CD pipeline**
+- [ ] **Monitoramento e logs**
+
+## 🔧 **CONFIGURAÇÃO PARA DESENVOLVIMENTO LOCAL**
+
+### **Requisitos**
+- Node.js 18+
+- MySQL 8.0+
+- Redis (opcional)
+- Git
+
+### **Instalação Local**
 ```bash
-# Copiar arquivo de exemplo
-cp env.example .env
+# 1. Clonar projeto
+git clone [URL_DO_REPOSITORIO]
 
-# Editar configurações
-nano .env
-```
-
-### **4. Instalação de Dependências**
-```bash
-# Dependências Node.js
+# 2. Instalar dependências
 npm install
 
-# Dependências PHP (se usar Composer)
-composer install
+# 3. Configurar .env
+cp .env.example .env
+# Editar variáveis de banco
+
+# 4. Executar migrações
+npm run migrate
+
+# 5. Iniciar servidor
+npm run dev
 ```
 
-## 📱 **CONFIGURAÇÃO WHATSAPP**
+### **Configuração do Banco**
+```sql
+-- Criar banco
+CREATE DATABASE whatsapp_multichannel;
 
-### **Canais Configurados**
-
-#### **📞 Canal 3000 (Financeiro - Ana)**
-- **Nome**: Financeiro - Ana
-- **Sessão**: default
-- **Número**: 554797146908
-- **URL**: https://whatsapp-api-c4bg.onrender.com
-
-#### **📞 Canal 3001 (Comercial - Rafael)**
-- **Nome**: Comercial - Rafael
-- **Sessão**: comercial
-- **Número**: 554797309525
-- **URL**: https://whatsapp-api-c4bg.onrender.com
-
-### **Acesso ao Sistema**
-```
-URL Principal: http://localhost:8080/loja-virtual-revenda/painel
-Login: admin / admin123
+-- Executar scripts de criação das tabelas
+-- (já existem na VPS)
 ```
 
-## 🔧 **FUNCIONALIDADES DETALHADAS**
+## 📈 **MÉTRICAS E KPIs**
 
-### **📊 Painel Administrativo**
-- **Dashboard**: Visão geral do sistema
-- **Clientes**: Gestão completa de clientes
-- **Faturas**: Gestão de faturas e cobranças
-- **Chat**: Interface de chat WhatsApp
-- **Monitoramento**: Status dos canais
+### **WhatsApp**
+- Número de sessões ativas
+- Mensagens enviadas/recebidas
+- Taxa de entrega
+- Tempo de resposta
 
-### **🤖 Automação WhatsApp**
-- **Mensagens automáticas**: Baseadas em contexto
-- **Monitoramento**: Verificação de status
-- **Webhooks**: Recebimento de mensagens
-- **Multi-canal**: Suporte a múltiplos canais
+### **CRM**
+- Total de clientes
+- Conversão de leads
+- Valor médio de venda
+- Retenção de clientes
 
-### **💰 Sistema Financeiro**
-- **Faturas**: Criação e gestão
-- **Asaas**: Integração completa
-- **Cobranças**: Automatização
-- **Relatórios**: Análises financeiras
+### **Projetos**
+- Projetos em andamento
+- Prazos cumpridos
+- Faturamento por projeto
+- Produtividade da equipe
 
-## 🛠️ **DESENVOLVIMENTO**
+## 🚨 **PRÓXIMOS PASSOS IMEDIATOS**
 
-### **Estrutura MVC**
-- **Models**: Lógica de negócio
-- **Views**: Interface do usuário
-- **Controllers**: Controle de fluxo
+1. **Implementar autenticação JWT** (1-2 dias)
+2. **Integrar WhatsApp Web.js** (3-5 dias)
+3. **CRUD básico de clientes** (2-3 dias)
+4. **CRUD básico de projetos** (2-3 dias)
+5. **Dashboard básico** (3-5 dias)
 
-### **APIs**
-- **RESTful**: APIs padronizadas
-- **Webhooks**: Integração externa
-- **JSON**: Formato de resposta
+## �� **CONTATO E SUPORTE**
 
-### **Banco de Dados**
-- **MySQL**: Banco principal
-- **Otimizado**: Índices e queries
-- **Backup**: Sistema de backup
-
-## 📝 **LOG DE MUDANÇAS**
-
-### **Versão 2.0 - Limpeza Completa (Janeiro 2025)**
-- ✅ **Removido**: Todas as soluções antigas (VPS, Balay/Baileys)
-- ✅ **Atualizado**: Nova solução whatsapp-web.js no Render.com
-- ✅ **Limpo**: Arquivos de teste, debug e backup removidos
-- ✅ **Organizado**: Estrutura de pastas otimizada
-- ✅ **Documentado**: README atualizado
-
-### **Arquivos Removidos**
-- Servidores VPS antigos (`web-server*.js`)
-- Scripts de teste e debug
-- Documentação desatualizada
-- Relatórios antigos
-- Backups desnecessários
-
-## 🔗 **LINKS ÚTEIS**
-
-- **Painel**: http://localhost:8080/loja-virtual-revenda/painel
-- **Documentação WhatsApp**: [README_WHATSAPP_NOVA_SOLUCAO.md](README_WHATSAPP_NOVA_SOLUCAO.md)
-- **API WhatsApp**: https://whatsapp-api-c4bg.onrender.com
-
-## 📞 **SUPORTE**
-
-Para suporte técnico ou dúvidas:
-- **Email**: suporte@pixel12digital.com.br
-- **WhatsApp**: (55) 47 99999-9999
+- **Desenvolvedor**: Sistema Pixel12
+- **Versão**: 1.0.0
+- **Status**: Em desenvolvimento
+- **Última atualização**: 15/08/2025
 
 ---
-*Sistema desenvolvido por Pixel 12 Digital*
-*Versão: 2.0 - Janeiro 2025* 
+
+*Este README será atualizado conforme o projeto avança. Cada fase implementada será marcada como ✅ concluída.*
