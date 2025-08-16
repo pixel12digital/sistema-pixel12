@@ -12,6 +12,83 @@ Sistema completo de **WhatsApp Multi-Canais** integrado com **CRM** e **Gestão 
 - **Multi-idiomas**: Suporte a múltiplos idiomas
 - **Dashboard Analytics**: Métricas e relatórios em tempo real
 
+## 🚨 **IMPORTANTE: FLUXO DE DESENVOLVIMENTO - NUNCA ESQUECER!**
+
+### **✅ DESENVOLVIMENTO LOCAL (SUA MÁQUINA):**
+- **SEMPRE** editar código localmente no VS Code/Cursor
+- **SEMPRE** testar localmente antes de fazer commit
+- **SEMPRE** fazer commits e push para GitHub
+- **SEMPRE** usar branch `master` para deploy automático
+
+### **❌ NUNCA FAZER NA VPS:**
+- **NUNCA** editar arquivos diretamente na VPS
+- **NUNCA** fazer commits na VPS
+- **NUNCA** modificar código na VPS
+- **NUNCA** instalar dependências manualmente na VPS
+
+### **🔄 FLUXO CORRETO:**
+```
+LOCAL → COMMIT → PUSH → GITHUB → ACTIONS → VPS
+  ↓        ↓       ↓       ↓        ↓       ↓
+Editar  Git    Enviar  Detecta  Executa  Deploy
+código  add    para    push     workflow automático
+```
+
+### **📝 EXEMPLO PRÁTICO:**
+```bash
+# 1. LOCAL: Editar arquivo
+# 2. LOCAL: Commit
+git add .
+git commit -m "Nova funcionalidade implementada"
+
+# 3. LOCAL: Push (dispara deploy automático)
+git push origin master
+
+# 4. GITHUB: Executa workflow automaticamente
+# 5. VPS: Código atualizado automaticamente
+```
+
+### **🎯 VANTAGENS DO FLUXO:**
+- ✅ **Desenvolvimento local** mais rápido
+- ✅ **Versionamento** automático
+- ✅ **Deploy sem intervenção** manual
+- ✅ **Rollback** fácil (git revert)
+- ✅ **Histórico** completo de mudanças
+
+### **📋 CHECKLIST DIÁRIO - NUNCA ESQUECER:**
+- [ ] **Desenvolver LOCALMENTE** (nunca na VPS)
+- [ ] **Testar LOCALMENTE** antes de commit
+- [ ] **Commit LOCAL** com mensagem clara
+- [ ] **Push para master** (dispara deploy automático)
+- [ ] **Verificar GitHub Actions** executando
+- [ ] **Aguardar deploy** automático na VPS
+- [ ] **NUNCA** tocar na VPS manualmente
+
+### **🚨 LEMBRETE PERMANENTE:**
+> **"LOCAL → COMMIT → PUSH → GITHUB → VPS"**
+> 
+> **NUNCA, NUNCA, NUNCA** editar código diretamente na VPS!
+> **SEMPRE** desenvolver localmente e fazer deploy via GitHub Actions!
+
+### **⚡ COMANDOS RÁPIDOS PARA DEPLOY:**
+```bash
+# Desenvolvimento local
+npm run dev          # Iniciar servidor local
+npm test            # Executar testes
+npm run lint        # Verificar código
+
+# Deploy automático
+git add .           # Adicionar mudanças
+git commit -m "Descrição da mudança"
+git push origin master  # Deploy automático na VPS!
+
+# Verificar status
+git status          # Ver mudanças
+git log --oneline   # Ver histórico
+```
+
+---
+
 ## 🏗️ Arquitetura do Sistema
 
 ### Tecnologias Utilizadas
