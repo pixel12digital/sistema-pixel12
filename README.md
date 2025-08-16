@@ -24,7 +24,7 @@ Sistema completo de **WhatsApp Multi-Canais** integrado com **CRM** e **Gestão 
 - **Testes**: Jest
 - **Linting**: ESLint + Prettier
 
-### Estrutura de Pastas
+### Estrutura de Pastas *
 
 
 ## 📊 Estado Atual do Projeto

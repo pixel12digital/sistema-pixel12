@@ -62,12 +62,39 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
         
+    - name: 🔍 Validar chave SSH
+      run: |
+        echo "🔍 Validando configuração SSH..."
+        ssh-add -l || echo "⚠️ Nenhuma chave SSH carregada"
+        echo "📁 Conteúdo do diretório SSH:"
+        ls -la ~/.ssh/ || echo "⚠️ Diretório SSH não encontrado"
+        
     - name: 🌐 Adicionar VPS ao known_hosts
       run: |
+        echo "🔍 Configurando known_hosts..."
         mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        
         echo "🔍 Testando conexão com VPS: ${{ secrets.VPS_HOST }}"
-        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts || echo "⚠️ ssh-keyscan falhou, continuando..."
+        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || {
+          echo "⚠️ ssh-keyscan falhou, tentando método alternativo..."
+          ssh-keyscan ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || echo "⚠️ Método alternativo também falhou"
+        }
+        
+        chmod 644 ~/.ssh/known_hosts
         echo "✅ known_hosts configurado"
+        
+    - name: 🧪 Testar conexão SSH
+      run: |
+        echo "🧪 Testando conexão SSH..."
+        ssh -o ConnectTimeout=10 -o BatchMode=yes ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo '✅ Conexão SSH funcionando!'" || {
+          echo "❌ Falha na conexão SSH"
+          echo "🔍 Verificando configuração..."
+          ssh-add -l
+          echo "📁 Conteúdo do known_hosts:"
+          cat ~/.ssh/known_hosts || echo "⚠️ known_hosts vazio"
+          exit 1
+        }
         
     - name: 🚀 Deploy na VPS
       run: |
@@ -93,7 +120,7 @@ jobs:
         EOF
         
         # Fazer deploy via SSH
-        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'DEPLOY_SCRIPT'
+        ssh -o ConnectTimeout=30 -o BatchMode=yes ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'DEPLOY_SCRIPT'
           echo "📁 Navegando para diretório do projeto..."
           cd ${{ secrets.VPS_PROJECT_PATH }}
           
@@ -130,3 +157,6 @@ jobs:
         echo "❌ Deploy falhou!"
         echo "🔍 Verifique os logs acima para mais detalhes"
         echo "🌐 VPS: ${{ secrets.VPS_HOST }}"
+        echo "👤 Usuário: ${{ secrets.VPS_USER }}"
+        echo "🔑 Status da chave SSH:"
+        ssh-add -l || echo "⚠️ Nenhuma chave SSH carregada"
